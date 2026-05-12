@@ -226,8 +226,13 @@ final class SessionStore: ObservableObject {
         pushPollingTask = Task { [weak self] in
             let started = Date()
             // Keep trying for ~2 minutes — about the lifetime of a Synology push prompt.
+            // 10 s polling interval: an aggressive 5 s schedule may create a fresh
+            // push request on every retry (Synology behaviour here isn't documented),
+            // which would spam notifications. The user can also tap "I approved" in
+            // the UI to force an immediate retry — scenePhase change does the same
+            // automatically when they switch back from the Secure SignIn app.
             while !Task.isCancelled, Date().timeIntervalSince(started) < 120 {
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(10))
                 if Task.isCancelled { return }
                 guard let self else { return }
                 await self.pollOnce(pending: pending)

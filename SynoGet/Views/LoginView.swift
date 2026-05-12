@@ -167,20 +167,14 @@ struct LoginView: View {
                 .foregroundStyle(.tint)
                 .padding(.bottom, 4)
             Text("Two-step verification").font(.title3.weight(.semibold))
-            Text("Approve the sign-in request on your Synology Secure SignIn app, or enter the 6-digit code below.")
+            Text("Approve the sign-in request in your Synology Secure SignIn app, then tap the button below — or enter the 6-digit code from your authenticator app.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.bottom, 8)
 
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small)
-            Text("Waiting for approval…").font(.footnote).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
-
-        IconField(systemImage: "number.square", placeholder: "6-digit code", text: $otpCode)
+        IconField(systemImage: "number.square", placeholder: "6-digit code (optional)", text: $otpCode)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
 
@@ -188,25 +182,29 @@ struct LoginView: View {
             .font(.footnote)
             .padding(.horizontal, 4)
 
+        // One button for both flows. Empty OTP -> retry the login without a code,
+        // which is the right move both after a push approval (Synology should now
+        // hand us the SID) and after an OTP entry.
         signInButton(
-            label: "Verify code",
+            label: otpCode.isEmpty ? "I approved — sign in" : "Verify code",
             isWorking: session.state == .authenticating
         ) {
-            Task { await session.submitOTP(otpCode) }
+            Task {
+                if otpCode.isEmpty {
+                    await session.resendPushApproval()
+                } else {
+                    await session.submitOTP(otpCode)
+                }
+            }
         }
-        .disabled(otpCode.count < 6 || session.state == .authenticating)
+        .disabled(session.state == .authenticating)
 
-        HStack {
-            Button("Cancel", role: .cancel) {
-                session.cancelTwoFactor()
-                otpCode = ""
-            }
-            Spacer()
-            Button("Resend push") {
-                Task { await session.resendPushApproval() }
-            }
+        Button("Cancel", role: .cancel) {
+            session.cancelTwoFactor()
+            otpCode = ""
         }
         .font(.footnote)
+        .frame(maxWidth: .infinity)
         .padding(.top, 4)
     }
 

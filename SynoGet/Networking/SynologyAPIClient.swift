@@ -319,7 +319,19 @@ actor SynologyAPIClient {
                 throw APIError.http(http.statusCode)
             }
             do {
-                return try JSONDecoder().decode(APIResponse<T>.self, from: data)
+                let decoded = try JSONDecoder().decode(APIResponse<T>.self, from: data)
+                #if DEBUG
+                // When debugging push-approval flow: log the raw body whenever Synology
+                // says the call failed. Synology often tucks extra fields (auth token,
+                // approval id, etc.) into the response that don't show up in the
+                // documented schema.
+                if !decoded.success, let s = String(data: data, encoding: .utf8) {
+                    let method = params["method"] ?? "?"
+                    let api = params["api"] ?? "?"
+                    print("[SynoGet] \(api) method=\(method) FAILED → \(s)")
+                }
+                #endif
+                return decoded
             } catch {
                 throw APIError.decoding(error)
             }
