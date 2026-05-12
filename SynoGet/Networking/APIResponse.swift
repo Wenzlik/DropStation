@@ -18,8 +18,10 @@ struct LoginData: Decodable {
 }
 
 struct TaskListData: Decodable {
-    let total: Int
-    let offset: Int
+    // `total` and `offset` are returned by the list endpoint but not by getinfo
+    // (which only returns `tasks`). Optional so both shapes decode cleanly.
+    let total: Int?
+    let offset: Int?
     let tasks: [DownloadTask]
 }
 
