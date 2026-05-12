@@ -29,7 +29,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 
 ## Tech
 
-- SwiftUI, iOS 16+
+- SwiftUI, iOS 17+
 - Swift 5.9, async/await, Codable
 - No third-party dependencies
 - `actor`-based API client

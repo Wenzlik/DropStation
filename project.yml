@@ -5,7 +5,7 @@ name: SynologyTorrent
 options:
   bundleIdPrefix: com.wenzlik
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   createIntermediateGroups: true
 
 settings:
@@ -23,8 +23,6 @@ targets:
       - path: SynologyTorrent
         excludes:
           - "Resources/Info.plist"
-    info:
-      path: SynologyTorrent/Resources/Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynologyTorrent
