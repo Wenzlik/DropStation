@@ -10,14 +10,14 @@ final class SessionStore: ObservableObject {
         case restoring
         case loggedOut
         case authenticating
-        /// First-stage credentials accepted; server is waiting for a 2-step verification
-        /// code from an authenticator app (TOTP).
+        /// First-stage credentials accepted; server is waiting for 2-step verification.
         ///
-        /// Note on Synology Secure SignIn "Approve sign-in" push: that flow requires the
-        /// Synology OAuth Service or Synology's first-party app integration, neither of
-        /// which the public `auth.cgi` endpoint we hit can trigger. Users on accounts
-        /// with push approval enabled still see a 6-digit code in the Secure SignIn
-        /// app's "Codes" tab, which works with this flow exactly like any TOTP code.
+        /// Depending on the account settings, "verification" can mean either:
+        ///   - tapping Approve on the Synology Secure SignIn push notification
+        ///     that arrives on the user's authenticator app, or
+        ///   - typing the 6-digit TOTP code into the OTP field.
+        /// Either one completes the same `submitOTP` flow (push approval lets the
+        /// next login succeed without an OTP code).
         case twoFactorRequired
         case loggedIn
         case error(String)
@@ -37,28 +37,20 @@ final class SessionStore: ObservableObject {
     private struct PendingCredentials {
         let config: ServerConfig
         let password: String
-        let trustThisDevice: Bool
     }
 
     init() {
         Task { await restoreSession() }
     }
 
-    /// True when a device id is saved for the current account+host. The UI can hide the OTP
-    /// field because the next login will skip 2FA.
-    var hasTrustedDevice: Bool {
-        guard !config.account.isEmpty, !config.host.isEmpty else { return false }
-        return KeychainStorage.deviceID(for: accountAtHost) != nil
-    }
-
     // MARK: - Restore
 
     /// Try to restore a session on app launch:
-    ///   1. If we have a saved SID, configure the client and probe the API.
-    ///      A successful probe -> we are logged in, nothing else to do.
-    ///   2. If the probe fails because the session expired, try a silent re-login using
-    ///      the saved password (+ device id, if any).
-    ///   3. If we have no SID and no saved credentials, show the login form.
+    ///   1. If we have a saved SID, probe the API. Success → already logged in.
+    ///   2. If the SID expired, try a silent re-login using the saved password.
+    ///      The server will trigger 2FA again (push approval or OTP) — we surface
+    ///      the 2FA prompt so the user can complete it.
+    ///   3. If we have no SID and no saved password, show the login form.
     private func restoreSession() async {
         guard !config.host.isEmpty, !config.account.isEmpty,
               let url = config.baseURL else {
@@ -85,20 +77,17 @@ final class SessionStore: ObservableObject {
             }
         }
 
-        // Try silent re-login using stored password (+ device id if 2FA-trusted).
+        // Try silent re-login using stored password.
         if let savedPassword = KeychainStorage.password(for: config.account) {
-            do {
-                try await performLogin(
-                    password: savedPassword,
-                    otpCode: nil,
-                    deviceID: KeychainStorage.deviceID(for: accountAtHost),
-                    enableDeviceToken: false
-                )
-                return
-            } catch {
-                // Credentials might have changed server-side, or the device_id was revoked.
-                // Fall through to the login form so the user can fix it.
-            }
+            self.pendingCredentials = PendingCredentials(config: config, password: savedPassword)
+            await attemptLogin(
+                password: savedPassword,
+                otpCode: nil,
+                onOTPNeeded: { [weak self] in
+                    self?.state = .twoFactorRequired
+                }
+            )
+            return
         }
 
         state = .loggedOut
@@ -106,9 +95,11 @@ final class SessionStore: ObservableObject {
 
     // MARK: - Login
 
-    /// Initial login from the form. If the server demands a second factor, we transition
-    /// into `.twoFactorRequired` and wait for the user to enter the OTP code.
-    func login(config: ServerConfig, password: String, trustThisDevice: Bool = true) async {
+    /// Initial login from the form. If the server demands a second factor, transition
+    /// to `.twoFactorRequired` and wait — the server has typically also sent a push
+    /// to Synology Secure SignIn, so the user can either Approve the push or enter
+    /// the 6-digit TOTP code.
+    func login(config: ServerConfig, password: String) async {
         self.config = config
         guard let url = config.baseURL else {
             state = .error("Invalid server URL.")
@@ -116,16 +107,12 @@ final class SessionStore: ObservableObject {
         }
         await client.configure(baseURL: url)
         state = .authenticating
+        pendingCredentials = PendingCredentials(config: config, password: password)
         await attemptLogin(
             password: password,
             otpCode: nil,
-            trustThisDevice: trustThisDevice,
             onOTPNeeded: { [weak self] in
-                guard let self else { return }
-                self.pendingCredentials = PendingCredentials(
-                    config: config, password: password, trustThisDevice: trustThisDevice
-                )
-                self.state = .twoFactorRequired
+                self?.state = .twoFactorRequired
             }
         )
     }
@@ -140,7 +127,20 @@ final class SessionStore: ObservableObject {
         await attemptLogin(
             password: pending.password,
             otpCode: otpCode,
-            trustThisDevice: pending.trustThisDevice,
+            onOTPNeeded: { [weak self] in
+                self?.state = .twoFactorRequired
+            }
+        )
+    }
+
+    /// User has tapped Approve on the Secure SignIn push — retry the login.
+    /// (Also available as the "I approved — sign in" button on the 2FA card.)
+    func retryAfterPushApproval() async {
+        guard let pending = pendingCredentials else { return }
+        state = .authenticating
+        await attemptLogin(
+            password: pending.password,
+            otpCode: nil,
             onOTPNeeded: { [weak self] in
                 self?.state = .twoFactorRequired
             }
@@ -156,16 +156,10 @@ final class SessionStore: ObservableObject {
     private func attemptLogin(
         password: String,
         otpCode: String?,
-        trustThisDevice: Bool,
         onOTPNeeded: @escaping () -> Void
     ) async {
         do {
-            try await performLogin(
-                password: password,
-                otpCode: otpCode,
-                deviceID: KeychainStorage.deviceID(for: accountAtHost),
-                enableDeviceToken: trustThisDevice
-            )
+            try await performLogin(password: password, otpCode: otpCode)
             try? KeychainStorage.setPassword(password, for: config.account)
             ServerConfigStore.save(config)
             pendingCredentials = nil
@@ -178,25 +172,17 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    /// Shared login path used both by interactive login and silent re-login.
-    private func performLogin(
-        password: String,
-        otpCode: String?,
-        deviceID: String?,
-        enableDeviceToken: Bool
-    ) async throws {
+    /// The single Synology `login` call. Intentionally does NOT pass
+    /// `enable_device_token` or `device_id` — those flags switch the server into
+    /// a TOTP-only flow and suppress the Secure SignIn push notification, which
+    /// is the opposite of what we want. SID is the only thing we persist.
+    private func performLogin(password: String, otpCode: String?) async throws {
         let result = try await client.login(
             account: config.account,
             password: password,
-            otpCode: otpCode,
-            enableDeviceToken: enableDeviceToken,
-            deviceID: deviceID,
-            deviceName: Self.deviceName
+            otpCode: otpCode
         )
         try? KeychainStorage.setSID(result.sid, for: accountAtHost)
-        if let did = result.deviceID {
-            try? KeychainStorage.setDeviceID(did, for: accountAtHost)
-        }
         state = .loggedIn
     }
 
@@ -205,8 +191,6 @@ final class SessionStore: ObservableObject {
     func logout() async {
         try? await client.logout()
         KeychainStorage.deleteSID(for: accountAtHost)
-        // We keep the password and device id so the user can come back without re-entering
-        // 2FA. They are cleared by `forgetDevice()`.
         state = .loggedOut
     }
 
@@ -227,12 +211,4 @@ final class SessionStore: ObservableObject {
     // MARK: - Helpers
 
     private var accountAtHost: String { "\(config.account)@\(config.host)" }
-
-    private static var deviceName: String {
-        #if canImport(UIKit)
-        return UIDevice.current.name
-        #else
-        return "SynoGet iOS"
-        #endif
-    }
 }

@@ -4,6 +4,30 @@ All notable changes to **Syno Get** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-05-12
+
+### Fixed
+- **Synology Secure SignIn push approval now works.** 0.2.0 stopped
+  receiving pushes after a refactor added `enable_device_token=yes` and
+  `device_id` to the login call — those parameters switch DSM into a
+  TOTP-only flow that suppresses the push notification. The login
+  request now sends just account/password (plus an OTP code when the
+  user types one), which is what the very first build did and is what
+  triggers the push.
+- 2FA card again has the "I approved — sign in" button and the
+  scenePhase observer that auto-retries the login as soon as the user
+  comes back from the Synology Secure SignIn app, so the typical flow
+  is: tap Sign in → approve in Secure SignIn → switch back → in.
+
+### Changed
+- **Trust-this-device toggle removed.** It was paired with
+  `enable_device_token`, which we no longer send. Trade-off accepted
+  here: the saved SID still keeps you logged in for the DSM session
+  lifetime (typically ~8 h), but a fresh re-login after that triggers
+  a push approval rather than skipping it via device token. A push is
+  one tap; the previous behaviour silenced the push entirely and was
+  unintentionally worse.
+
 ## [0.2.1] — 2026-05-12
 
 ### Changed
@@ -89,6 +113,7 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - App icon (orange gradient + white download-into-tray arrow), generated
   from `icon.svg`.
 
+[0.2.2]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.1.0

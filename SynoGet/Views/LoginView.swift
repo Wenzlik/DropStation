@@ -12,7 +12,6 @@ struct LoginView: View {
     @State private var port: String = "5001"
     @State private var account: String = ""
     @State private var password: String = ""
-    @State private var trustThisDevice: Bool = true
     @State private var otpCode: String = ""
     @State private var serverExpanded: Bool = false
 
@@ -167,32 +166,36 @@ struct LoginView: View {
                 .foregroundStyle(.tint)
                 .padding(.bottom, 4)
             Text("Two-step verification").font(.title3.weight(.semibold))
-            Text("Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code.")
+            Text("Approve the sign-in request on your Synology Secure SignIn app, then tap below — or enter the 6-digit code from any authenticator app.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.bottom, 8)
 
-        IconField(systemImage: "number.square", placeholder: "6-digit code", text: $otpCode)
+        IconField(systemImage: "number.square", placeholder: "6-digit code (optional)", text: $otpCode)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
-
-        Toggle("Trust this device", isOn: $trustThisDevice)
-            .font(.footnote)
-            .padding(.horizontal, 4)
 
         if case .error(let message) = session.state {
             inlineErrorLabel(message)
         }
 
+        // One button for both flows. Empty OTP -> retry the login (server hands us a
+        // SID if the user just approved the push). Otherwise -> submit the OTP code.
         signInButton(
-            label: "Verify code",
+            label: otpCode.isEmpty ? "I approved — sign in" : "Verify code",
             isWorking: session.state == .authenticating
         ) {
-            Task { await session.submitOTP(otpCode) }
+            Task {
+                if otpCode.isEmpty {
+                    await session.retryAfterPushApproval()
+                } else {
+                    await session.submitOTP(otpCode)
+                }
+            }
         }
-        .disabled(otpCode.count < 6 || session.state == .authenticating)
+        .disabled(session.state == .authenticating)
 
         Button("Cancel", role: .cancel) {
             session.cancelTwoFactor()
@@ -248,7 +251,7 @@ struct LoginView: View {
     private func login() async {
         guard let portInt = Int(port) else { return }
         let cfg = ServerConfig(scheme: scheme, host: host, port: portInt, account: account)
-        await session.login(config: cfg, password: password, trustThisDevice: trustThisDevice)
+        await session.login(config: cfg, password: password)
     }
 }
 
