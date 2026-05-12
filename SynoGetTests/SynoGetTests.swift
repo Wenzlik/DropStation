@@ -70,19 +70,37 @@ final class TaskFilterTests: XCTestCase {
         }
     }
 
-    func testActiveCoversWorkingStates() {
+    func testDownloadingExcludesSeeding() {
+        // The reason this filter exists: distinguish "pulling bytes" from "sending to peers".
+        XCTAssertTrue(TaskFilter.downloading.matches(task(.downloading)))
+        XCTAssertTrue(TaskFilter.downloading.matches(task(.waiting)))
+        XCTAssertTrue(TaskFilter.downloading.matches(task(.hash_checking)))
+        XCTAssertFalse(TaskFilter.downloading.matches(task(.seeding)))
+        XCTAssertFalse(TaskFilter.downloading.matches(task(.paused)))
+        XCTAssertFalse(TaskFilter.downloading.matches(task(.finished)))
+    }
+
+    func testSeedingMatchesOnlySeeding() {
+        XCTAssertTrue(TaskFilter.seeding.matches(task(.seeding)))
+        XCTAssertFalse(TaskFilter.seeding.matches(task(.downloading)))
+        XCTAssertFalse(TaskFilter.seeding.matches(task(.finished)))
+    }
+
+    func testActiveCoversBothDownloadingAndSeeding() {
         XCTAssertTrue(TaskFilter.active.matches(task(.downloading)))
         XCTAssertTrue(TaskFilter.active.matches(task(.seeding)))
         XCTAssertTrue(TaskFilter.active.matches(task(.hash_checking)))
         XCTAssertTrue(TaskFilter.active.matches(task(.waiting)))
+        XCTAssertTrue(TaskFilter.active.matches(task(.finishing)))
         XCTAssertFalse(TaskFilter.active.matches(task(.paused)))
         XCTAssertFalse(TaskFilter.active.matches(task(.finished)))
         XCTAssertFalse(TaskFilter.active.matches(task(.error)))
     }
 
-    func testFinishedCoversBothFinishedAndFinishing() {
+    func testFinishedExcludesInProgressFinishing() {
+        // Finishing is still in progress; only fully-finished tasks count as done.
         XCTAssertTrue(TaskFilter.finished.matches(task(.finished)))
-        XCTAssertTrue(TaskFilter.finished.matches(task(.finishing)))
+        XCTAssertFalse(TaskFilter.finished.matches(task(.finishing)))
         XCTAssertFalse(TaskFilter.finished.matches(task(.seeding)))
     }
 
