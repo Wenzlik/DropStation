@@ -124,6 +124,30 @@ final class LoginDataDecodingTests: XCTestCase {
     }
 }
 
+final class FileNodeTests: XCTestCase {
+    func testDecodeShareFromFileStationJSON() throws {
+        // Synology returns list_share entries with leading-slash paths.
+        let json = #"{"name":"Downloads","path":"/Downloads","isdir":true}"#.data(using: .utf8)!
+        let node = try JSONDecoder().decode(FileNode.self, from: json)
+        XCTAssertEqual(node.name, "Downloads")
+        XCTAssertEqual(node.path, "/Downloads")
+        XCTAssertTrue(node.isdir)
+    }
+
+    func testDestinationPathStripsLeadingSlash() {
+        // DownloadStation create-task expects "Downloads/Movies", not "/Downloads/Movies".
+        XCTAssertEqual(FileNode(name: "Movies", path: "/Downloads/Movies", isdir: true).destinationPath,
+                       "Downloads/Movies")
+        XCTAssertEqual(FileNode(name: "Downloads", path: "/Downloads", isdir: true).destinationPath,
+                       "Downloads")
+    }
+
+    func testDestinationPathLeavesAlreadyRelativeAlone() {
+        XCTAssertEqual(FileNode(name: "x", path: "Downloads", isdir: true).destinationPath,
+                       "Downloads")
+    }
+}
+
 final class AppearanceModeTests: XCTestCase {
     func testPreferredColorSchemeMapping() {
         XCTAssertNil(AppearanceMode.system.preferredColorScheme)

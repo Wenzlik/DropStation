@@ -24,3 +24,11 @@ struct TaskListData: Decodable {
 }
 
 struct EmptyData: Decodable {}
+
+struct FileStationShareList: Decodable {
+    let shares: [FileNode]
+}
+
+struct FileStationFileList: Decodable {
+    let files: [FileNode]
+}

@@ -21,6 +21,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 - [x] List downloads with progress, size, status
 - [x] Add a download from a magnet/HTTP/FTP URI
 - [x] Add a download by uploading a local `.torrent` file from the Files app
+- [x] Choose download destination by browsing NAS shared folders (FileStation API)
 - [x] Pause / resume tasks (swipe from the left)
 - [x] Filter list by status (All / Active / Paused / Finished / Error)
 - [x] Settings sheet (theme override, account management, app info)

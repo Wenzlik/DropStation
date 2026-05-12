@@ -33,18 +33,18 @@ final class TaskListViewModel: ObservableObject {
         }
     }
 
-    func createTask(uri: String) async {
+    func createTask(uri: String, destination: String? = nil) async {
         do {
-            try await client.createTask(uri: uri)
+            try await client.createTask(uri: uri, destination: destination)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func createTask(fileData: Data, filename: String) async {
+    func createTask(fileData: Data, filename: String, destination: String? = nil) async {
         do {
-            try await client.createTask(fileData: fileData, filename: filename)
+            try await client.createTask(fileData: fileData, filename: filename, destination: destination)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription

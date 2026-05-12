@@ -8,14 +8,17 @@ struct AddTaskView: View {
     @State private var mode: Mode = .uri
     @State private var uri: String = ""
     @State private var pickedFile: PickedFile?
+    @State private var pickedDestination: FileNode?
     @State private var isFileImporterPresented = false
+    @State private var isFolderPickerPresented = false
     @State private var isSubmitting = false
     @State private var fileImportError: String?
 
-    /// Callback for URI-based downloads.
-    let onAddURI: (String) async -> Void
+    /// Callback for URI-based downloads. Destination is the path without leading slash
+    /// (e.g. "Downloads/Movies"), or `nil` to use the server default.
+    let onAddURI: (String, String?) async -> Void
     /// Callback for file-based downloads.
-    let onAddFile: (Data, String) async -> Void
+    let onAddFile: (Data, String, String?) async -> Void
 
     enum Mode: String, CaseIterable, Identifiable {
         case uri = "Link"
@@ -79,6 +82,31 @@ struct AddTaskView: View {
                     }
                 }
 
+                Section("Destination") {
+                    Button {
+                        isFolderPickerPresented = true
+                    } label: {
+                        HStack {
+                            Image(systemName: pickedDestination == nil ? "folder" : "folder.fill")
+                                .foregroundStyle(.tint)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(pickedDestination?.name ?? "Default destination")
+                                    .foregroundStyle(.primary)
+                                if let path = pickedDestination?.path {
+                                    Text(path).font(.caption).foregroundStyle(.secondary)
+                                } else {
+                                    Text("As configured in DSM")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 Section {
                     Button {
                         Task { await submit() }
@@ -113,6 +141,11 @@ struct AddTaskView: View {
             ) { result in
                 handleFileImport(result: result)
             }
+            .sheet(isPresented: $isFolderPickerPresented) {
+                FolderPickerView { picked in
+                    pickedDestination = picked
+                }
+            }
         }
     }
 
@@ -126,12 +159,13 @@ struct AddTaskView: View {
     private func submit() async {
         isSubmitting = true
         defer { isSubmitting = false }
+        let destination = pickedDestination?.destinationPath
         switch mode {
         case .uri:
-            await onAddURI(uri.trimmingCharacters(in: .whitespacesAndNewlines))
+            await onAddURI(uri.trimmingCharacters(in: .whitespacesAndNewlines), destination)
         case .file:
             guard let picked = pickedFile else { return }
-            await onAddFile(picked.data, picked.name)
+            await onAddFile(picked.data, picked.name, destination)
         }
         dismiss()
     }

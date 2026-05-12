@@ -74,11 +74,11 @@ struct TaskListView: View {
             }
             .sheet(isPresented: $showingAddTask) {
                 AddTaskView(
-                    onAddURI: { uri in
-                        await viewModel.createTask(uri: uri)
+                    onAddURI: { uri, destination in
+                        await viewModel.createTask(uri: uri, destination: destination)
                     },
-                    onAddFile: { data, name in
-                        await viewModel.createTask(fileData: data, filename: name)
+                    onAddFile: { data, name, destination in
+                        await viewModel.createTask(fileData: data, filename: name, destination: destination)
                     }
                 )
             }

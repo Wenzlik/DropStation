@@ -115,18 +115,21 @@ actor SynologyAPIClient {
     }
 
     /// Create a download task from a URI (magnet:, http:, ftp:, https:).
-    func createTask(uri: String) async throws {
+    /// `destination` is the path **without** a leading slash, starting with a shared folder
+    /// (e.g. "Downloads/Movies"). Pass `nil` to use the server's configured default.
+    func createTask(uri: String, destination: String? = nil) async throws {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
         let url = baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi")
-        let params: [String: String] = [
+        var params: [String: String] = [
             "api": "SYNO.DownloadStation.Task",
             "version": "1",
             "method": "create",
             "uri": uri,
             "_sid": sid
         ]
+        if let destination, !destination.isEmpty { params["destination"] = destination }
         let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
         try ensureSuccess(response)
     }
@@ -135,7 +138,7 @@ actor SynologyAPIClient {
     ///
     /// Per the Synology API spec ("Limitations" on the Create endpoint), when uploading a
     /// file the upload part must be the **last** field in the multipart body.
-    func createTask(fileData: Data, filename: String) async throws {
+    func createTask(fileData: Data, filename: String, destination: String? = nil) async throws {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
@@ -145,12 +148,16 @@ actor SynologyAPIClient {
             url: baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi"),
             resolvingAgainstBaseURL: false
         )!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "api", value: "SYNO.DownloadStation.Task"),
             URLQueryItem(name: "version", value: "1"),
             URLQueryItem(name: "method", value: "create"),
             URLQueryItem(name: "_sid", value: sid)
         ]
+        if let destination, !destination.isEmpty {
+            queryItems.append(URLQueryItem(name: "destination", value: destination))
+        }
+        components.queryItems = queryItems
         guard let url = components.url else { throw APIError.invalidURL }
 
         let boundary = "Boundary-\(UUID().uuidString)"
@@ -198,6 +205,47 @@ actor SynologyAPIClient {
         ]
         let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
         try ensureSuccess(response, context: .task)
+    }
+
+    // MARK: - File Station (folder picker)
+
+    /// List shared folders the logged-in user can access. Returned paths look like
+    /// "/Downloads", "/video" — suitable for direct use as the next `listFolders` argument.
+    /// The DownloadStation SID is reused; FileStation does not require a separate login.
+    func listShares() async throws -> [FileNode] {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+
+        let url = baseURL.appendingPathComponent("/webapi/entry.cgi")
+        let params: [String: String] = [
+            "api": "SYNO.FileStation.List",
+            "version": "2",
+            "method": "list_share",
+            "_sid": sid
+        ]
+        let response: APIResponse<FileStationShareList> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+        return response.data?.shares ?? []
+    }
+
+    /// List folders inside a path. `path` must start with a shared folder, e.g. "/Downloads".
+    /// Only directories are returned (`filetype=dir`).
+    func listFolders(in path: String) async throws -> [FileNode] {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+
+        let url = baseURL.appendingPathComponent("/webapi/entry.cgi")
+        let params: [String: String] = [
+            "api": "SYNO.FileStation.List",
+            "version": "2",
+            "method": "list",
+            "folder_path": path,
+            "filetype": "dir",
+            "_sid": sid
+        ]
+        let response: APIResponse<FileStationFileList> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+        return response.data?.files ?? []
     }
 
     func deleteTask(id: String) async throws {
