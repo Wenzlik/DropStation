@@ -55,6 +55,7 @@ struct TaskListView: View {
             }
             .refreshable { await viewModel.refresh() }
             .navigationTitle(navigationTitle)
+            .navigationSubtitle(speedSubtitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -130,6 +131,15 @@ struct TaskListView: View {
         viewModel.filter == .all ? "Downloads" : "Downloads — \(viewModel.filter.label)"
     }
 
+    private var speedSubtitle: String {
+        let down = viewModel.totalDownloadSpeed
+        let up = viewModel.totalUploadSpeed
+        guard down > 0 || up > 0 else { return "" }
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return "↓ \(f.string(fromByteCount: down))/s   ↑ \(f.string(fromByteCount: up))/s"
+    }
+
     private var emptyStateTitle: String {
         viewModel.filter == .all ? "No downloads" : "No \(viewModel.filter.label.lowercased()) downloads"
     }
@@ -152,8 +162,15 @@ private struct TaskRow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(task.title).font(.body).lineLimit(2)
             ProgressView(value: task.progress)
-            HStack {
+            HStack(spacing: 8) {
                 StatusPill(status: task.status)
+                if let speed = liveSpeed, speed > 0 {
+                    Label(formattedSpeed(speed), systemImage: "arrow.down")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.green)
+                        .monospacedDigit()
+                }
                 Spacer()
                 Text(formattedSize(task.size))
                     .font(.caption)
@@ -164,8 +181,18 @@ private struct TaskRow: View {
         .padding(.vertical, 4)
     }
 
+    /// Show ↓ speed inline only for tasks that are actively transferring; otherwise it's noise.
+    private var liveSpeed: Int64? {
+        guard task.canPause, task.status != .paused else { return nil }
+        return task.additional?.transfer?.speedDownload
+    }
+
     private func formattedSize(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    private func formattedSpeed(_ bytes: Int64) -> String {
+        "\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))/s"
     }
 }
 

@@ -16,6 +16,15 @@ final class TaskListViewModel: ObservableObject {
         tasks.filter { filter.matches($0) }.count
     }
 
+    /// Sum of download speed across all tasks (whatever the filter is — represents the NAS, not the view).
+    var totalDownloadSpeed: Int64 {
+        tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedDownload ?? 0) }
+    }
+
+    var totalUploadSpeed: Int64 {
+        tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedUpload ?? 0) }
+    }
+
     private let client: SynologyAPIClient
     private var refreshTimer: Timer?
 

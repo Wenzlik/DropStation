@@ -23,6 +23,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 - [x] Add a download by uploading a local `.torrent` file from the Files app
 - [x] Choose download destination by browsing NAS shared folders (FileStation API)
 - [x] Task detail screen (peers, seeders, leechers, files, trackers, ETA, ratio)
+- [x] Live ↓ speed on each active row plus aggregate ↓/↑ in the navigation subtitle
 - [x] Pause / resume tasks (swipe from the left)
 - [x] Filter list by status (All / Active / Paused / Finished / Error)
 - [x] Settings sheet (theme override, account management, app info)
