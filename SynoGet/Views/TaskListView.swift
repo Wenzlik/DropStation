@@ -172,7 +172,7 @@ private struct TaskRow: View {
                         .monospacedDigit()
                 }
                 Spacer()
-                Text(formattedSize(task.size))
+                Text(formattedSize(task.size.value))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
@@ -184,7 +184,7 @@ private struct TaskRow: View {
     /// Show ↓ speed inline only for tasks that are actively transferring; otherwise it's noise.
     private var liveSpeed: Int64? {
         guard task.canPause, task.status != .paused else { return nil }
-        return task.additional?.transfer?.speedDownload
+        return task.additional?.transfer?.speedDownload.value
     }
 
     private func formattedSize(_ bytes: Int64) -> String {

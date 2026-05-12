@@ -183,11 +183,11 @@ final class TaskDetailDecodingTests: XCTestCase {
 
         let task = try JSONDecoder().decode(DownloadTask.self, from: json)
         XCTAssertEqual(task.additional?.detail?.destination, "Downloads/Linux")
-        XCTAssertEqual(task.additional?.detail?.connectedSeeders, 12)
+        XCTAssertEqual(task.additional?.detail?.connectedSeeders?.value, 12)
         XCTAssertEqual(task.additional?.file?.count, 2)
         XCTAssertEqual(task.additional?.file?.first?.size?.value, 5368709120) // came in as string
         XCTAssertEqual(task.additional?.file?.last?.size?.value, 1024)        // came in as int
-        XCTAssertEqual(task.additional?.tracker?.first?.seeds, 50)
+        XCTAssertEqual(task.additional?.tracker?.first?.seeds?.value, 50)
     }
 
     func testDecodeListResponseStillWorksWithoutExtraFields() throws {

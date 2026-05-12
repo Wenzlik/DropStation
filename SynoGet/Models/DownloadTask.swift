@@ -3,10 +3,12 @@ import Foundation
 struct DownloadTask: Codable, Identifiable, Hashable {
     let id: String
     let title: String
-    let size: Int64
+    /// Total task size in bytes. Synology returns this as either a JSON number or a
+    /// quoted numeric string depending on DSM version and task size, hence FlexibleInt64.
+    let size: FlexibleInt64
     let status: Status
     let type: TaskType
-    let username: String
+    let username: String?
     let additional: Additional?
 
     enum Status: String, Codable {
@@ -36,11 +38,15 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         let file: [TorrentFile]?
         let tracker: [Tracker]?
 
+        // Every numeric field below uses FlexibleInt64 (or its optional variant) because
+        // Synology is inconsistent about returning numbers as JSON numbers vs quoted
+        // strings — and individual DSM versions differ. Optional where the field can be
+        // genuinely absent (BT-only counters on an HTTP task, etc.).
         struct Transfer: Codable, Hashable {
-            let sizeDownloaded: Int64
-            let sizeUploaded: Int64
-            let speedDownload: Int64
-            let speedUpload: Int64
+            let sizeDownloaded: FlexibleInt64
+            let sizeUploaded: FlexibleInt64
+            let speedDownload: FlexibleInt64
+            let speedUpload: FlexibleInt64
 
             enum CodingKeys: String, CodingKey {
                 case sizeDownloaded = "size_downloaded"
@@ -53,11 +59,12 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         struct Detail: Codable, Hashable {
             let destination: String?
             let uri: String?
-            let createTime: String?
+            /// Unix timestamp. Spec says "string" but real DSM returns it as a number.
+            let createTime: FlexibleInt64?
             let priority: String?
-            let connectedSeeders: Int?
-            let connectedLeechers: Int?
-            let totalPeers: Int?
+            let connectedSeeders: FlexibleInt64?
+            let connectedLeechers: FlexibleInt64?
+            let totalPeers: FlexibleInt64?
 
             enum CodingKeys: String, CodingKey {
                 case destination, uri, priority
@@ -74,8 +81,6 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             // sizeDownloaded). Non-optional fields here would fail the whole detail
             // request rather than just dropping the empty entry.
             let filename: String?
-            // Synology returns sizes as either Int or String (numeric strings for very
-            // large files). FlexibleInt64 accepts both.
             let size: FlexibleInt64?
             let sizeDownloaded: FlexibleInt64?
             let priority: String?
@@ -97,9 +102,9 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             // url is sometimes absent or null (DHT pseudo-trackers, removed entries).
             let url: String?
             let status: String?
-            let updateTimer: Int?
-            let seeds: Int?
-            let peers: Int?
+            let updateTimer: FlexibleInt64?
+            let seeds: FlexibleInt64?
+            let peers: FlexibleInt64?
 
             enum CodingKeys: String, CodingKey {
                 case url, status, seeds, peers
@@ -113,8 +118,9 @@ struct DownloadTask: Codable, Identifiable, Hashable {
     }
 
     var progress: Double {
-        guard size > 0, let downloaded = additional?.transfer?.sizeDownloaded else { return 0 }
-        return min(1.0, Double(downloaded) / Double(size))
+        let total = size.value
+        guard total > 0, let downloaded = additional?.transfer?.sizeDownloaded.value else { return 0 }
+        return min(1.0, Double(downloaded) / Double(total))
     }
 
     var canPause: Bool {
@@ -137,11 +143,16 @@ struct DownloadTask: Codable, Identifiable, Hashable {
 }
 
 /// Decodes an integer that may arrive as either a JSON number or a JSON string
-/// (Synology's API sometimes returns large integers as strings, e.g. file sizes).
-struct FlexibleInt64: Codable, Hashable {
+/// (Synology's API is inconsistent — file sizes are spec'd as strings, peer counts
+/// as ints, but actual DSM behavior swaps these around per version).
+///
+/// Conforms to ExpressibleByIntegerLiteral so test fixtures can still write
+/// `DownloadTask(..., size: 1, ...)` instead of `FlexibleInt64(1)`.
+struct FlexibleInt64: Codable, Hashable, ExpressibleByIntegerLiteral {
     let value: Int64
 
     init(_ value: Int64) { self.value = value }
+    init(integerLiteral value: Int64) { self.value = value }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -149,6 +160,9 @@ struct FlexibleInt64: Codable, Hashable {
             value = n
         } else if let s = try? container.decode(String.self), let n = Int64(s) {
             value = n
+        } else if let d = try? container.decode(Double.self) {
+            // Some endpoints return floats for averages — coerce to int.
+            value = Int64(d)
         } else {
             value = 0
         }

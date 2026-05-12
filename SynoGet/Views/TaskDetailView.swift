@@ -90,26 +90,29 @@ struct TaskDetailView: View {
 
     private var transferSection: some View {
         Section("Transfer") {
-            row("Size", value: Self.bytes(viewModel.task.size))
+            row("Size", value: Self.bytes(viewModel.task.size.value))
             if let t = viewModel.task.additional?.transfer {
-                row("Downloaded", value: Self.bytes(t.sizeDownloaded))
-                row("Uploaded", value: Self.bytes(t.sizeUploaded))
-                row("↓ Speed", value: Self.bytesPerSecond(t.speedDownload))
-                row("↑ Speed", value: Self.bytesPerSecond(t.speedUpload))
-                if t.sizeDownloaded > 0 {
-                    let ratio = Double(t.sizeUploaded) / Double(t.sizeDownloaded)
+                let down = t.sizeDownloaded.value
+                let up = t.sizeUploaded.value
+                let sd = t.speedDownload.value
+                row("Downloaded", value: Self.bytes(down))
+                row("Uploaded", value: Self.bytes(up))
+                row("↓ Speed", value: Self.bytesPerSecond(sd))
+                row("↑ Speed", value: Self.bytesPerSecond(t.speedUpload.value))
+                if down > 0 {
+                    let ratio = Double(up) / Double(down)
                     row("Ratio", value: String(format: "%.2f", ratio))
                 }
-                if viewModel.task.status == .downloading, t.speedDownload > 0 {
-                    let remaining = max(0, viewModel.task.size - t.sizeDownloaded)
-                    let secs = Double(remaining) / Double(t.speedDownload)
+                if viewModel.task.status == .downloading, sd > 0 {
+                    let remaining = max(0, viewModel.task.size.value - down)
+                    let secs = Double(remaining) / Double(sd)
                     row("ETA", value: Self.duration(secs))
                 }
             }
             if let d = viewModel.task.additional?.detail {
-                if let peers = d.totalPeers { row("Peers", value: "\(peers) total") }
-                if let s = d.connectedSeeders { row("Seeders", value: "\(s) connected") }
-                if let l = d.connectedLeechers { row("Leechers", value: "\(l) connected") }
+                if let peers = d.totalPeers { row("Peers", value: "\(peers.value) total") }
+                if let s = d.connectedSeeders { row("Seeders", value: "\(s.value) connected") }
+                if let l = d.connectedLeechers { row("Leechers", value: "\(l.value) connected") }
             }
         }
     }
@@ -144,7 +147,7 @@ struct TaskDetailView: View {
                         if let s = tracker.status { Text(s) }
                         Spacer()
                         if let seeds = tracker.seeds, let peers = tracker.peers {
-                            Text("\(seeds) seeds · \(peers) peers")
+                            Text("\(seeds.value) seeds · \(peers.value) peers")
                         }
                     }
                     .font(.caption)
@@ -158,12 +161,14 @@ struct TaskDetailView: View {
     private var sourceSection: some View {
         Section("Source") {
             row("Type", value: viewModel.task.type.rawValue.uppercased())
-            row("Owner", value: viewModel.task.username)
+            if let owner = viewModel.task.username, !owner.isEmpty {
+                row("Owner", value: owner)
+            }
             if let d = viewModel.task.additional?.detail {
                 if let dest = d.destination { row("Destination", value: dest) }
                 if let prio = d.priority { row("Priority", value: prio.capitalized) }
-                if let t = d.createTime, let ts = TimeInterval(t) {
-                    let date = Date(timeIntervalSince1970: ts)
+                if let t = d.createTime {
+                    let date = Date(timeIntervalSince1970: TimeInterval(t.value))
                     row("Created", value: date.formatted(date: .abbreviated, time: .shortened))
                 }
                 if let uri = d.uri, !uri.isEmpty {
