@@ -69,11 +69,15 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         }
 
         struct TorrentFile: Codable, Hashable, Identifiable {
-            let filename: String
+            // All fields optional — Synology occasionally returns sparse entries (e.g.
+            // padding files in torrents have no filename, deselected files have no
+            // sizeDownloaded). Non-optional fields here would fail the whole detail
+            // request rather than just dropping the empty entry.
+            let filename: String?
             // Synology returns sizes as either Int or String (numeric strings for very
             // large files). FlexibleInt64 accepts both.
-            let size: FlexibleInt64
-            let sizeDownloaded: FlexibleInt64
+            let size: FlexibleInt64?
+            let sizeDownloaded: FlexibleInt64?
             let priority: String?
 
             enum CodingKeys: String, CodingKey {
@@ -82,15 +86,16 @@ struct DownloadTask: Codable, Identifiable, Hashable {
                 case sizeDownloaded = "size_downloaded"
             }
 
-            var id: String { filename }
+            var id: String { filename ?? UUID().uuidString }
             var progress: Double {
-                guard size.value > 0 else { return 0 }
-                return min(1.0, Double(sizeDownloaded.value) / Double(size.value))
+                guard let s = size?.value, s > 0, let d = sizeDownloaded?.value else { return 0 }
+                return min(1.0, Double(d) / Double(s))
             }
         }
 
         struct Tracker: Codable, Hashable, Identifiable {
-            let url: String
+            // url is sometimes absent or null (DHT pseudo-trackers, removed entries).
+            let url: String?
             let status: String?
             let updateTimer: Int?
             let seeds: Int?
@@ -101,7 +106,9 @@ struct DownloadTask: Codable, Identifiable, Hashable {
                 case updateTimer = "update_timer"
             }
 
-            var id: String { url }
+            // Stable identity only for trackers with a URL; URL-less entries are filtered
+            // out before display so the placeholder id never reaches a ForEach.
+            var id: String { url ?? "" }
         }
     }
 

@@ -13,9 +13,35 @@ enum APIError: LocalizedError {
         case .invalidURL: return "Invalid server URL."
         case .notLoggedIn: return "Not logged in."
         case .http(let code): return "HTTP error \(code)."
-        case .decoding(let err): return "Decoding error: \(err.localizedDescription)"
+        case .decoding(let err): return "Decoding error: \(Self.describe(decodingError: err))"
         case .synology(let code, let message): return "Synology error \(code): \(message)"
         case .transport(let err): return err.localizedDescription
+        }
+    }
+
+    /// Produce a human-readable description of a `DecodingError` that includes the
+    /// JSON key path. Critical for diagnosing API surprises — the default
+    /// localizedDescription strips the path and just says "data couldn't be read".
+    private static func describe(decodingError error: Error) -> String {
+        guard let de = error as? DecodingError else { return error.localizedDescription }
+        func path(_ context: DecodingError.Context) -> String {
+            let segments = context.codingPath.map { key -> String in
+                if let i = key.intValue { return "[\(i)]" }
+                return key.stringValue
+            }
+            return segments.isEmpty ? "<root>" : segments.joined(separator: ".")
+        }
+        switch de {
+        case .keyNotFound(let key, let ctx):
+            return "missing key '\(key.stringValue)' at \(path(ctx))"
+        case .valueNotFound(let type, let ctx):
+            return "missing \(type) value at \(path(ctx))"
+        case .typeMismatch(let type, let ctx):
+            return "wrong type — expected \(type) at \(path(ctx))"
+        case .dataCorrupted(let ctx):
+            return "data corrupted at \(path(ctx)): \(ctx.debugDescription)"
+        @unknown default:
+            return de.localizedDescription
         }
     }
 

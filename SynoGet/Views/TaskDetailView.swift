@@ -12,10 +12,10 @@ struct TaskDetailView: View {
         List {
             overviewSection
             transferSection
-            if let files = viewModel.task.additional?.file, !files.isEmpty {
+            if let files = viewModel.task.additional?.file?.filter({ $0.filename != nil }), !files.isEmpty {
                 filesSection(files: files)
             }
-            if let trackers = viewModel.task.additional?.tracker, !trackers.isEmpty {
+            if let trackers = viewModel.task.additional?.tracker?.filter({ ($0.url ?? "").isEmpty == false }), !trackers.isEmpty {
                 trackersSection(trackers: trackers)
             }
             sourceSection
@@ -118,9 +118,11 @@ struct TaskDetailView: View {
         Section("Files (\(files.count))") {
             ForEach(files) { file in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(file.filename).lineLimit(2).font(.subheadline)
+                    Text(file.filename ?? "(unnamed)").lineLimit(2).font(.subheadline)
                     HStack {
-                        Text("\(Self.bytes(file.sizeDownloaded.value)) / \(Self.bytes(file.size.value))")
+                        let down = file.sizeDownloaded?.value ?? 0
+                        let total = file.size?.value ?? 0
+                        Text("\(Self.bytes(down)) / \(Self.bytes(total))")
                         Spacer()
                         if let p = file.priority { Text(p.capitalized) }
                     }
@@ -137,7 +139,7 @@ struct TaskDetailView: View {
         Section("Trackers (\(trackers.count))") {
             ForEach(trackers) { tracker in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(tracker.url).lineLimit(2).font(.subheadline.monospaced())
+                    Text(tracker.url ?? "").lineLimit(2).font(.subheadline.monospaced())
                     HStack {
                         if let s = tracker.status { Text(s) }
                         Spacer()
