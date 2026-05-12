@@ -56,30 +56,30 @@ asks for the NAS scheme/host/port and credentials.
 ## Repository layout
 
 ```
-SynoGet/                    New SwiftUI app (this is what we build)
-├── Models/                 Codable types: ServerConfig, DownloadTask, TaskFilter
+SynoGet/                    The SwiftUI app
+├── Models/                 Codable types: ServerConfig, DownloadTask, TaskFilter, …
 ├── Networking/             SynologyAPIClient (async/await actor)
 ├── Storage/                Keychain + UserDefaults persistence
-├── ViewModels/             SessionStore, TaskListViewModel
+├── ViewModels/             SessionStore, TaskListViewModel, TaskDetailViewModel
 ├── Views/                  SwiftUI screens
 └── Resources/              Info.plist + Assets.xcassets (AppIcon)
 SynoGetTests/               Unit tests
-legacy-reference/           Original keyfun/synology_ds_get source (UIKit, 2019)
-                            Kept for reference while porting / verifying API behavior.
-Synology_Download_Station_Web_API.pdf
-                            Official Synology DSM Download Station API spec
 project.yml                 XcodeGen project specification
 icon.svg                    Source for the app icon (rendered to PNG via rsvg-convert)
 ```
 
 ## Synology API
 
-Endpoints used (see `Synology_Download_Station_Web_API.pdf` for the full
-spec):
+Endpoints used (see Synology's official
+[Download Station Web API guide](https://global.download.synology.com/download/Document/Software/DeveloperGuide/Package/DownloadStation/All/enu/Synology_Download_Station_Web_API.pdf)
+and [DSM Login Web API guide](https://global.download.synology.com/download/Document/Software/DeveloperGuide/Os/DSM/All/enu/DSM_Login_Web_API_Guide_enu.pdf)
+for full specs):
 
 - `SYNO.API.Auth` — login/logout (`/webapi/auth.cgi`)
-- `SYNO.DownloadStation.Task` — list/create/delete/pause/resume
+- `SYNO.DownloadStation.Task` — list/getinfo/create/delete/pause/resume
   (`/webapi/DownloadStation/task.cgi`)
+- `SYNO.FileStation.List` — list_share/list for the destination picker
+  (`/webapi/entry.cgi`)
 
 Authentication uses **API version 6**, which supports `enable_device_token` —
 on the first 2FA login the server returns a `did` (device id) that subsequent
@@ -93,9 +93,9 @@ with the file part last per the Synology spec).
 
 ## Credits
 
-The original UIKit codebase that inspired this project is preserved verbatim
-under `legacy-reference/`. It is the work of **keyfun**
-([github.com/keyfun/synology_ds_get](https://github.com/keyfun/synology_ds_get))
-and is MIT-licensed — see `UPSTREAM-LICENSE-keyfun`.
+Bootstrapped from **keyfun**'s
+[github.com/keyfun/synology_ds_get](https://github.com/keyfun/synology_ds_get)
+(UIKit, MIT). The networking layer was ported and rewritten in modern Swift;
+the original license is preserved as `UPSTREAM-LICENSE-keyfun` for attribution.
 
-This project is also released under the MIT license; see `LICENSE`.
+This project is released under the MIT license; see `LICENSE`.

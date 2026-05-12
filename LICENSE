@@ -22,8 +22,7 @@ SOFTWARE.
 
 ----
 
-Portions of this software (the legacy-reference/ directory and the Synology
-Download Station API request structure) are derived from
+The networking layer was initially derived from
 https://github.com/keyfun/synology_ds_get
 Copyright (c) 2016 keyfun
 MIT License — see UPSTREAM-LICENSE-keyfun.
