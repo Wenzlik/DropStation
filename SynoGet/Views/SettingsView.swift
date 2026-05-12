@@ -61,10 +61,6 @@ struct SettingsView: View {
             if !session.config.account.isEmpty, !session.config.host.isEmpty {
                 LabeledContent("Signed in as", value: "\(session.config.account)@\(session.config.host)")
             }
-            if session.hasTrustedDevice {
-                Label("2FA device trust active", systemImage: "checkmark.shield")
-                    .foregroundStyle(.green)
-            }
             Button {
                 Task {
                     await session.logout()
