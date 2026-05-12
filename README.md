@@ -3,8 +3,7 @@
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
 
-> Status: **early scaffolding**. The API client compiles and the UI flows are
-> wired up, but nothing has been tested against a real DSM yet.
+> Current version: **0.2.0** — see [CHANGELOG.md](CHANGELOG.md) for what's new.
 
 ## Why
 
