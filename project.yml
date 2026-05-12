@@ -1,0 +1,46 @@
+# XcodeGen project specification.
+# Run `xcodegen generate` to (re)create SynologyTorrent.xcodeproj from this file.
+# Install with: `brew install xcodegen`
+name: SynologyTorrent
+options:
+  bundleIdPrefix: com.wenzlik
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_LANGUAGE: en
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  SynologyTorrent:
+    type: application
+    platform: iOS
+    sources:
+      - path: SynologyTorrent
+        excludes:
+          - "Resources/Info.plist"
+    info:
+      path: SynologyTorrent/Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynologyTorrent
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: SynologyTorrent/Resources/Info.plist
+
+  SynologyTorrentTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SynologyTorrentTests
+    dependencies:
+      - target: SynologyTorrent
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynologyTorrentTests
+        GENERATE_INFOPLIST_FILE: "YES"
