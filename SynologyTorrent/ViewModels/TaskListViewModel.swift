@@ -6,6 +6,15 @@ final class TaskListViewModel: ObservableObject {
     @Published private(set) var tasks: [DownloadTask] = []
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
+    @Published var filter: TaskFilter = .all
+
+    var filteredTasks: [DownloadTask] {
+        tasks.filter { filter.matches($0) }
+    }
+
+    func count(for filter: TaskFilter) -> Int {
+        tasks.filter { filter.matches($0) }.count
+    }
 
     private let client: SynologyAPIClient
     private var refreshTimer: Timer?

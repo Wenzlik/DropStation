@@ -21,6 +21,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 - [x] Add a download from a magnet/HTTP/FTP URI
 - [x] Add a download by uploading a local `.torrent` file from the Files app
 - [x] Pause / resume tasks (swipe from the left)
+- [x] Filter list by status (All / Active / Paused / Finished / Error)
 - [x] Delete a download
 - [x] Pull-to-refresh + 5s auto-refresh
 - [x] `magnet:` URL scheme handler (open magnet links in this app)

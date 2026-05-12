@@ -12,7 +12,7 @@ struct TaskListView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(viewModel.tasks) { task in
+                ForEach(viewModel.filteredTasks) { task in
                     TaskRow(task: task)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -42,19 +42,24 @@ struct TaskListView: View {
                 }
             }
             .overlay {
-                if viewModel.tasks.isEmpty, !viewModel.isLoading {
-                    ContentUnavailableView("No downloads",
-                                           systemImage: "arrow.down.circle",
-                                           description: Text("Tap + to add a magnet or URL."))
+                if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
+                    ContentUnavailableView(
+                        emptyStateTitle,
+                        systemImage: emptyStateIcon,
+                        description: Text(emptyStateMessage)
+                    )
                 }
             }
             .refreshable { await viewModel.refresh() }
-            .navigationTitle("Downloads")
+            .navigationTitle(navigationTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Sign out") {
                         Task { await session.logout() }
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    filterMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -93,6 +98,39 @@ struct TaskListView: View {
                 Text(viewModel.errorMessage ?? "")
             }
         }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Picker("Filter", selection: $viewModel.filter) {
+                ForEach(TaskFilter.allCases) { f in
+                    Label("\(f.label) (\(viewModel.count(for: f)))", systemImage: f.systemImage)
+                        .tag(f)
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.filter == .all
+                  ? "line.3.horizontal.decrease.circle"
+                  : "line.3.horizontal.decrease.circle.fill")
+        }
+    }
+
+    private var navigationTitle: String {
+        viewModel.filter == .all ? "Downloads" : "Downloads — \(viewModel.filter.label)"
+    }
+
+    private var emptyStateTitle: String {
+        viewModel.filter == .all ? "No downloads" : "No \(viewModel.filter.label.lowercased()) downloads"
+    }
+
+    private var emptyStateIcon: String {
+        viewModel.filter.systemImage
+    }
+
+    private var emptyStateMessage: String {
+        viewModel.filter == .all
+            ? "Tap + to add a magnet, URL, or .torrent file."
+            : "Switch filter or pull down to refresh."
     }
 }
 

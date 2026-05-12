@@ -57,6 +57,42 @@ final class DownloadTaskDecodingTests: XCTestCase {
     }
 }
 
+final class TaskFilterTests: XCTestCase {
+    private func task(_ status: DownloadTask.Status) -> DownloadTask {
+        DownloadTask(id: UUID().uuidString, title: "t", size: 1,
+                     status: status, type: .bt, username: "u", additional: nil)
+    }
+
+    func testAllMatchesEverything() {
+        for status: DownloadTask.Status in [.downloading, .paused, .finished, .error, .seeding, .unknown] {
+            XCTAssertTrue(TaskFilter.all.matches(task(status)))
+        }
+    }
+
+    func testActiveCoversWorkingStates() {
+        XCTAssertTrue(TaskFilter.active.matches(task(.downloading)))
+        XCTAssertTrue(TaskFilter.active.matches(task(.seeding)))
+        XCTAssertTrue(TaskFilter.active.matches(task(.hash_checking)))
+        XCTAssertTrue(TaskFilter.active.matches(task(.waiting)))
+        XCTAssertFalse(TaskFilter.active.matches(task(.paused)))
+        XCTAssertFalse(TaskFilter.active.matches(task(.finished)))
+        XCTAssertFalse(TaskFilter.active.matches(task(.error)))
+    }
+
+    func testFinishedCoversBothFinishedAndFinishing() {
+        XCTAssertTrue(TaskFilter.finished.matches(task(.finished)))
+        XCTAssertTrue(TaskFilter.finished.matches(task(.finishing)))
+        XCTAssertFalse(TaskFilter.finished.matches(task(.seeding)))
+    }
+
+    func testPausedAndErrorAreSingleStatusFilters() {
+        XCTAssertTrue(TaskFilter.paused.matches(task(.paused)))
+        XCTAssertFalse(TaskFilter.paused.matches(task(.error)))
+        XCTAssertTrue(TaskFilter.error.matches(task(.error)))
+        XCTAssertFalse(TaskFilter.error.matches(task(.paused)))
+    }
+}
+
 final class APIErrorContextTests: XCTestCase {
     func testCommonCodesAreContextIndependent() {
         XCTAssertEqual(SynologyErrorCode.message(for: 106, context: .auth),
