@@ -54,6 +54,26 @@ enum APIError: LocalizedError {
         }
         return false
     }
+
+    /// 403 in the auth context means "2-step verification code required". For accounts
+    /// with Synology Secure SignIn enabled the server also sends a push notification
+    /// to the user's authenticator app; subsequent login attempts (without an OTP)
+    /// will succeed once the user approves there.
+    var isOTPRequired: Bool {
+        if case .synology(let code, _) = self {
+            return code == 403
+        }
+        return false
+    }
+
+    /// 404 in the auth context means "Failed to authenticate 2-step verification code"
+    /// — i.e. the OTP we sent was wrong.
+    var isOTPInvalid: Bool {
+        if case .synology(let code, _) = self {
+            return code == 404
+        }
+        return false
+    }
 }
 
 // Synology API error codes. Codes in the 4xx range mean different things depending

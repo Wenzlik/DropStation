@@ -125,6 +125,18 @@ final class APIErrorSessionExpiredTests: XCTestCase {
         XCTAssertFalse(APIError.transport(URLError(.notConnectedToInternet)).isSessionExpired)
         XCTAssertFalse(APIError.synology(code: 400, message: "x").isSessionExpired)
     }
+
+    func testOTPRequiredAndInvalidCodes() {
+        XCTAssertTrue(APIError.synology(code: 403, message: "x").isOTPRequired)
+        XCTAssertFalse(APIError.synology(code: 404, message: "x").isOTPRequired)
+
+        XCTAssertTrue(APIError.synology(code: 404, message: "x").isOTPInvalid)
+        XCTAssertFalse(APIError.synology(code: 403, message: "x").isOTPInvalid)
+
+        // Common error codes are neither.
+        XCTAssertFalse(APIError.synology(code: 106, message: "x").isOTPRequired)
+        XCTAssertFalse(APIError.synology(code: 106, message: "x").isOTPInvalid)
+    }
 }
 
 final class LoginDataDecodingTests: XCTestCase {
