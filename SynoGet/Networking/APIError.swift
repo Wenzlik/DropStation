@@ -18,6 +18,16 @@ enum APIError: LocalizedError {
         case .transport(let err): return err.localizedDescription
         }
     }
+
+    /// True when the server told us the SID is no longer valid and we should re-authenticate.
+    /// Codes: 105 (no permission), 106 (timeout), 107 (interrupted by duplicate login),
+    /// 119 (sid not found — seen on some DSM builds).
+    var isSessionExpired: Bool {
+        if case .synology(let code, _) = self {
+            return code == 105 || code == 106 || code == 107 || code == 119
+        }
+        return false
+    }
 }
 
 // Synology API error codes. Codes in the 4xx range mean different things depending

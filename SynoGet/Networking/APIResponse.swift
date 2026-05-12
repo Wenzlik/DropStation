@@ -12,6 +12,9 @@ struct APIResponse<T: Decodable>: Decodable {
 
 struct LoginData: Decodable {
     let sid: String
+    /// Returned only when `enable_device_token=yes` was passed on a login that
+    /// completed an OTP challenge. Save and reuse to skip OTP next time.
+    let did: String?
 }
 
 struct TaskListData: Decodable {

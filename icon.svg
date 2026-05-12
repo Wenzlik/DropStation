@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    App icon: orange square with a white "download to tray" arrow.
+    iOS auto-applies the rounded corners on the home screen, so we draw a
+    plain square.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB13C"/>
+      <stop offset="1" stop-color="#F08A1C"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Arrow shaft -->
+  <rect x="416" y="200" width="192" height="320" rx="32" ry="32" fill="#ffffff"/>
+
+  <!-- Arrowhead: chevron pointing down, slightly wider than shaft.
+       Points start at the top-left of the head, sweep down to the tip,
+       back up to the top-right. -->
+  <path d="M 256 480
+           L 512 800
+           L 768 480
+           L 640 480
+           L 640 460
+           L 384 460
+           L 384 480
+           Z"
+        fill="#ffffff"/>
+
+  <!-- Tray / floor under the arrow -->
+  <rect x="200" y="850" width="624" height="80" rx="40" ry="40" fill="#ffffff"/>
+</svg>

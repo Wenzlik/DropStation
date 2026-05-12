@@ -1,4 +1,4 @@
-# Synology Torrent
+# Syno Get
 
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
@@ -15,7 +15,8 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 ## Features (initial scope)
 
 - [x] Login (username + password, scheme/host/port)
-- [x] Two-step verification (OTP)
+- [x] Two-step verification (OTP) with persistent device token
+- [x] Session persists across app launches (SID + device_id in Keychain)
 - [x] Credentials stored in **Keychain** (not UserDefaults)
 - [x] List downloads with progress, size, status
 - [x] Add a download from a magnet/HTTP/FTP URI
@@ -42,7 +43,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 ```bash
 brew install xcodegen
 xcodegen generate
-open SynologyTorrent.xcodeproj
+open SynoGet.xcodeproj
 ```
 
 Then build & run on an iPhone simulator or a physical device. The first run
@@ -51,19 +52,20 @@ asks for the NAS scheme/host/port and credentials.
 ## Repository layout
 
 ```
-SynologyTorrent/            New SwiftUI app (this is what we build)
-├── Models/                 Codable types: ServerConfig, DownloadTask
+SynoGet/                    New SwiftUI app (this is what we build)
+├── Models/                 Codable types: ServerConfig, DownloadTask, TaskFilter
 ├── Networking/             SynologyAPIClient (async/await actor)
 ├── Storage/                Keychain + UserDefaults persistence
 ├── ViewModels/             SessionStore, TaskListViewModel
 ├── Views/                  SwiftUI screens
-└── Resources/Info.plist
-SynologyTorrentTests/       Unit tests
+└── Resources/              Info.plist + Assets.xcassets (AppIcon)
+SynoGetTests/               Unit tests
 legacy-reference/           Original keyfun/synology_ds_get source (UIKit, 2019)
                             Kept for reference while porting / verifying API behavior.
 Synology_Download_Station_Web_API.pdf
                             Official Synology DSM Download Station API spec
 project.yml                 XcodeGen project specification
+icon.svg                    Source for the app icon (rendered to PNG via rsvg-convert)
 ```
 
 ## Synology API
@@ -72,11 +74,18 @@ Endpoints used (see `Synology_Download_Station_Web_API.pdf` for the full
 spec):
 
 - `SYNO.API.Auth` — login/logout (`/webapi/auth.cgi`)
-- `SYNO.DownloadStation.Task` — list/create/delete
+- `SYNO.DownloadStation.Task` — list/create/delete/pause/resume
   (`/webapi/DownloadStation/task.cgi`)
 
+Authentication uses **API version 6**, which supports `enable_device_token` —
+on the first 2FA login the server returns a `did` (device id) that subsequent
+logins use in place of the OTP code. Both the SID and the device id are kept
+in the Keychain so the user does not have to re-authenticate after every
+app launch.
+
 All requests are sent as `application/x-www-form-urlencoded` POST so that
-credentials and SIDs do not end up in URL logs.
+credentials and SIDs do not end up in URL logs (file uploads use multipart,
+with the file part last per the Synology spec).
 
 ## Credits
 

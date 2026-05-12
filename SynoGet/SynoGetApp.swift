@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SynologyTorrentApp: App {
+struct SynoGetApp: App {
     @StateObject private var session = SessionStore()
 
     var body: some Scene {

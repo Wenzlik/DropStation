@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var password: String = ""
     @State private var otpCode: String = ""
     @State private var useOTP: Bool = false
+    @State private var trustThisDevice: Bool = true
 
     var body: some View {
         NavigationStack {
@@ -29,16 +30,35 @@ struct LoginView: View {
                         .keyboardType(.numberPad)
                 }
 
-                Section("Account") {
+                Section {
                     TextField("Username", text: $account)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     SecureField("Password", text: $password)
+                } header: {
+                    Text("Account")
+                } footer: {
+                    if session.hasTrustedDevice {
+                        Label("This device is trusted — 2-step verification not needed.",
+                              systemImage: "checkmark.shield")
+                            .foregroundStyle(.secondary)
+                            .font(.footnote)
+                    }
+                }
 
-                    Toggle("Two-step verification", isOn: $useOTP)
-                    if useOTP {
-                        TextField("6-digit code", text: $otpCode)
-                            .keyboardType(.numberPad)
+                // Hide 2FA controls entirely when the server already trusts this device for
+                // the current account+host. Show them otherwise so the user can complete the
+                // 2FA challenge and (by default) trust the device for next time.
+                if !session.hasTrustedDevice {
+                    Section {
+                        Toggle("Two-step verification", isOn: $useOTP)
+                        if useOTP {
+                            TextField("6-digit code", text: $otpCode)
+                                .keyboardType(.numberPad)
+                                .textContentType(.oneTimeCode)
+                            Toggle("Trust this device (skip 2FA next time)",
+                                   isOn: $trustThisDevice)
+                        }
                     }
                 }
 
@@ -59,7 +79,7 @@ struct LoginView: View {
                     .disabled(!canSubmit)
                 }
             }
-            .navigationTitle("Synology Torrent")
+            .navigationTitle("Syno Get")
             .onAppear(perform: prefill)
         }
     }
@@ -82,6 +102,7 @@ struct LoginView: View {
     private func login() async {
         guard let portInt = Int(port) else { return }
         let cfg = ServerConfig(scheme: scheme, host: host, port: portInt, account: account)
-        await session.login(config: cfg, password: password, otpCode: useOTP ? otpCode : nil)
+        let otp = (!session.hasTrustedDevice && useOTP) ? otpCode : nil
+        await session.login(config: cfg, password: password, otpCode: otp, trustThisDevice: trustThisDevice)
     }
 }

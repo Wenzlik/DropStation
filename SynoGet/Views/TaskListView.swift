@@ -54,8 +54,19 @@ struct TaskListView: View {
             .navigationTitle(navigationTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Sign out") {
-                        Task { await session.logout() }
+                    Menu {
+                        Button {
+                            Task { await session.logout() }
+                        } label: {
+                            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                        }
+                        Button(role: .destructive) {
+                            Task { await session.forgetDevice() }
+                        } label: {
+                            Label("Forget this device", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "person.crop.circle")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {

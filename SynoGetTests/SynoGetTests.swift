@@ -1,5 +1,5 @@
 import XCTest
-@testable import SynologyTorrent
+@testable import SynoGet
 
 final class ServerConfigTests: XCTestCase {
     func testBaseURLConstruction() {
@@ -90,6 +90,36 @@ final class TaskFilterTests: XCTestCase {
         XCTAssertFalse(TaskFilter.paused.matches(task(.error)))
         XCTAssertTrue(TaskFilter.error.matches(task(.error)))
         XCTAssertFalse(TaskFilter.error.matches(task(.paused)))
+    }
+}
+
+final class APIErrorSessionExpiredTests: XCTestCase {
+    func testSessionExpiredCodes() {
+        for code in [105, 106, 107, 119] {
+            XCTAssertTrue(APIError.synology(code: code, message: "x").isSessionExpired,
+                          "Code \(code) should be treated as expired session")
+        }
+    }
+
+    func testTransientNetworkErrorsAreNotSessionExpired() {
+        XCTAssertFalse(APIError.http(500).isSessionExpired)
+        XCTAssertFalse(APIError.transport(URLError(.notConnectedToInternet)).isSessionExpired)
+        XCTAssertFalse(APIError.synology(code: 400, message: "x").isSessionExpired)
+    }
+}
+
+final class LoginDataDecodingTests: XCTestCase {
+    func testDecodeLoginWithoutDeviceToken() throws {
+        let json = #"{"sid":"abc"}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(LoginData.self, from: json)
+        XCTAssertEqual(decoded.sid, "abc")
+        XCTAssertNil(decoded.did)
+    }
+
+    func testDecodeLoginWithDeviceToken() throws {
+        let json = #"{"sid":"abc","did":"DID-XYZ"}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(LoginData.self, from: json)
+        XCTAssertEqual(decoded.did, "DID-XYZ")
     }
 }
 

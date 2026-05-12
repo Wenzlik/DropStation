@@ -1,7 +1,7 @@
 # XcodeGen project specification.
-# Run `xcodegen generate` to (re)create SynologyTorrent.xcodeproj from this file.
+# Run `xcodegen generate` to (re)create SynoGet.xcodeproj from this file.
 # Install with: `brew install xcodegen`
-name: SynologyTorrent
+name: SynoGet
 options:
   bundleIdPrefix: com.wenzlik
   deploymentTarget:
@@ -16,29 +16,30 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
 
 targets:
-  SynologyTorrent:
+  SynoGet:
     type: application
     platform: iOS
     sources:
-      - path: SynologyTorrent
+      - path: SynoGet
         excludes:
           - "Resources/Info.plist"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynologyTorrent
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynoGet
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_EMIT_LOC_STRINGS: "YES"
         GENERATE_INFOPLIST_FILE: "NO"
-        INFOPLIST_FILE: SynologyTorrent/Resources/Info.plist
+        INFOPLIST_FILE: SynoGet/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
-  SynologyTorrentTests:
+  SynoGetTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: SynologyTorrentTests
+      - path: SynoGetTests
     dependencies:
-      - target: SynologyTorrent
+      - target: SynoGet
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynologyTorrentTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynoGetTests
         GENERATE_INFOPLIST_FILE: "YES"
