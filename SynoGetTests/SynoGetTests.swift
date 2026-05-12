@@ -124,6 +124,82 @@ final class LoginDataDecodingTests: XCTestCase {
     }
 }
 
+final class TaskDetailDecodingTests: XCTestCase {
+    func testDecodeFullDetailResponse() throws {
+        // Modeled on the getinfo example in the Synology API spec: BT task with detail,
+        // transfer, file list, and trackers.
+        let json = """
+        {
+          "id": "dbid_42",
+          "title": "ubuntu.iso",
+          "size": 5368709120,
+          "status": "downloading",
+          "type": "bt",
+          "username": "vasek",
+          "additional": {
+            "transfer": {
+              "size_downloaded": 1073741824,
+              "size_uploaded": 268435456,
+              "speed_download": 5242880,
+              "speed_upload": 524288
+            },
+            "detail": {
+              "destination": "Downloads/Linux",
+              "uri": "magnet:?xt=urn:btih:abcdef",
+              "create_time": "1700000000",
+              "priority": "auto",
+              "connected_seeders": 12,
+              "connected_leechers": 5,
+              "total_peers": 200
+            },
+            "file": [
+              {"filename":"ubuntu.iso","size":"5368709120","size_downloaded":"1073741824","priority":"normal"},
+              {"filename":"readme.txt","size":1024,"size_downloaded":1024,"priority":"normal"}
+            ],
+            "tracker": [
+              {"url":"udp://tracker.example.com:80","status":"OK","update_timer":900,"seeds":50,"peers":120}
+            ]
+          }
+        }
+        """.data(using: .utf8)!
+
+        let task = try JSONDecoder().decode(DownloadTask.self, from: json)
+        XCTAssertEqual(task.additional?.detail?.destination, "Downloads/Linux")
+        XCTAssertEqual(task.additional?.detail?.connectedSeeders, 12)
+        XCTAssertEqual(task.additional?.file?.count, 2)
+        XCTAssertEqual(task.additional?.file?.first?.size.value, 5368709120) // came in as string
+        XCTAssertEqual(task.additional?.file?.last?.size.value, 1024)        // came in as int
+        XCTAssertEqual(task.additional?.tracker?.first?.seeds, 50)
+    }
+
+    func testDecodeListResponseStillWorksWithoutExtraFields() throws {
+        // The list endpoint omits detail/file/tracker — make sure the decoder doesn't choke.
+        let json = #"""
+        {"id":"x","title":"t","size":1,"status":"downloading","type":"http","username":"u","additional":{"transfer":{"size_downloaded":1,"size_uploaded":0,"speed_download":0,"speed_upload":0}}}
+        """#.data(using: .utf8)!
+        let task = try JSONDecoder().decode(DownloadTask.self, from: json)
+        XCTAssertNil(task.additional?.detail)
+        XCTAssertNil(task.additional?.file)
+    }
+}
+
+final class FlexibleInt64Tests: XCTestCase {
+    func testDecodesFromNumber() throws {
+        let n = try JSONDecoder().decode(FlexibleInt64.self, from: Data("12345".utf8))
+        XCTAssertEqual(n.value, 12345)
+    }
+
+    func testDecodesFromQuotedString() throws {
+        let n = try JSONDecoder().decode(FlexibleInt64.self, from: Data(#""54321""#.utf8))
+        XCTAssertEqual(n.value, 54321)
+    }
+
+    func testDecodesUnparseableStringAsZero() throws {
+        let n = try JSONDecoder().decode(FlexibleInt64.self, from: Data(#""nope""#.utf8))
+        XCTAssertEqual(n.value, 0)
+    }
+}
+
 final class FileNodeTests: XCTestCase {
     func testDecodeShareFromFileStationJSON() throws {
         // Synology returns list_share entries with leading-slash paths.

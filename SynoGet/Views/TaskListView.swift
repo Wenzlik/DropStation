@@ -14,7 +14,9 @@ struct TaskListView: View {
         NavigationStack {
             List {
                 ForEach(viewModel.filteredTasks) { task in
-                    TaskRow(task: task)
+                    NavigationLink(value: task) {
+                        TaskRow(task: task)
+                    }
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 Task { await viewModel.delete(task) }
@@ -84,6 +86,9 @@ struct TaskListView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .navigationDestination(for: DownloadTask.self) { task in
+                TaskDetailView(task: task, client: session.client)
             }
             .task {
                 viewModel.startAutoRefresh()

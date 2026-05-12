@@ -32,6 +32,9 @@ struct DownloadTask: Codable, Identifiable, Hashable {
 
     struct Additional: Codable, Hashable {
         let transfer: Transfer?
+        let detail: Detail?
+        let file: [TorrentFile]?
+        let tracker: [Tracker]?
 
         struct Transfer: Codable, Hashable {
             let sizeDownloaded: Int64
@@ -45,6 +48,60 @@ struct DownloadTask: Codable, Identifiable, Hashable {
                 case speedDownload = "speed_download"
                 case speedUpload = "speed_upload"
             }
+        }
+
+        struct Detail: Codable, Hashable {
+            let destination: String?
+            let uri: String?
+            let createTime: String?
+            let priority: String?
+            let connectedSeeders: Int?
+            let connectedLeechers: Int?
+            let totalPeers: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case destination, uri, priority
+                case createTime = "create_time"
+                case connectedSeeders = "connected_seeders"
+                case connectedLeechers = "connected_leechers"
+                case totalPeers = "total_peers"
+            }
+        }
+
+        struct TorrentFile: Codable, Hashable, Identifiable {
+            let filename: String
+            // Synology returns sizes as either Int or String (numeric strings for very
+            // large files). FlexibleInt64 accepts both.
+            let size: FlexibleInt64
+            let sizeDownloaded: FlexibleInt64
+            let priority: String?
+
+            enum CodingKeys: String, CodingKey {
+                case filename, priority
+                case size
+                case sizeDownloaded = "size_downloaded"
+            }
+
+            var id: String { filename }
+            var progress: Double {
+                guard size.value > 0 else { return 0 }
+                return min(1.0, Double(sizeDownloaded.value) / Double(size.value))
+            }
+        }
+
+        struct Tracker: Codable, Hashable, Identifiable {
+            let url: String
+            let status: String?
+            let updateTimer: Int?
+            let seeds: Int?
+            let peers: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case url, status, seeds, peers
+                case updateTimer = "update_timer"
+            }
+
+            var id: String { url }
         }
     }
 
@@ -69,5 +126,29 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         default:
             return false
         }
+    }
+}
+
+/// Decodes an integer that may arrive as either a JSON number or a JSON string
+/// (Synology's API sometimes returns large integers as strings, e.g. file sizes).
+struct FlexibleInt64: Codable, Hashable {
+    let value: Int64
+
+    init(_ value: Int64) { self.value = value }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let n = try? container.decode(Int64.self) {
+            value = n
+        } else if let s = try? container.decode(String.self), let n = Int64(s) {
+            value = n
+        } else {
+            value = 0
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
     }
 }

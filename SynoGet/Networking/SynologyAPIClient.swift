@@ -182,6 +182,29 @@ actor SynologyAPIClient {
         }
     }
 
+    /// Get the full detail object for a single task. Pulls down detail, transfer, file
+    /// (BT only) and tracker (BT only) fields in one call.
+    func getTaskInfo(id: String) async throws -> DownloadTask {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+
+        let url = baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi")
+        let params: [String: String] = [
+            "api": "SYNO.DownloadStation.Task",
+            "version": "1",
+            "method": "getinfo",
+            "id": id,
+            "additional": "detail,transfer,file,tracker",
+            "_sid": sid
+        ]
+        let response: APIResponse<TaskListData> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+        guard let task = response.data?.tasks.first else {
+            throw APIError.synology(code: 404, message: "Task not found.")
+        }
+        return task
+    }
+
     func pauseTasks(ids: [String]) async throws {
         try await taskAction(method: "pause", ids: ids)
     }
