@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import SynoGet
 
 final class ServerConfigTests: XCTestCase {
@@ -120,6 +121,24 @@ final class LoginDataDecodingTests: XCTestCase {
         let json = #"{"sid":"abc","did":"DID-XYZ"}"#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(LoginData.self, from: json)
         XCTAssertEqual(decoded.did, "DID-XYZ")
+    }
+}
+
+final class AppearanceModeTests: XCTestCase {
+    func testPreferredColorSchemeMapping() {
+        XCTAssertNil(AppearanceMode.system.preferredColorScheme)
+        XCTAssertEqual(AppearanceMode.light.preferredColorScheme, .light)
+        XCTAssertEqual(AppearanceMode.dark.preferredColorScheme, .dark)
+    }
+
+    func testRoundTripsThroughRawValue() {
+        for mode in AppearanceMode.allCases {
+            XCTAssertEqual(AppearanceMode(rawValue: mode.rawValue), mode)
+        }
+    }
+
+    func testUnknownRawValueIsNil() {
+        XCTAssertNil(AppearanceMode(rawValue: "purple"))
     }
 }
 

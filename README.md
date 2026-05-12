@@ -23,6 +23,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 - [x] Add a download by uploading a local `.torrent` file from the Files app
 - [x] Pause / resume tasks (swipe from the left)
 - [x] Filter list by status (All / Active / Paused / Finished / Error)
+- [x] Settings sheet (theme override, account management, app info)
 - [x] Delete a download
 - [x] Pull-to-refresh + 5s auto-refresh
 - [x] `magnet:` URL scheme handler (open magnet links in this app)
@@ -32,7 +33,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 
 ## Tech
 
-- SwiftUI, iOS 17+
+- SwiftUI, iOS 26+ (Liquid Glass design language)
 - Swift 5.9, async/await, Codable
 - No third-party dependencies
 - `actor`-based API client

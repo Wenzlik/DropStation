@@ -4,6 +4,7 @@ struct TaskListView: View {
     @EnvironmentObject private var session: SessionStore
     @StateObject private var viewModel: TaskListViewModel
     @State private var showingAddTask = false
+    @State private var showingSettings = false
 
     init(session: SessionStore) {
         _viewModel = StateObject(wrappedValue: TaskListViewModel(client: session.client))
@@ -54,19 +55,10 @@ struct TaskListView: View {
             .navigationTitle(navigationTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button {
-                            Task { await session.logout() }
-                        } label: {
-                            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                        Button(role: .destructive) {
-                            Task { await session.forgetDevice() }
-                        } label: {
-                            Label("Forget this device", systemImage: "trash")
-                        }
+                    Button {
+                        showingSettings = true
                     } label: {
-                        Image(systemName: "person.crop.circle")
+                        Image(systemName: "gearshape")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -89,6 +81,9 @@ struct TaskListView: View {
                         await viewModel.createTask(fileData: data, filename: name)
                     }
                 )
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
             .task {
                 viewModel.startAutoRefresh()
@@ -149,21 +144,47 @@ private struct TaskRow: View {
     let task: DownloadTask
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(task.title).font(.body).lineLimit(2)
             ProgressView(value: task.progress)
             HStack {
-                Text(task.status.rawValue.capitalized)
+                StatusPill(status: task.status)
                 Spacer()
                 Text(formattedSize(task.size))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
     }
 
     private func formattedSize(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+/// Compact status indicator rendered as a tinted Liquid Glass capsule.
+private struct StatusPill: View {
+    let status: DownloadTask.Status
+
+    var body: some View {
+        Text(status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+            .font(.caption.weight(.medium))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .glassEffect(.regular.tint(tintColor.opacity(0.45)), in: .capsule)
+            .foregroundStyle(.primary)
+    }
+
+    private var tintColor: Color {
+        switch status {
+        case .downloading, .seeding, .extracting: return .green
+        case .waiting, .hash_checking, .filehosting_waiting, .finishing: return .blue
+        case .paused: return .orange
+        case .finished: return .gray
+        case .error: return .red
+        case .unknown: return .gray
+        }
     }
 }
