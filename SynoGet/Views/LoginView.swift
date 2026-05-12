@@ -166,14 +166,14 @@ struct LoginView: View {
                 .foregroundStyle(.tint)
                 .padding(.bottom, 4)
             Text("Two-step verification").font(.title3.weight(.semibold))
-            Text("Approve the sign-in request on your Synology Secure SignIn app, then tap below — or enter the 6-digit code from any authenticator app.")
+            Text("Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.bottom, 8)
 
-        IconField(systemImage: "number.square", placeholder: "6-digit code (optional)", text: $otpCode)
+        IconField(systemImage: "number.square", placeholder: "6-digit code", text: $otpCode)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
 
@@ -181,21 +181,13 @@ struct LoginView: View {
             inlineErrorLabel(message)
         }
 
-        // One button for both flows. Empty OTP -> retry the login (server hands us a
-        // SID if the user just approved the push). Otherwise -> submit the OTP code.
         signInButton(
-            label: otpCode.isEmpty ? "I approved — sign in" : "Verify code",
+            label: "Verify code",
             isWorking: session.state == .authenticating
         ) {
-            Task {
-                if otpCode.isEmpty {
-                    await session.retryAfterPushApproval()
-                } else {
-                    await session.submitOTP(otpCode)
-                }
-            }
+            Task { await session.submitOTP(otpCode) }
         }
-        .disabled(session.state == .authenticating)
+        .disabled(otpCode.count < 6 || session.state == .authenticating)
 
         Button("Cancel", role: .cancel) {
             session.cancelTwoFactor()

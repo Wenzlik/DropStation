@@ -10,14 +10,9 @@ final class SessionStore: ObservableObject {
         case restoring
         case loggedOut
         case authenticating
-        /// First-stage credentials accepted; server is waiting for 2-step verification.
-        ///
-        /// Depending on the account settings, "verification" can mean either:
-        ///   - tapping Approve on the Synology Secure SignIn push notification
-        ///     that arrives on the user's authenticator app, or
-        ///   - typing the 6-digit TOTP code into the OTP field.
-        /// Either one completes the same `submitOTP` flow (push approval lets the
-        /// next login succeed without an OTP code).
+        /// First-stage credentials accepted; server is waiting for a 6-digit
+        /// verification code from an authenticator app (Synology Secure SignIn
+        /// Codes tab, Google Authenticator, 1Password, etc.).
         case twoFactorRequired
         case loggedIn
         case error(String)
@@ -95,10 +90,8 @@ final class SessionStore: ObservableObject {
 
     // MARK: - Login
 
-    /// Initial login from the form. If the server demands a second factor, transition
-    /// to `.twoFactorRequired` and wait — the server has typically also sent a push
-    /// to Synology Secure SignIn, so the user can either Approve the push or enter
-    /// the 6-digit TOTP code.
+    /// Initial login from the form. If the server demands a second factor,
+    /// transition to `.twoFactorRequired` and wait for the user to type a code.
     func login(config: ServerConfig, password: String) async {
         self.config = config
         guard let url = config.baseURL else {
@@ -133,20 +126,6 @@ final class SessionStore: ObservableObject {
         )
     }
 
-    /// User has tapped Approve on the Secure SignIn push — retry the login.
-    /// (Also available as the "I approved — sign in" button on the 2FA card.)
-    func retryAfterPushApproval() async {
-        guard let pending = pendingCredentials else { return }
-        state = .authenticating
-        await attemptLogin(
-            password: pending.password,
-            otpCode: nil,
-            onOTPNeeded: { [weak self] in
-                self?.state = .twoFactorRequired
-            }
-        )
-    }
-
     /// Bail out of the 2FA challenge — go back to the credentials form.
     func cancelTwoFactor() {
         pendingCredentials = nil
@@ -172,10 +151,9 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    /// The single Synology `login` call. Intentionally does NOT pass
-    /// `enable_device_token` or `device_id` — those flags switch the server into
-    /// a TOTP-only flow and suppress the Secure SignIn push notification, which
-    /// is the opposite of what we want. SID is the only thing we persist.
+    /// The single Synology `login` call. Sends just account/password/otpCode —
+    /// no device-token plumbing. SID is the only thing we persist; when it
+    /// expires, the next launch surfaces the password+2FA prompt again.
     private func performLogin(password: String, otpCode: String?) async throws {
         let result = try await client.login(
             account: config.account,

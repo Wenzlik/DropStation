@@ -4,6 +4,24 @@ All notable changes to **Syno Get** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-05-12
+
+### Changed
+- **Stop pretending push approval works.** The auth.cgi push behaviour
+  could not be made reliable across 0.2.0–0.2.2; the user's NAS
+  alternated between sending a push and silently going to TOTP-only,
+  with no documented way to detect or control which. Give up on the
+  hybrid UI: the 2FA card is back to being a plain OTP entry — type
+  the 6-digit code from the Secure SignIn Codes tab (or Google
+  Authenticator, 1Password, …) and submit. No more polling, no more
+  "I approved" button, no more scenePhase auto-retry.
+- The simplification from 0.2.2 (no `enable_device_token`, no
+  `device_id` on the login call) is kept — those parameters were the
+  cause of the original push regression, and removing them keeps the
+  flow minimal.
+- Fix: SettingsView no longer references the removed
+  `session.hasTrustedDevice` (was breaking the build under 0.2.2).
+
 ## [0.2.2] — 2026-05-12
 
 ### Fixed
@@ -113,6 +131,7 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - App icon (orange gradient + white download-into-tray arrow), generated
   from `icon.svg`.
 
+[0.2.3]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.3
 [0.2.2]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.0
