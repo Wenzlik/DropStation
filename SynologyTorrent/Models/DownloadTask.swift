@@ -52,4 +52,22 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         guard size > 0, let downloaded = additional?.transfer?.sizeDownloaded else { return 0 }
         return min(1.0, Double(downloaded) / Double(size))
     }
+
+    var canPause: Bool {
+        switch status {
+        case .downloading, .waiting, .seeding, .hash_checking, .filehosting_waiting:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var canResume: Bool {
+        switch status {
+        case .paused, .error:
+            return true
+        default:
+            return false
+        }
+    }
 }

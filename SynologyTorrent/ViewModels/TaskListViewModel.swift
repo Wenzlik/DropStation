@@ -33,6 +33,33 @@ final class TaskListViewModel: ObservableObject {
         }
     }
 
+    func createTask(fileData: Data, filename: String) async {
+        do {
+            try await client.createTask(fileData: fileData, filename: filename)
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func pause(_ task: DownloadTask) async {
+        do {
+            try await client.pauseTasks(ids: [task.id])
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func resume(_ task: DownloadTask) async {
+        do {
+            try await client.resumeTasks(ids: [task.id])
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func delete(_ task: DownloadTask) async {
         do {
             try await client.deleteTask(id: task.id)

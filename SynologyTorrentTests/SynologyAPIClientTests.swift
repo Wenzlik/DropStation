@@ -42,4 +42,40 @@ final class DownloadTaskDecodingTests: XCTestCase {
         let task = try JSONDecoder().decode(DownloadTask.self, from: json)
         XCTAssertEqual(task.status, .unknown)
     }
+
+    func testPauseResumeAvailability() throws {
+        func task(status: DownloadTask.Status) -> DownloadTask {
+            DownloadTask(id: "x", title: "t", size: 1, status: status, type: .bt, username: "u", additional: nil)
+        }
+        XCTAssertTrue(task(status: .downloading).canPause)
+        XCTAssertTrue(task(status: .seeding).canPause)
+        XCTAssertFalse(task(status: .paused).canPause)
+        XCTAssertTrue(task(status: .paused).canResume)
+        XCTAssertTrue(task(status: .error).canResume)
+        XCTAssertFalse(task(status: .finished).canResume)
+        XCTAssertFalse(task(status: .downloading).canResume)
+    }
 }
+
+final class APIErrorContextTests: XCTestCase {
+    func testCommonCodesAreContextIndependent() {
+        XCTAssertEqual(SynologyErrorCode.message(for: 106, context: .auth),
+                       SynologyErrorCode.message(for: 106, context: .task))
+        XCTAssertTrue(SynologyErrorCode.message(for: 106).contains("timeout"))
+    }
+
+    func testAuthAndTaskContextsDisagreeOn400() {
+        let auth = SynologyErrorCode.message(for: 400, context: .auth)
+        let task = SynologyErrorCode.message(for: 400, context: .task)
+        XCTAssertNotEqual(auth, task)
+        XCTAssertTrue(auth.lowercased().contains("password") || auth.lowercased().contains("account"))
+        XCTAssertTrue(task.lowercased().contains("file"))
+    }
+
+    func testTaskContext401IsMaxTasks() {
+        XCTAssertTrue(
+            SynologyErrorCode.message(for: 401, context: .task).lowercased().contains("maximum")
+        )
+    }
+}
+

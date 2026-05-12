@@ -19,10 +19,11 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 - [x] Credentials stored in **Keychain** (not UserDefaults)
 - [x] List downloads with progress, size, status
 - [x] Add a download from a magnet/HTTP/FTP URI
+- [x] Add a download by uploading a local `.torrent` file from the Files app
+- [x] Pause / resume tasks (swipe from the left)
 - [x] Delete a download
 - [x] Pull-to-refresh + 5s auto-refresh
 - [x] `magnet:` URL scheme handler (open magnet links in this app)
-- [ ] Pause / resume tasks
 - [ ] BT search
 - [ ] iPad layout polish
 - [ ] Share Sheet extension for adding torrents from Safari

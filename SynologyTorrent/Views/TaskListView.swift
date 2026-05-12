@@ -14,11 +14,29 @@ struct TaskListView: View {
             List {
                 ForEach(viewModel.tasks) { task in
                     TaskRow(task: task)
-                        .swipeActions {
+                        .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 Task { await viewModel.delete(task) }
                             } label: {
                                 Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            if task.canPause {
+                                Button {
+                                    Task { await viewModel.pause(task) }
+                                } label: {
+                                    Label("Pause", systemImage: "pause.fill")
+                                }
+                                .tint(.orange)
+                            }
+                            if task.canResume {
+                                Button {
+                                    Task { await viewModel.resume(task) }
+                                } label: {
+                                    Label("Resume", systemImage: "play.fill")
+                                }
+                                .tint(.green)
                             }
                         }
                 }
@@ -47,12 +65,16 @@ struct TaskListView: View {
                 }
             }
             .sheet(isPresented: $showingAddTask) {
-                AddTaskView { uri in
-                    await viewModel.createTask(uri: uri)
-                }
+                AddTaskView(
+                    onAddURI: { uri in
+                        await viewModel.createTask(uri: uri)
+                    },
+                    onAddFile: { data, name in
+                        await viewModel.createTask(fileData: data, filename: name)
+                    }
+                )
             }
             .task {
-                // Reuse the shared client from SessionStore by binding it once.
                 viewModel.startAutoRefresh()
                 await viewModel.refresh()
             }
