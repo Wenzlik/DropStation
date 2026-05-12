@@ -167,14 +167,14 @@ struct LoginView: View {
                 .foregroundStyle(.tint)
                 .padding(.bottom, 4)
             Text("Two-step verification").font(.title3.weight(.semibold))
-            Text("Approve the sign-in request in your Synology Secure SignIn app, then tap the button below — or enter the 6-digit code from your authenticator app.")
+            Text("Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.bottom, 8)
 
-        IconField(systemImage: "number.square", placeholder: "6-digit code (optional)", text: $otpCode)
+        IconField(systemImage: "number.square", placeholder: "6-digit code", text: $otpCode)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
 
@@ -182,22 +182,17 @@ struct LoginView: View {
             .font(.footnote)
             .padding(.horizontal, 4)
 
-        // One button for both flows. Empty OTP -> retry the login without a code,
-        // which is the right move both after a push approval (Synology should now
-        // hand us the SID) and after an OTP entry.
+        if case .error(let message) = session.state {
+            inlineErrorLabel(message)
+        }
+
         signInButton(
-            label: otpCode.isEmpty ? "I approved — sign in" : "Verify code",
+            label: "Verify code",
             isWorking: session.state == .authenticating
         ) {
-            Task {
-                if otpCode.isEmpty {
-                    await session.resendPushApproval()
-                } else {
-                    await session.submitOTP(otpCode)
-                }
-            }
+            Task { await session.submitOTP(otpCode) }
         }
-        .disabled(session.state == .authenticating)
+        .disabled(otpCode.count < 6 || session.state == .authenticating)
 
         Button("Cancel", role: .cancel) {
             session.cancelTwoFactor()

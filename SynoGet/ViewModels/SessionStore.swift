@@ -10,9 +10,14 @@ final class SessionStore: ObservableObject {
         case restoring
         case loggedOut
         case authenticating
-        /// First-stage credentials accepted; server is waiting for 2-step verification.
-        /// In this state the LoginView shows an "approve in your authenticator app, or
-        /// enter the code" UI while we silently poll the login endpoint for push approval.
+        /// First-stage credentials accepted; server is waiting for a 2-step verification
+        /// code from an authenticator app (TOTP).
+        ///
+        /// Note on Synology Secure SignIn "Approve sign-in" push: that flow requires the
+        /// Synology OAuth Service or Synology's first-party app integration, neither of
+        /// which the public `auth.cgi` endpoint we hit can trigger. Users on accounts
+        /// with push approval enabled still see a 6-digit code in the Secure SignIn
+        /// app's "Codes" tab, which works with this flow exactly like any TOTP code.
         case twoFactorRequired
         case loggedIn
         case error(String)
@@ -25,10 +30,9 @@ final class SessionStore: ObservableObject {
     let client = SynologyAPIClient()
 
     /// Credentials captured during the first login attempt, kept in memory only for the
-    /// duration of a 2FA challenge so the polling task can re-submit without prompting
-    /// the user again.
+    /// duration of a 2FA challenge so submitOTP can re-issue the request without
+    /// prompting the user for them again.
     private var pendingCredentials: PendingCredentials?
-    private var pushPollingTask: Task<Void, Never>?
 
     private struct PendingCredentials {
         let config: ServerConfig
@@ -103,8 +107,7 @@ final class SessionStore: ObservableObject {
     // MARK: - Login
 
     /// Initial login from the form. If the server demands a second factor, we transition
-    /// into `.twoFactorRequired` and start polling — the user can wait for the
-    /// Synology Secure SignIn push approval or type the OTP into the challenge view.
+    /// into `.twoFactorRequired` and wait for the user to enter the OTP code.
     func login(config: ServerConfig, password: String, trustThisDevice: Bool = true) async {
         self.config = config
         guard let url = config.baseURL else {
@@ -123,14 +126,12 @@ final class SessionStore: ObservableObject {
                     config: config, password: password, trustThisDevice: trustThisDevice
                 )
                 self.state = .twoFactorRequired
-                self.startPushPolling()
             }
         )
     }
 
-    /// Submit an OTP code from the 2FA challenge view. Cancels the push polling.
+    /// Submit an OTP code from the 2FA challenge view.
     func submitOTP(_ otpCode: String) async {
-        stopPushPolling()
         guard let pending = pendingCredentials else {
             state = .error("Session lost. Please sign in again.")
             return
@@ -141,30 +142,15 @@ final class SessionStore: ObservableObject {
             otpCode: otpCode,
             trustThisDevice: pending.trustThisDevice,
             onOTPNeeded: { [weak self] in
-                // Server rejected the OTP and is still demanding one.
                 self?.state = .twoFactorRequired
-                self?.startPushPolling()
             }
         )
     }
 
     /// Bail out of the 2FA challenge — go back to the credentials form.
     func cancelTwoFactor() {
-        stopPushPolling()
         pendingCredentials = nil
         state = .loggedOut
-    }
-
-    /// Re-trigger a Synology Secure SignIn push by re-issuing the login attempt now,
-    /// in addition to the periodic polling.
-    func resendPushApproval() async {
-        guard let pending = pendingCredentials else { return }
-        await attemptLogin(
-            password: pending.password,
-            otpCode: nil,
-            trustThisDevice: pending.trustThisDevice,
-            onOTPNeeded: { /* stay in .twoFactorRequired; already there */ }
-        )
     }
 
     private func attemptLogin(
@@ -183,7 +169,6 @@ final class SessionStore: ObservableObject {
             try? KeychainStorage.setPassword(password, for: config.account)
             ServerConfigStore.save(config)
             pendingCredentials = nil
-            stopPushPolling()
         } catch let error as APIError where error.isOTPRequired {
             onOTPNeeded()
         } catch let error as APIError where error.isOTPInvalid {
@@ -215,62 +200,9 @@ final class SessionStore: ObservableObject {
         state = .loggedIn
     }
 
-    // MARK: - Push polling
-
-    /// While `.twoFactorRequired`, retry the login every few seconds. Synology Secure
-    /// SignIn pushes an approval prompt to the user's authenticator app; once they tap
-    /// "Approve", the next login call (without an OTP) starts returning a valid SID.
-    private func startPushPolling() {
-        stopPushPolling()
-        guard let pending = pendingCredentials else { return }
-        pushPollingTask = Task { [weak self] in
-            let started = Date()
-            // Keep trying for ~2 minutes — about the lifetime of a Synology push prompt.
-            // 10 s polling interval: an aggressive 5 s schedule may create a fresh
-            // push request on every retry (Synology behaviour here isn't documented),
-            // which would spam notifications. The user can also tap "I approved" in
-            // the UI to force an immediate retry — scenePhase change does the same
-            // automatically when they switch back from the Secure SignIn app.
-            while !Task.isCancelled, Date().timeIntervalSince(started) < 120 {
-                try? await Task.sleep(for: .seconds(10))
-                if Task.isCancelled { return }
-                guard let self else { return }
-                await self.pollOnce(pending: pending)
-                if await self.state != .twoFactorRequired { return }
-            }
-        }
-    }
-
-    private func stopPushPolling() {
-        pushPollingTask?.cancel()
-        pushPollingTask = nil
-    }
-
-    private func pollOnce(pending: PendingCredentials) async {
-        do {
-            try await performLogin(
-                password: pending.password,
-                otpCode: nil,
-                deviceID: KeychainStorage.deviceID(for: accountAtHost),
-                enableDeviceToken: pending.trustThisDevice
-            )
-            try? KeychainStorage.setPassword(pending.password, for: config.account)
-            ServerConfigStore.save(config)
-            pendingCredentials = nil
-            stopPushPolling()
-        } catch let error as APIError where error.isOTPRequired {
-            // Still waiting for the user to approve. Stay in .twoFactorRequired and try again.
-        } catch {
-            // Anything else (network blip, wrong creds suddenly, etc.) — silently keep polling;
-            // the user can still type an OTP or Cancel. We don't move to .error mid-prompt
-            // because that would dismiss their 2FA view.
-        }
-    }
-
     // MARK: - Logout
 
     func logout() async {
-        stopPushPolling()
         try? await client.logout()
         KeychainStorage.deleteSID(for: accountAtHost)
         // We keep the password and device id so the user can come back without re-entering
@@ -279,7 +211,6 @@ final class SessionStore: ObservableObject {
     }
 
     func forgetDevice() async {
-        stopPushPolling()
         try? await client.logout()
         KeychainStorage.deleteSID(for: accountAtHost)
         KeychainStorage.deleteDeviceID(for: accountAtHost)

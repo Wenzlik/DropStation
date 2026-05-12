@@ -4,6 +4,20 @@ All notable changes to **Syno Get** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-05-12
+
+### Changed
+- **2FA flow simplified to TOTP-only.** The 0.2.0 build advertised
+  "Synology Secure SignIn push approval" but the public `auth.cgi`
+  endpoint we use does not trigger the push — that flow is only
+  reachable through Synology's first-party apps or the
+  [OAuth Service](https://www.synology.com/en-global/dsm/7.3/software_spec/oauth)
+  (separate registration in DSM). The 2FA challenge now just asks for
+  a 6-digit code from any authenticator app, including the **Codes**
+  tab inside Synology Secure SignIn — which works the same as
+  Google Authenticator, 1Password, etc. The polling task,
+  Resend-push button, and scenePhase wake-up are all gone with it.
+
 ## [0.2.0] — 2026-05-12
 
 ### Added
@@ -75,5 +89,6 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - App icon (orange gradient + white download-into-tray arrow), generated
   from `icon.svg`.
 
+[0.2.1]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.1.0
