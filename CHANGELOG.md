@@ -4,6 +4,43 @@ All notable changes to **Syno Get** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — Unreleased (in progress)
+
+> Tracking the in-flight 0.3 work. Items move out as features land in
+> [ROADMAP.md](ROADMAP.md) → here, and the date stamps when the tag is cut.
+
+### Added
+- **Tinted app icon variant** for iOS 18+ tinted Home Screen mode — a
+  single-colour silhouette of the download arrow + tray, so the icon
+  stays legible under the user's tint instead of degrading.
+- **Task type icons** — a small SF Symbol left of the title
+  distinguishes BT / HTTP / FTP / NZB / eMule at a glance, both on
+  list rows and the detail header.
+- **Animated numeric updates** — `.contentTransition(.numericText)` on
+  every refreshing speed / size / percentage value. Numbers tick
+  smoothly instead of flickering.
+
+### Changed
+- **Glass card rows** in the task list — `.listStyle(.plain)` with each
+  row wrapped in `.glassEffect(in: .rect(cornerRadius: 18))` on a
+  system-background gradient. Rows visibly float as iOS 26 glass
+  cards instead of sitting inside a solid list container.
+- **Status-tinted progress bars** — `ProgressView` tints match the
+  status pill (green downloading/seeding, blue waiting/hash_checking,
+  orange paused, red error, grey finished).
+- Centralised the status→colour and task-type→symbol mappings on
+  `DownloadTask.Status.tintColor` and `DownloadTask.TaskType.systemImage`
+  so views stay in sync.
+
+### Removed
+- Drop the **keyfun/synology_ds_get** attribution — the networking
+  layer has been a full rewrite for several versions; `UPSTREAM-LICENSE-keyfun`
+  is gone, README's Credits section is replaced with a one-line
+  License pointer, and the LICENSE no longer carries the derivation
+  paragraph.
+
+---
+
 ## [0.2.3] — 2026-05-12
 
 ### Changed
@@ -131,6 +168,7 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - App icon (orange gradient + white download-into-tray arrow), generated
   from `icon.svg`.
 
+[0.3.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.3.0
 [0.2.3]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.3
 [0.2.2]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.2
 [0.2.1]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.1
