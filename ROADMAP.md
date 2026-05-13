@@ -8,13 +8,17 @@ into [CHANGELOG.md](CHANGELOG.md) once shipped.
 Pass 4 / 5 of the 0.3 cycle. Not shipped in 0.3.0 to keep that release
 tight; the work is short and self-contained.
 
-- [ ] **Stop action for active downloads.** Pause is reversible; users want a
-      "final" termination they can issue from the row. Synology only exposes
-      `pause` and `delete`, so this is really about better delete UX: swipe-delete
-      pops a confirmation that also offers "Keep partial files" (maps to
-      `force_complete=true`) vs "Delete files" (`force_complete=false`).
-- [ ] **Confirm-before-delete** dialog on the swipe-delete action (subsumed by
-      the Stop dialog above).
+- [ ] **Stop action + "Ended" status label.** Pause is reversible and looks
+      temporary; users want a final-feeling termination they can issue from the
+      row. Two pieces:
+      - Add a Stop button (calls `pause` under the hood — Synology has no separate
+        terminal status in the API) with stop.fill icon, distinct from the
+        existing pause.fill on actively-downloading tasks.
+      - Re-label paused tasks at 100 % (download finished, seeding off) and the
+        `finished` API status as "**Ended**" instead of "Paused" / "Finished"
+        — this matches what DSM's own web UI shows.
+- [ ] **Confirm-before-delete** dialog with a "Keep partial files" toggle
+      (maps to `force_complete=true` vs `false` on the delete call).
 - [ ] **Clipboard hint** in AddTaskView: when `UIPasteboard` contains a
       magnet/HTTP URL, show a "Paste from clipboard" button above the URI
       field.
