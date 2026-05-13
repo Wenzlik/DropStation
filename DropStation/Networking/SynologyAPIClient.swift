@@ -194,13 +194,6 @@ actor SynologyAPIClient {
                 throw APIError.http(http.statusCode)
             }
             let decoded = try JSONDecoder().decode(APIResponse<EmptyData>.self, from: data)
-            #if DEBUG
-            if !decoded.success, let s = String(data: data, encoding: .utf8) {
-                print("[DropStation] createTask(file) FAILED → request URL: \(url.absoluteString)")
-                print("[DropStation] createTask(file) FAILED → filename: \(filename)")
-                print("[DropStation] createTask(file) FAILED → response: \(s)")
-            }
-            #endif
             try ensureSuccess(decoded, context: .task)
         } catch let error as APIError {
             throw error
@@ -378,19 +371,7 @@ actor SynologyAPIClient {
                 throw APIError.http(http.statusCode)
             }
             do {
-                let decoded = try JSONDecoder().decode(APIResponse<T>.self, from: data)
-                #if DEBUG
-                // When debugging push-approval flow: log the raw body whenever Synology
-                // says the call failed. Synology often tucks extra fields (auth token,
-                // approval id, etc.) into the response that don't show up in the
-                // documented schema.
-                if !decoded.success, let s = String(data: data, encoding: .utf8) {
-                    let method = params["method"] ?? "?"
-                    let api = params["api"] ?? "?"
-                    print("[DropStation] \(api) method=\(method) FAILED → \(s)")
-                }
-                #endif
-                return decoded
+                return try JSONDecoder().decode(APIResponse<T>.self, from: data)
             } catch {
                 throw APIError.decoding(error)
             }

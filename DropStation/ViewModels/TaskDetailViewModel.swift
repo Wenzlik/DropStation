@@ -22,11 +22,10 @@ final class TaskDetailViewModel: ObservableObject {
             task = try await client.getTaskInfo(id: task.id)
             errorMessage = nil
         } catch let error as APIError where error.isTransient {
-            // Same logic as TaskListViewModel: swallow connectivity blips during
-            // the background poll, the next tick will pick the data back up.
-            #if DEBUG
-            print("[DropStation] detail refresh transient error, ignoring: \(error.localizedDescription)")
-            #endif
+            // Same logic as TaskListViewModel: swallow connectivity blips
+            // during the background poll, the next tick will pick the data
+            // back up. `error` is referenced by the `where` clause so the
+            // binding isn't unused.
         } catch {
             errorMessage = error.localizedDescription
         }

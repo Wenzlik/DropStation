@@ -40,11 +40,10 @@ final class TaskListViewModel: ObservableObject {
             // Drop any stale error banner once a fresh poll succeeds.
             errorMessage = nil
         } catch let error as APIError where error.isTransient {
-            // Network/timeout/5xx during the background refresh. Don't alert the
-            // user — the next 5 s tick will almost certainly recover.
-            #if DEBUG
-            print("[DropStation] refresh transient error, ignoring: \(error.localizedDescription)")
-            #endif
+            // Transient (network / timeout / 5xx) errors during the
+            // background poll are intentionally swallowed — the next 5 s
+            // tick will almost certainly recover. `error` is referenced by
+            // the `where` clause above, so the binding isn't unused.
         } catch {
             errorMessage = error.localizedDescription
         }
