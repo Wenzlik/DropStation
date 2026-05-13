@@ -3,7 +3,7 @@
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
 
-> In-flight version: **0.3.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
+> Current version: **0.3.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
 > shipping and [ROADMAP.md](ROADMAP.md) for what's planned.
 
 ## Why

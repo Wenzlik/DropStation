@@ -3,47 +3,21 @@
 Living planning document for upcoming **Syno Get** releases. Items move
 into [CHANGELOG.md](CHANGELOG.md) once shipped.
 
-## 0.3 — Quality of life + visual refresh + cleanup
+## 0.3.1 — Quality of life follow-ups
 
-### Quality of life
-- [ ] Settings reachable directly from the login screen (gear icon top-right).
-      Account section hides while logged out; Appearance, About, and the new
-      Changelog viewer stay available.
-- [ ] In-app Changelog viewer — bundle `CHANGELOG.md`, render as Markdown in a
-      new Settings → "What's new" row so users can scroll release history
-      without leaving the app.
-- [ ] **Priority change** — tappable priority row on the task detail (DS2
-      `SYNO.DownloadStation2.Task.BT` `method=set`) and per-file priority
-      picker for BT torrents (DS2 `…Task.BT.File` `method=set`), with
-      skip/low/normal/high.
+Pass 4 / 5 of the 0.3 cycle. Not shipped in 0.3.0 to keep that release
+tight; the work is short and self-contained.
+
 - [ ] **Confirm-before-delete** dialog on the swipe-delete action.
 - [ ] **Clipboard hint** in AddTaskView: when `UIPasteboard` contains a
       magnet/HTTP URL, show a "Paste from clipboard" button above the URI
       field.
 - [ ] **Search by name** — search field above the task list, incremental
       filter on `task.title`.
-
-### Visual refresh (iOS 26)
-- [ ] **Glass card rows** — switch to `.listStyle(.plain)`, wrap each row
-      in `.glassEffect(in: .rect(cornerRadius: 18))` with breathing room
-      between. Floating cards on the gradient background — the iOS 26
-      aesthetic we currently underuse.
-- [ ] **Status-tinted progress bar** — `ProgressView(...).tint(statusColor)`
-      mirroring the status pill (green downloading, orange paused, red
-      error, etc.).
-- [ ] **Task type icon** left of the title — small tinted SF Symbol that
-      distinguishes BT / HTTP / NZB / FTP at a glance.
-- [ ] **Animated numeric updates** — `.contentTransition(.numericText)` on
-      the row speed counter and the navigation subtitle aggregate.
-- [ ] **Tinted app icon variant** for iOS 18+ tinted Home Screen mode —
-      single-color silhouette of the download arrow + tray so the icon
-      doesn't degrade in tinted display.
-
-### Cleanup
-- [ ] Drop the **keyfun/synology_ds_get** attribution — delete
-      `UPSTREAM-LICENSE-keyfun`, remove the Credits section from README,
-      drop the derivation paragraph from LICENSE. The networking layer is
-      a full rewrite now, no shared code remains.
+- [ ] **Priority change** — tappable priority row on the task detail (DS2
+      `SYNO.DownloadStation2.Task.BT` `method=set`) and per-file priority
+      picker for BT torrents (DS2 `…Task.BT.File` `method=set`), with
+      skip/low/normal/high.
 
 ---
 

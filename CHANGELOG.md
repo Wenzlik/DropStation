@@ -4,75 +4,33 @@ All notable changes to **Syno Get** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] — Unreleased (in progress)
+## [0.3.0] — 2026-05-13
 
-> Tracking the in-flight 0.3 work. Items move out as features land in
-> [ROADMAP.md](ROADMAP.md) → here, and the date stamps when the tag is cut.
-
-### Added
-- **Tinted app icon variant** for iOS 18+ tinted Home Screen mode — a
-  single-colour silhouette of the download arrow + tray, so the icon
-  stays legible under the user's tint instead of degrading.
-- **Task type icons** — a small SF Symbol left of the title
-  distinguishes BT / HTTP / FTP / NZB / eMule at a glance, both on
-  list rows and the detail header.
-- **Animated numeric updates** — `.contentTransition(.numericText)` on
-  every refreshing speed / size / percentage value. Numbers tick
-  smoothly instead of flickering.
-
-### Changed
-- **Glass card rows** in the task list — `.listStyle(.plain)` with each
-  row wrapped in `.glassEffect(in: .rect(cornerRadius: 18))` on a
-  system-background gradient. Rows visibly float as iOS 26 glass
-  cards instead of sitting inside a solid list container.
-- **Status-tinted progress bars** — `ProgressView` tints match the
-  status pill (green downloading/seeding, blue waiting/hash_checking,
-  orange paused, red error, grey finished).
-- Centralised the status→colour and task-type→symbol mappings on
-  `DownloadTask.Status.tintColor` and `DownloadTask.TaskType.systemImage`
-  so views stay in sync.
-
-### Removed
-- Drop the **keyfun/synology_ds_get** attribution — the networking
-  layer has been a full rewrite for several versions; `UPSTREAM-LICENSE-keyfun`
-  is gone, README's Credits section is replaced with a one-line
-  License pointer, and the LICENSE no longer carries the derivation
-  paragraph.
-
-### Added (more)
-- **Settings reachable from the login screen** — gear icon in the top
-  right opens the same Settings sheet that lives in the task list's
-  toolbar. The Account section automatically hides while signed out.
-- **In-app changelog viewer** — Settings → About → "What's new" opens
-  a Markdown rendering of the bundled `CHANGELOG.md` so it's easy to
-  see what each release added without leaving the app.
-- New downloads default to the **File** picker (was Link) — the
-  common path is picking a `.torrent`; the magnet-URL system handler
-  still flips to Link when the app is launched from a `magnet:` URL.
+### What's new
+- **iOS 26 polish.** Each download is a floating glass card. The
+  progress bar is tinted by state: green when downloading or seeding,
+  blue while waiting or hash-checking, orange when paused, red on
+  error. Numbers tick smoothly.
+- **Type icons.** Every row shows a small icon next to the title so
+  BT / HTTP / FTP / NZB are easy to tell apart.
+- **Tinted-mode app icon** for iOS 18+ Home Screens.
+- **Settings reachable from the sign-in screen** — gear in the
+  corner. The Account section is hidden while you're signed out.
+- **What's new** screen in Settings — this changelog, rendered
+  inside the app.
 
 ### Fixed
-- **Add download by .torrent file** finally works against DSM 7. The
-  documented `SYNO.DownloadStation.Task` create endpoint kept
-  returning 101 Invalid parameter for multipart uploads regardless of
-  spec compliance; switched the file-upload path to the
-  `SYNO.DownloadStation2.Task` endpoint at `/webapi/entry.cgi` (what
-  DSM's own web UI uses), including the required `type`,
-  `destination`, `create_list`, `mtime`, `size`, `file=["torrent"]`,
-  and `torrent` fields, with `_sid` carried in the URL query.
-- **Add download by magnet/URL** also failed with 101 when the URI
-  contained `&` characters (every multi-tracker magnet). The form
-  encoder was using `.urlQueryAllowed`, which permits `&` `=` `+`
-  inside values — so a magnet's tracker chain was parsed by the
-  server as additional form parameters. Switched the encoder to a
-  strict RFC 3986 unreserved character set; bumped the URI flow to
-  `version=3` (required for the `uri` parameter and `destination`).
-- **Network switch no longer pops error alerts.** Wi-Fi ⇄ cellular
-  handoffs left URLSession with stale connections; the next 1–2
-  auto-refresh ticks failed with `URLError.networkConnectionLost` /
-  `.timedOut` / `.cannotConnectToHost` and each one popped an alert.
-  Transient errors during the background poll (transport errors plus
-  HTTP 5xx) are now swallowed silently; the list keeps its last good
-  state and a successful poll clears any stale message.
+- **Adding a .torrent file works** against DSM 7 — the old endpoint
+  kept rejecting the upload no matter what.
+- **Magnet links with multiple trackers** no longer fail with
+  "Invalid parameter".
+- **Switching Wi-Fi ↔ cellular** no longer pops error alerts; the
+  list keeps the last good state and recovers on its own.
+
+### Tidying
+- New downloads default to the **File** picker (was Link).
+- Removed leftover attribution to the third-party project this app
+  was bootstrapped from — it's a full rewrite at this point.
 
 ---
 
