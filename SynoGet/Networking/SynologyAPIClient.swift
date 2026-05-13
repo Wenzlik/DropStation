@@ -168,17 +168,21 @@ actor SynologyAPIClient {
         components.queryItems = [URLQueryItem(name: "_sid", value: sid)]
         guard let url = components.url else { throw APIError.invalidURL }
 
-        var fields: [(String, String)] = [
+        // DS2 task.create has three required fields beyond the call envelope:
+        //   type         — "file" for an uploaded .torrent / .nzb, "url" for a URI
+        //   destination  — path string; empty string means "use the default folder"
+        //   create_list  — whether to prompt for per-file selection after creation
+        let fields: [(String, String)] = [
             ("api", "SYNO.DownloadStation2.Task"),
             ("method", "create"),
             ("version", "2"),
+            ("type", "\"file\""),
+            ("destination", "\"\(destination ?? "")\""),
+            ("create_list", "false"),
             ("mtime", String(Int(Date().timeIntervalSince1970 * 1000))),
             ("size", String(fileData.count)),
             ("file", "[\"torrent\"]")
         ]
-        if let destination, !destination.isEmpty {
-            fields.append(("destination", destination))
-        }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
