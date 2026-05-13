@@ -12,11 +12,22 @@ struct TaskListView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(viewModel.filteredTasks) { task in
-                    NavigationLink(value: task) {
-                        TaskRow(task: task)
-                    }
+            ZStack {
+                backgroundGradient.ignoresSafeArea()
+                List {
+                    ForEach(viewModel.filteredTasks) { task in
+                        NavigationLink(value: task) {
+                            TaskRow(task: task)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .glassEffect(.regular, in: .rect(cornerRadius: 18, style: .continuous))
+                                .contentShape(.rect(cornerRadius: 18, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
                                 Task { await viewModel.delete(task) }
@@ -42,7 +53,11 @@ struct TaskListView: View {
                                 .tint(.green)
                             }
                         }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .refreshable { await viewModel.refresh() }
             }
             .overlay {
                 if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
@@ -53,7 +68,6 @@ struct TaskListView: View {
                     )
                 }
             }
-            .refreshable { await viewModel.refresh() }
             .navigationTitle(navigationTitle)
             .navigationSubtitle(speedSubtitle)
             .toolbar {
@@ -110,6 +124,13 @@ struct TaskListView: View {
                 Text(viewModel.errorMessage ?? "")
             }
         }
+    }
+
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
+            startPoint: .top, endPoint: .bottom
+        )
     }
 
     private var filterMenu: some View {
