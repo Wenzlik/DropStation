@@ -313,14 +313,30 @@ actor SynologyAPIClient {
     }
 
     private func multipartBody(boundary: String, filename: String, fileData: Data) -> Data {
+        // Synology returns 101 Invalid parameter if the filename in Content-Disposition
+        // contains non-ASCII characters (e.g. Czech diacritics) or characters that break
+        // the header syntax. Sanitize aggressively: HTTP Content-Disposition's basic
+        // `filename=""` field is ASCII-only per RFC 6266, and the actual torrent task
+        // name comes from the .torrent file's bencoded `name` key anyway, not from this
+        // header.
+        let safeFilename = Self.asciiSafe(filename: filename)
+
         var body = Data()
         let lineBreak = "\r\n"
         body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\(lineBreak)".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFilename)\"\(lineBreak)".data(using: .utf8)!)
         body.append("Content-Type: application/octet-stream\(lineBreak)\(lineBreak)".data(using: .utf8)!)
         body.append(fileData)
         body.append("\(lineBreak)--\(boundary)--\(lineBreak)".data(using: .utf8)!)
         return body
+    }
+
+    private static func asciiSafe(filename: String) -> String {
+        let stripped = filename.applyingTransform(.stripDiacritics, reverse: false) ?? filename
+        let ascii = String(stripped.unicodeScalars.compactMap { $0.isASCII ? Character($0) : nil })
+        // Strip characters that would break the quoted filename in the header.
+        let cleaned = ascii.filter { $0 != "\"" && $0 != "\\" && $0 != "\r" && $0 != "\n" }
+        return cleaned.isEmpty ? "file.torrent" : cleaned
     }
 
     private func postForm<T: Decodable>(url: URL, params: [String: String]) async throws -> APIResponse<T> {
