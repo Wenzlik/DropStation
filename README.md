@@ -5,6 +5,8 @@ the discontinued **DS get** app.
 
 > Current version: **0.3.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
 > shipping and [ROADMAP.md](ROADMAP.md) for what's planned.
+> Picking up the repo as a contributor (or AI assistant)? Start with
+> [AGENTS.md](AGENTS.md).
 
 ## What it does
 
