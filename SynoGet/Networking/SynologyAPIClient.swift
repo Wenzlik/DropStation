@@ -123,9 +123,13 @@ actor SynologyAPIClient {
         guard let sid else { throw APIError.notLoggedIn }
 
         let url = baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi")
+        // Version 3+ is required for `uri` (per the Synology Download Station API
+        // spec) and version 2+ for `destination`. Sending these with the older
+        // version=1 we used previously triggers Synology error 101 "Invalid
+        // parameter" on DSM 7 builds.
         var params: [String: String] = [
             "api": "SYNO.DownloadStation.Task",
-            "version": "1",
+            "version": "3",
             "method": "create",
             "uri": uri,
             "_sid": sid
@@ -149,9 +153,12 @@ actor SynologyAPIClient {
             url: baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi"),
             resolvingAgainstBaseURL: false
         )!
+        // Version 2+ is required for the `destination` parameter to be accepted
+        // alongside the file upload. Stay on the same version as the URI flow
+        // for consistency.
         var queryItems = [
             URLQueryItem(name: "api", value: "SYNO.DownloadStation.Task"),
-            URLQueryItem(name: "version", value: "1"),
+            URLQueryItem(name: "version", value: "3"),
             URLQueryItem(name: "method", value: "create"),
             URLQueryItem(name: "_sid", value: sid)
         ]
