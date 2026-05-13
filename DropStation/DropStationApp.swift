@@ -17,6 +17,12 @@ struct DropStationApp: App {
                 .onOpenURL { url in
                     session.handleIncomingURL(url)
                 }
+                .task {
+                    // Drives the launch-time session restore (saved SID probe →
+                    // silent re-login → 2FA prompt → loggedOut). restoreOnLaunch
+                    // is idempotent so this is safe if SwiftUI re-fires the task.
+                    await session.restoreOnLaunch()
+                }
         }
     }
 }

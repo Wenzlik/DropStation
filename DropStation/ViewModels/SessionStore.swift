@@ -34,11 +34,26 @@ final class SessionStore: ObservableObject {
         let password: String
     }
 
-    init() {
-        Task { await restoreSession() }
-    }
+    /// Guard against running the launch-time session-restore twice. SwiftUI's
+    /// `.task` modifier can fire again if the host view is re-attached (e.g.
+    /// scenePhase transitions on some iOS builds), and we don't want to clobber
+    /// the user's logged-in or login-form state with a second `.restoring`
+    /// pass.
+    private var didRestoreOnLaunch = false
 
     // MARK: - Restore
+
+    /// Entry point for app-launch session restore. Wired from `DropStationApp`'s
+    /// `WindowGroup` via `.task { await session.restoreOnLaunch() }` instead of
+    /// being fired from `init()` — that earlier pattern forced a detached
+    /// `Task { ... }` because SwiftUI requires `@StateObject` inits to be
+    /// synchronous, which is less structured and harder to cancel/observe.
+    /// Idempotent on repeat calls.
+    func restoreOnLaunch() async {
+        guard !didRestoreOnLaunch else { return }
+        didRestoreOnLaunch = true
+        await restoreSession()
+    }
 
     /// Try to restore a session on app launch:
     ///   1. If we have a saved SID, probe the API. Success → already logged in.
