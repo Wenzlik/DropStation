@@ -35,26 +35,21 @@ actor SynologyAPIClient {
     struct LoginResult {
         /// The new session id.
         let sid: String
-        /// Device id returned when `enableDeviceToken=true` was passed together with a valid OTP.
-        /// Save it and pass it back via `deviceID` on future logins to skip OTP entry.
-        let deviceID: String?
     }
 
     /// SYNO.API.Auth login (DownloadStation session, API version 6).
     /// Credentials are sent as POST form data so they do not end up in server access logs.
     ///
-    /// Skip-OTP flow:
-    ///   * On the first 2FA login, pass `otpCode` and `enableDeviceToken=true` and `deviceName`.
-    ///     The response will contain a `did` (device id) — save it.
-    ///   * On every subsequent login from this device, pass `deviceID` and `deviceName`. No OTP needed.
+    /// 2FA: pass `otpCode` when the server has already demanded one (the previous
+    /// attempt returned 403). Synology Secure SignIn push approval is intentionally
+    /// not wired up — the public `auth.cgi` endpoint can't trigger it, and the
+    /// `enable_device_token` flow that would mint a long-lived device id
+    /// suppresses the push entirely, so we keep the call minimal.
     @discardableResult
     func login(
         account: String,
         password: String,
-        otpCode: String? = nil,
-        enableDeviceToken: Bool = false,
-        deviceID: String? = nil,
-        deviceName: String? = nil
+        otpCode: String? = nil
     ) async throws -> LoginResult {
         guard let baseURL else { throw APIError.invalidURL }
 
@@ -68,9 +63,6 @@ actor SynologyAPIClient {
             "format": "sid"
         ]
         if let otpCode { params["otp_code"] = otpCode }
-        if enableDeviceToken { params["enable_device_token"] = "yes" }
-        if let deviceID { params["device_id"] = deviceID }
-        if let deviceName { params["device_name"] = deviceName }
 
         let url = baseURL.appendingPathComponent("/webapi/auth.cgi")
         let response: APIResponse<LoginData> = try await postForm(url: url, params: params)
@@ -79,7 +71,7 @@ actor SynologyAPIClient {
             throw APIError.synology(code: -1, message: "Login succeeded but no session id returned.")
         }
         self.sid = data.sid
-        return LoginResult(sid: data.sid, deviceID: data.did)
+        return LoginResult(sid: data.sid)
     }
 
     func logout() async throws {

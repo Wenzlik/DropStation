@@ -43,7 +43,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Removes the saved password, session, and 2FA device trust from the Keychain. You will have to re-enter your 2FA code next time.")
+                Text("Removes the saved password and session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch.")
             }
         }
     }
@@ -84,7 +84,7 @@ struct SettingsView: View {
         } header: {
             Text("Account")
         } footer: {
-            Text("Sign out keeps your password and 2FA trust on this device for next time. Forget clears everything.")
+            Text("Sign out keeps your saved password for next time. Forget clears the password too.")
         }
     }
 

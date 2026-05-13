@@ -1,8 +1,5 @@
 import Foundation
 import SwiftUI
-#if canImport(UIKit)
-import UIKit
-#endif
 
 @MainActor
 final class SessionStore: ObservableObject {
@@ -190,7 +187,6 @@ final class SessionStore: ObservableObject {
     func forgetDevice() async {
         try? await client.logout()
         KeychainStorage.deleteSID(for: accountAtHost)
-        KeychainStorage.deleteDeviceID(for: accountAtHost)
         KeychainStorage.deletePassword(for: config.account)
         state = .loggedOut
     }

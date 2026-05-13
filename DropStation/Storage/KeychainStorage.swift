@@ -1,19 +1,17 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper. Stores three classes of items keyed under one service:
+/// Minimal Keychain wrapper. Stores two classes of items keyed under one service:
 ///   - Password   (account = NAS username)
 ///   - SID        (account = "<username>@<host>")
-///   - DeviceID   (account = "<username>@<host>")
 /// Items are tagged by Keychain "label" so the same NAS username can have
-/// distinct entries for password vs sid vs device id without colliding.
+/// distinct entries for password vs sid without colliding.
 enum KeychainStorage {
     private static let service = "com.wenzlik.DropStation"
 
     enum Kind: String {
         case password = "password"
         case sid = "sid"
-        case deviceID = "deviceID"
     }
 
     // MARK: - Password
@@ -42,20 +40,6 @@ enum KeychainStorage {
 
     static func deleteSID(for accountAtHost: String) {
         remove(kind: .sid, account: accountAtHost)
-    }
-
-    // MARK: - Device ID (for 2FA-trust)
-
-    static func setDeviceID(_ deviceID: String, for accountAtHost: String) throws {
-        try store(value: deviceID, kind: .deviceID, account: accountAtHost)
-    }
-
-    static func deviceID(for accountAtHost: String) -> String? {
-        load(kind: .deviceID, account: accountAtHost)
-    }
-
-    static func deleteDeviceID(for accountAtHost: String) {
-        remove(kind: .deviceID, account: accountAtHost)
     }
 
     // MARK: - Common
