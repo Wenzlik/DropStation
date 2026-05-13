@@ -6,41 +6,26 @@ the discontinued **DS get** app.
 > Current version: **0.3.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
 > shipping and [ROADMAP.md](ROADMAP.md) for what's planned.
 
-## Why
+## What it does
 
-Synology removed *DS get* from the App Store. There is no first-party way to
-control Download Station from an iPhone anymore. This project rebuilds the
-missing piece as a small, modern, self-buildable SwiftUI app.
+DropStation connects to your Synology NAS and lets you manage Download
+Station from your iPhone. Sign in with your DSM credentials (2FA via
+TOTP supported), then:
 
-## Features (initial scope)
+- See every download in one list — progress, speed, size, status — with
+  iOS 26 Liquid Glass cards and live, smoothly-ticking counters.
+- Tap a task to drill into peers / seeders / leechers, file list,
+  tracker URLs, ratio, and ETA.
+- Add a new download by pasting a magnet/URL or picking a `.torrent`
+  from the Files app. The destination folder is a tap away — browse
+  your NAS shared folders directly.
+- Pause, resume, or delete with a swipe. Filter the list by
+  Downloading / Seeding / Paused / Finished / Error.
+- Open magnet links from Safari straight into the app.
 
-- [x] Login (username + password, scheme/host/port)
-- [x] Two-step verification (OTP) with persistent device token
-- [x] Session persists across app launches (SID + device_id in Keychain)
-- [x] Credentials stored in **Keychain** (not UserDefaults)
-- [x] List downloads with progress, size, status
-- [x] Add a download from a magnet/HTTP/FTP URI
-- [x] Add a download by uploading a local `.torrent` file from the Files app
-- [x] Choose download destination by browsing NAS shared folders (FileStation API)
-- [x] Task detail screen (peers, seeders, leechers, files, trackers, ETA, ratio)
-- [x] Live ↓ speed on each active row plus aggregate ↓/↑ in the navigation subtitle
-- [x] Pause / resume tasks (swipe from the left)
-- [x] Filter list by status (All / Active / Paused / Finished / Error)
-- [x] Settings sheet (theme override, account management, app info)
-- [x] Delete a download
-- [x] Pull-to-refresh + 5s auto-refresh
-- [x] `magnet:` URL scheme handler (open magnet links in this app)
-- [ ] BT search
-- [ ] iPad layout polish
-- [ ] Share Sheet extension for adding torrents from Safari
-
-## Tech
-
-- SwiftUI, iOS 26+ (Liquid Glass design language)
-- Swift 5.9, async/await, Codable
-- No third-party dependencies
-- `actor`-based API client
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) for project generation
+The app stays signed in across launches (SID and password held in the
+iOS Keychain), recovers silently from Wi-Fi ↔ cellular switches, and
+runs on iOS 26 or newer.
 
 ## Building
 
@@ -50,46 +35,51 @@ xcodegen generate
 open DropStation.xcodeproj
 ```
 
-Then build & run on an iPhone simulator or a physical device. The first run
-asks for the NAS scheme/host/port and credentials.
+Then build & run on an iPhone simulator or a physical device. On the
+first launch the app asks for the NAS scheme / host / port and
+credentials.
+
+## Stack
+
+- SwiftUI, iOS 26+ (Liquid Glass design language)
+- Swift 5.9, async/await, Codable
+- No third-party dependencies
+- `actor`-based API client
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) for project generation
 
 ## Repository layout
 
 ```
 DropStation/                The SwiftUI app
-├── Models/                 Codable types: ServerConfig, DownloadTask, TaskFilter, …
+├── Models/                 Codable types
 ├── Networking/             SynologyAPIClient (async/await actor)
 ├── Storage/                Keychain + UserDefaults persistence
-├── ViewModels/             SessionStore, TaskListViewModel, TaskDetailViewModel
+├── ViewModels/             SessionStore + per-screen view models
 ├── Views/                  SwiftUI screens
 └── Resources/              Info.plist + Assets.xcassets (AppIcon)
 DropStationTests/           Unit tests
 project.yml                 XcodeGen project specification
-icon.svg                    Source for the app icon (rendered to PNG via rsvg-convert)
+icon.svg                    Source for the app icon
+icon-tinted.svg             Tinted-mode variant (iOS 18+ Home Screen)
 ```
 
 ## Synology API
 
-Endpoints used (see Synology's official
-[Download Station Web API guide](https://global.download.synology.com/download/Document/Software/DeveloperGuide/Package/DownloadStation/All/enu/Synology_Download_Station_Web_API.pdf)
+See the official [Download Station Web API guide](https://global.download.synology.com/download/Document/Software/DeveloperGuide/Package/DownloadStation/All/enu/Synology_Download_Station_Web_API.pdf)
 and [DSM Login Web API guide](https://global.download.synology.com/download/Document/Software/DeveloperGuide/Os/DSM/All/enu/DSM_Login_Web_API_Guide_enu.pdf)
-for full specs):
+for the wire format. Endpoints used:
 
-- `SYNO.API.Auth` — login/logout (`/webapi/auth.cgi`)
-- `SYNO.DownloadStation.Task` — list/getinfo/create/delete/pause/resume
-  (`/webapi/DownloadStation/task.cgi`)
-- `SYNO.FileStation.List` — list_share/list for the destination picker
-  (`/webapi/entry.cgi`)
+- `SYNO.API.Auth` — sign-in / sign-out (`auth.cgi`)
+- `SYNO.DownloadStation.Task` — list, getinfo, delete, pause, resume,
+  and the URI-mode create (`task.cgi`)
+- `SYNO.DownloadStation2.Task` — file-upload create at `entry.cgi`
+  (DSM 7's newer endpoint; the legacy one silently rejects `.torrent`
+  multipart uploads)
+- `SYNO.FileStation.List` — list_share / list for the destination picker
 
-Authentication uses **API version 6**, which supports `enable_device_token` —
-on the first 2FA login the server returns a `did` (device id) that subsequent
-logins use in place of the OTP code. Both the SID and the device id are kept
-in the Keychain so the user does not have to re-authenticate after every
-app launch.
-
-All requests are sent as `application/x-www-form-urlencoded` POST so that
-credentials and SIDs do not end up in URL logs (file uploads use multipart,
-with the file part last per the Synology spec).
+Form-urlencoded POST bodies are strictly encoded per RFC 3986 so that
+magnet URIs with `&`-separated trackers survive the trip. File uploads
+use multipart with the binary as the final part, per Synology's spec.
 
 ## License
 
