@@ -141,26 +141,33 @@ actor SynologyAPIClient {
 
     /// Create a download task from a local .torrent / .nzb file.
     ///
-    /// Uses option (b) from the Synology API spec's "Limitations" section: every
-    /// parameter (api, version, method, _sid, destination, file) is sent as a
-    /// multipart form field with the file part **last**. The earlier option (a)
-    /// approach (params as URL query + file as the only POST data) returned 101
-    /// Invalid parameter on DSM 7 — apparently the upload handler only reads
-    /// params from the body in that endpoint.
+    /// Uses the DSM 7 **DownloadStation2** task endpoint, not the legacy
+    /// `task.cgi` one — the documented `SYNO.DownloadStation.Task` create
+    /// method just keeps returning 101 Invalid parameter for file uploads on
+    /// recent DSM builds, regardless of multipart layout (we tried both
+    /// option (a) and option (b) from the spec). The DS2 endpoint at
+    /// `/webapi/entry.cgi` is what DSM's own web UI uses, and it accepts:
+    ///
+    ///   - field `torrent` containing the file's binary data
+    ///   - a sidecar `file` field whose value is a JSON list of which fields
+    ///     are files (here just `["torrent"]`)
+    ///   - `mtime` (epoch milliseconds) and `size` of the upload as strings
+    ///
+    /// Reference: dvcol/synology-download (`SynologyDownload2Service.createTask`).
     func createTask(fileData: Data, filename: String, destination: String? = nil) async throws {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
-        let url = baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi")
+        let url = baseURL.appendingPathComponent("/webapi/entry.cgi")
 
-        // File uploads accept version "1 and later"; destination requires "2 and
-        // later". Use 2 — bumping to 3 (which is what the URI flow needs) breaks
-        // multipart file uploads on DSM 7.
         var fields: [(String, String)] = [
-            ("api", "SYNO.DownloadStation.Task"),
-            ("version", "2"),
+            ("api", "SYNO.DownloadStation2.Task"),
             ("method", "create"),
-            ("_sid", sid)
+            ("version", "2"),
+            ("_sid", sid),
+            ("mtime", String(Int(Date().timeIntervalSince1970 * 1000))),
+            ("size", String(fileData.count)),
+            ("file", "[\"torrent\"]")
         ]
         if let destination, !destination.isEmpty {
             fields.append(("destination", destination))
@@ -173,6 +180,7 @@ actor SynologyAPIClient {
         request.httpBody = multipartBody(
             boundary: boundary,
             fields: fields,
+            fileFieldName: "torrent",
             filename: filename,
             fileData: fileData
         )
@@ -315,11 +323,12 @@ actor SynologyAPIClient {
     }
 
     /// Build a multipart/form-data body where every `fields` entry becomes a regular
-    /// form-data part and the file is appended as the final part (required by the
-    /// Synology spec when uploading via the create endpoint).
+    /// form-data part and the file is appended as the final part (DS2 spec requires
+    /// the file part to come last so the upload handler picks it up correctly).
     private func multipartBody(
         boundary: String,
         fields: [(String, String)],
+        fileFieldName: String,
         filename: String,
         fileData: Data
     ) -> Data {
@@ -339,7 +348,7 @@ actor SynologyAPIClient {
         // bencoded `name` key anyway, not from this header.
         let safeFilename = Self.asciiSafe(filename: filename)
         body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFilename)\"\(lineBreak)".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fileFieldName)\"; filename=\"\(safeFilename)\"\(lineBreak)".data(using: .utf8)!)
         body.append("Content-Type: application/octet-stream\(lineBreak)\(lineBreak)".data(using: .utf8)!)
         body.append(fileData)
         body.append("\(lineBreak)--\(boundary)--\(lineBreak)".data(using: .utf8)!)
