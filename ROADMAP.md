@@ -22,6 +22,19 @@ tight; the work is short and self-contained.
       field.
 - [ ] **Search by name** — search field above the task list, incremental
       filter on `task.title`.
+- [ ] **Sort order for the task list.** Options: name (alphabetical), size,
+      date added, date completed — each asc / desc. UI is a sort menu next
+      to the filter menu in the toolbar; the selected order is persisted via
+      `@AppStorage` so it survives launches. Implementation notes:
+      - Sort is client-side. Synology's list endpoint doesn't accept a
+        `sort_by` parameter for tasks, so we order `filteredTasks` ourselves.
+      - "Date added" uses `additional.detail.create_time` (already decoded);
+        "Date completed" needs `completed_time` added to
+        `DownloadTask.Additional.Detail` (it's in the API but not in our
+        model yet).
+      - The list refresh currently asks for `additional=transfer`; bump to
+        `additional=transfer,detail` so both timestamps are populated on
+        every poll.
 - [ ] **Priority change** — tappable priority row on the task detail (DS2
       `SYNO.DownloadStation2.Task.BT` `method=set`) and per-file priority
       picker for BT torrents (DS2 `…Task.BT.File` `method=set`), with
