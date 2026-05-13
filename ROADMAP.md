@@ -104,3 +104,73 @@ tight; the work is short and self-contained.
 - [ ] **RSS feeds** — `SYNO.DownloadStation.RSS.Feed` integration with
       auto-add rules; subscribe to a feed, filter by title pattern, and
       let the NAS pull matching torrents automatically.
+
+---
+
+## Distribution — TestFlight and App Store
+
+Orthogonal to feature work. TestFlight first to validate the build on
+real devices and to share with a few people; the App Store gate is much
+higher and not strictly necessary for a self-built NAS client.
+
+### TestFlight (low gate)
+
+- [ ] Enroll in **Apple Developer Program** ($99/year).
+- [ ] Register the `com.wenzlik.DropStation` bundle ID in the developer
+      portal; let Xcode auto-manage signing certificates and the App
+      Store distribution profile.
+- [ ] Add `ITSAppUsesNonExemptEncryption = false` to `Info.plist` (HTTPS
+      via URLSession is covered by Apple's umbrella, so no export
+      compliance paperwork — but the flag must be set explicitly on
+      every upload).
+- [ ] Add a **`PrivacyInfo.xcprivacy`** privacy manifest declaring the
+      "required reason" API categories the app touches (UserDefaults,
+      file timestamps). Apple started rejecting uploads without it in
+      late 2024.
+- [ ] Archive in Xcode → upload to App Store Connect.
+- [ ] Create the App Store Connect listing (the minimal version is fine
+      for TestFlight — no screenshots / description / privacy policy
+      strictly required for internal testing).
+- [ ] Add up to 100 **internal testers** by Apple ID. No review,
+      installs in minutes.
+- [ ] For external testers / a public TestFlight link, submit for
+      **Beta App Review** (a lighter version of the App Store review;
+      typically 24–48 h).
+
+### App Store (full gate)
+
+- [ ] **Privacy policy URL** hosted somewhere (GitHub Pages works). Short
+      and honest: "DropStation stores credentials in the iOS Keychain on
+      this device only. It connects to the Synology NAS you configure
+      and to no other server. No analytics, no third-party SDKs."
+- [ ] **App Store Connect listing** — category (Utilities), screenshots
+      at 6.9″ / 6.7″ iPhone (+ iPad if supported), description with the
+      mandatory **trademark disclaimer**: "Unofficial client for
+      Synology Download Station. Not affiliated with or endorsed by
+      Synology Inc."
+- [ ] **In-app disclaimer** in Settings → About: mirror the same line so
+      reviewers can see it without leaving the binary.
+- [ ] **Privacy nutrition label** filled in App Store Connect (Username
+      and Hostname collected for App Functionality; not used for
+      tracking; linked to user).
+- [ ] **App Transport Security** tightened — drop
+      `NSAllowsArbitraryLoads`, add `NSAllowsLocalNetworking = true`
+      instead so `.local` NAS hostnames work without HTTPS while public
+      hosts go through the normal ATS path with a valid cert.
+- [ ] **Demo NAS** for review: a publicly reachable Synology with a
+      read-only demo account, credentials given in the App Review notes.
+      Without this Apple guideline 5.1.1 makes the review awkward
+      ("the app requires user accounts to function"); reviewers want a
+      working sign-in path.
+- [ ] **Trademark risk note:** reject rate for unofficial Synology
+      clients is non-trivial. Plan on at least one Resolution Center
+      back-and-forth where we re-state the disclaimer and that the app
+      is a third-party client.
+
+### Optional polish before submission
+
+- [ ] **Accessibility pass** — VoiceOver labels on icon-only buttons
+      (filter, settings, +), dynamic type sanity-check on the task list.
+- [ ] **App Store screenshots** generated from the simulator on a
+      decorated background — a couple of script-driven Xcode UI tests
+      with localised strings would future-proof this.
