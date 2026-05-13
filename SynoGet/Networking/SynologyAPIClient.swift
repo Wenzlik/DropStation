@@ -153,12 +153,13 @@ actor SynologyAPIClient {
             url: baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi"),
             resolvingAgainstBaseURL: false
         )!
-        // Version 2+ is required for the `destination` parameter to be accepted
-        // alongside the file upload. Stay on the same version as the URI flow
-        // for consistency.
+        // File uploads are documented as "1 and later"; `destination` needs
+        // "2 and later". Use version=2 — bumping to 3 (which is required for
+        // the URI flow) was causing DSM to return 101 Invalid parameter on
+        // multipart file uploads, suggesting v3 changed how file uploads work.
         var queryItems = [
             URLQueryItem(name: "api", value: "SYNO.DownloadStation.Task"),
-            URLQueryItem(name: "version", value: "3"),
+            URLQueryItem(name: "version", value: "2"),
             URLQueryItem(name: "method", value: "create"),
             URLQueryItem(name: "_sid", value: sid)
         ]
@@ -180,6 +181,13 @@ actor SynologyAPIClient {
                 throw APIError.http(http.statusCode)
             }
             let decoded = try JSONDecoder().decode(APIResponse<EmptyData>.self, from: data)
+            #if DEBUG
+            if !decoded.success, let s = String(data: data, encoding: .utf8) {
+                print("[SynoGet] createTask(file) FAILED → request URL: \(url.absoluteString)")
+                print("[SynoGet] createTask(file) FAILED → filename: \(filename)")
+                print("[SynoGet] createTask(file) FAILED → response: \(s)")
+            }
+            #endif
             try ensureSuccess(decoded, context: .task)
         } catch let error as APIError {
             throw error
