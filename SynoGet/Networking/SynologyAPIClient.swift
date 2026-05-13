@@ -141,39 +141,41 @@ actor SynologyAPIClient {
 
     /// Create a download task from a local .torrent / .nzb file.
     ///
-    /// Per the Synology API spec ("Limitations" on the Create endpoint), when uploading a
-    /// file the upload part must be the **last** field in the multipart body.
+    /// Uses option (b) from the Synology API spec's "Limitations" section: every
+    /// parameter (api, version, method, _sid, destination, file) is sent as a
+    /// multipart form field with the file part **last**. The earlier option (a)
+    /// approach (params as URL query + file as the only POST data) returned 101
+    /// Invalid parameter on DSM 7 — apparently the upload handler only reads
+    /// params from the body in that endpoint.
     func createTask(fileData: Data, filename: String, destination: String? = nil) async throws {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
-        // Non-file params are sent as URL query so they cannot be misordered relative
-        // to the file part (option (a) in the spec's Limitations section).
-        var components = URLComponents(
-            url: baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi"),
-            resolvingAgainstBaseURL: false
-        )!
-        // File uploads are documented as "1 and later"; `destination` needs
-        // "2 and later". Use version=2 — bumping to 3 (which is required for
-        // the URI flow) was causing DSM to return 101 Invalid parameter on
-        // multipart file uploads, suggesting v3 changed how file uploads work.
-        var queryItems = [
-            URLQueryItem(name: "api", value: "SYNO.DownloadStation.Task"),
-            URLQueryItem(name: "version", value: "2"),
-            URLQueryItem(name: "method", value: "create"),
-            URLQueryItem(name: "_sid", value: sid)
+        let url = baseURL.appendingPathComponent("/webapi/DownloadStation/task.cgi")
+
+        // File uploads accept version "1 and later"; destination requires "2 and
+        // later". Use 2 — bumping to 3 (which is what the URI flow needs) breaks
+        // multipart file uploads on DSM 7.
+        var fields: [(String, String)] = [
+            ("api", "SYNO.DownloadStation.Task"),
+            ("version", "2"),
+            ("method", "create"),
+            ("_sid", sid)
         ]
         if let destination, !destination.isEmpty {
-            queryItems.append(URLQueryItem(name: "destination", value: destination))
+            fields.append(("destination", destination))
         }
-        components.queryItems = queryItems
-        guard let url = components.url else { throw APIError.invalidURL }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = multipartBody(boundary: boundary, filename: filename, fileData: fileData)
+        request.httpBody = multipartBody(
+            boundary: boundary,
+            fields: fields,
+            filename: filename,
+            fileData: fileData
+        )
 
         do {
             let (data, response) = try await session.data(for: request)
@@ -312,17 +314,30 @@ actor SynologyAPIClient {
         throw APIError.synology(code: code, message: SynologyErrorCode.message(for: code, context: context))
     }
 
-    private func multipartBody(boundary: String, filename: String, fileData: Data) -> Data {
+    /// Build a multipart/form-data body where every `fields` entry becomes a regular
+    /// form-data part and the file is appended as the final part (required by the
+    /// Synology spec when uploading via the create endpoint).
+    private func multipartBody(
+        boundary: String,
+        fields: [(String, String)],
+        filename: String,
+        fileData: Data
+    ) -> Data {
+        let lineBreak = "\r\n"
+        var body = Data()
+
+        for (name, value) in fields {
+            body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\(lineBreak)\(lineBreak)".data(using: .utf8)!)
+            body.append("\(value)\(lineBreak)".data(using: .utf8)!)
+        }
+
         // Synology returns 101 Invalid parameter if the filename in Content-Disposition
         // contains non-ASCII characters (e.g. Czech diacritics) or characters that break
-        // the header syntax. Sanitize aggressively: HTTP Content-Disposition's basic
-        // `filename=""` field is ASCII-only per RFC 6266, and the actual torrent task
-        // name comes from the .torrent file's bencoded `name` key anyway, not from this
-        // header.
+        // the header syntax. Sanitize aggressively: RFC 6266's basic `filename=""` is
+        // ASCII-only, and the actual torrent task name comes from the .torrent file's
+        // bencoded `name` key anyway, not from this header.
         let safeFilename = Self.asciiSafe(filename: filename)
-
-        var body = Data()
-        let lineBreak = "\r\n"
         body.append("--\(boundary)\(lineBreak)".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFilename)\"\(lineBreak)".data(using: .utf8)!)
         body.append("Content-Type: application/octet-stream\(lineBreak)\(lineBreak)".data(using: .utf8)!)
