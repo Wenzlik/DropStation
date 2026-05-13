@@ -8,15 +8,13 @@ into [CHANGELOG.md](CHANGELOG.md) once shipped.
 Pass 4 / 5 of the 0.3 cycle. Not shipped in 0.3.0 to keep that release
 tight; the work is short and self-contained.
 
-- [ ] **Stop action + "Ended" status label.** Pause is reversible and looks
-      temporary; users want a final-feeling termination they can issue from the
-      row. Two pieces:
-      - Add a Stop button (calls `pause` under the hood — Synology has no separate
-        terminal status in the API) with stop.fill icon, distinct from the
-        existing pause.fill on actively-downloading tasks.
-      - Re-label paused tasks at 100 % (download finished, seeding off) and the
-        `finished` API status as "**Ended**" instead of "Paused" / "Finished"
-        — this matches what DSM's own web UI shows.
+- [ ] **Stop action.** Real API call, found in dvcol/synology-download:
+      `SYNO.DownloadStation2.Task.Complete` `method=start` (id = task ID list).
+      Transitions an active / seeding task to the documented `finished` status
+      — what DSM web's "End" button does. Add a Stop swipe action (stop.fill
+      icon) and Stop entry in the detail-view menu. No new client-side status
+      needed; rely on the existing `finished` rendering, just gated so that
+      Stop only shows for `canPause` rows.
 - [ ] **Confirm-before-delete** dialog with a "Keep partial files" toggle
       (maps to `force_complete=true` vs `false` on the delete call).
 - [ ] **Clipboard hint** in AddTaskView: when `UIPasteboard` contains a
