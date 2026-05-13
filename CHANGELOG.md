@@ -39,6 +39,41 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   License pointer, and the LICENSE no longer carries the derivation
   paragraph.
 
+### Added (more)
+- **Settings reachable from the login screen** — gear icon in the top
+  right opens the same Settings sheet that lives in the task list's
+  toolbar. The Account section automatically hides while signed out.
+- **In-app changelog viewer** — Settings → About → "What's new" opens
+  a Markdown rendering of the bundled `CHANGELOG.md` so it's easy to
+  see what each release added without leaving the app.
+- New downloads default to the **File** picker (was Link) — the
+  common path is picking a `.torrent`; the magnet-URL system handler
+  still flips to Link when the app is launched from a `magnet:` URL.
+
+### Fixed
+- **Add download by .torrent file** finally works against DSM 7. The
+  documented `SYNO.DownloadStation.Task` create endpoint kept
+  returning 101 Invalid parameter for multipart uploads regardless of
+  spec compliance; switched the file-upload path to the
+  `SYNO.DownloadStation2.Task` endpoint at `/webapi/entry.cgi` (what
+  DSM's own web UI uses), including the required `type`,
+  `destination`, `create_list`, `mtime`, `size`, `file=["torrent"]`,
+  and `torrent` fields, with `_sid` carried in the URL query.
+- **Add download by magnet/URL** also failed with 101 when the URI
+  contained `&` characters (every multi-tracker magnet). The form
+  encoder was using `.urlQueryAllowed`, which permits `&` `=` `+`
+  inside values — so a magnet's tracker chain was parsed by the
+  server as additional form parameters. Switched the encoder to a
+  strict RFC 3986 unreserved character set; bumped the URI flow to
+  `version=3` (required for the `uri` parameter and `destination`).
+- **Network switch no longer pops error alerts.** Wi-Fi ⇄ cellular
+  handoffs left URLSession with stale connections; the next 1–2
+  auto-refresh ticks failed with `URLError.networkConnectionLost` /
+  `.timedOut` / `.cannotConnectToHost` and each one popped an alert.
+  Transient errors during the background poll (transport errors plus
+  HTTP 5xx) are now swallowed silently; the list keeps its last good
+  state and a successful poll clears any stale message.
+
 ---
 
 ## [0.2.3] — 2026-05-12

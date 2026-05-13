@@ -23,6 +23,8 @@ targets:
       - path: SynoGet
         excludes:
           - "Resources/Info.plist"
+      - path: CHANGELOG.md
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynoGet

@@ -14,9 +14,10 @@ struct LoginView: View {
     @State private var password: String = ""
     @State private var otpCode: String = ""
     @State private var serverExpanded: Bool = false
+    @State private var showingSettings: Bool = false
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             backgroundGradient.ignoresSafeArea()
 
             ScrollView {
@@ -31,8 +32,28 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
+
+            settingsButton
         }
         .onAppear(perform: prefill)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            showingSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .padding(12)
+                .glassEffect(.regular, in: .circle)
+        }
+        .padding(.top, 8)
+        .padding(.trailing, 16)
+        .accessibilityLabel("Settings")
     }
 
     // MARK: - Header

@@ -13,11 +13,18 @@ struct SettingsView: View {
         )
     }
 
+    /// Settings can be reached from both the task list (logged in) and the login
+    /// screen (logged out). Hide account controls in the latter case — they would
+    /// just sign-out an already-signed-out session.
+    private var isSignedIn: Bool {
+        session.state == .loggedIn
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 appearanceSection
-                accountSection
+                if isSignedIn { accountSection }
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -85,6 +92,11 @@ struct SettingsView: View {
         Section("About") {
             LabeledContent("App", value: "Syno Get")
             LabeledContent("Version", value: Self.versionString)
+            NavigationLink {
+                ChangelogView()
+            } label: {
+                Label("What's new", systemImage: "sparkles")
+            }
             Link(destination: URL(string: "https://github.com/Wenzlik/SynoGet")!) {
                 Label("Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
             }
