@@ -105,15 +105,11 @@ tight; the work is short and self-contained.
       auto-add rules; subscribe to a feed, filter by title pattern, and
       let the NAS pull matching torrents automatically.
 
----
+### TestFlight distribution
 
-## Distribution — TestFlight and App Store
-
-Orthogonal to feature work. TestFlight first to validate the build on
-real devices and to share with a few people; the App Store gate is much
-higher and not strictly necessary for a self-built NAS client.
-
-### TestFlight (low gate)
+Low-gate distribution: internal testers only, no formal review.
+Targeting this version for the actual roll-out so it lands together
+with the share extension / background refresh polish.
 
 - [ ] Enroll in **Apple Developer Program** ($99/year).
 - [ ] Register the `com.wenzlik.DropStation` bundle ID in the developer
@@ -125,31 +121,38 @@ higher and not strictly necessary for a self-built NAS client.
       every upload).
 - [ ] Add a **`PrivacyInfo.xcprivacy`** privacy manifest declaring the
       "required reason" API categories the app touches (UserDefaults,
-      file timestamps). Apple started rejecting uploads without it in
-      late 2024.
+      file timestamps). Apple has been rejecting uploads without it
+      since late 2024.
 - [ ] Archive in Xcode → upload to App Store Connect.
-- [ ] Create the App Store Connect listing (the minimal version is fine
-      for TestFlight — no screenshots / description / privacy policy
-      strictly required for internal testing).
+- [ ] Create the App Store Connect listing (the minimal version is
+      fine for internal TestFlight — no screenshots / description /
+      privacy policy strictly required).
 - [ ] Add up to 100 **internal testers** by Apple ID. No review,
       installs in minutes.
 - [ ] For external testers / a public TestFlight link, submit for
-      **Beta App Review** (a lighter version of the App Store review;
+      **Beta App Review** (lighter than full App Store review,
       typically 24–48 h).
 
-### App Store (full gate)
+---
 
-- [ ] **Privacy policy URL** hosted somewhere (GitHub Pages works). Short
-      and honest: "DropStation stores credentials in the iOS Keychain on
-      this device only. It connects to the Synology NAS you configure
-      and to no other server. No analytics, no third-party SDKs."
+## 0.6 — App Store submission
+
+The full gate. Most items are paperwork rather than code; the
+trademark disclaimer and the demo NAS are the two things to plan for
+carefully.
+
+- [ ] **Privacy policy URL** hosted somewhere (GitHub Pages works).
+      Short and honest: "DropStation stores credentials in the iOS
+      Keychain on this device only. It connects to the Synology NAS
+      you configure and to no other server. No analytics, no
+      third-party SDKs."
 - [ ] **App Store Connect listing** — category (Utilities), screenshots
-      at 6.9″ / 6.7″ iPhone (+ iPad if supported), description with the
-      mandatory **trademark disclaimer**: "Unofficial client for
+      at 6.9″ / 6.7″ iPhone (+ iPad if supported), description with
+      the mandatory **trademark disclaimer**: "Unofficial client for
       Synology Download Station. Not affiliated with or endorsed by
       Synology Inc."
-- [ ] **In-app disclaimer** in Settings → About: mirror the same line so
-      reviewers can see it without leaving the binary.
+- [ ] **In-app disclaimer** in Settings → About: mirror the same line
+      so reviewers can see it without leaving the binary.
 - [ ] **Privacy nutrition label** filled in App Store Connect (Username
       and Hostname collected for App Functionality; not used for
       tracking; linked to user).
@@ -158,19 +161,17 @@ higher and not strictly necessary for a self-built NAS client.
       instead so `.local` NAS hostnames work without HTTPS while public
       hosts go through the normal ATS path with a valid cert.
 - [ ] **Demo NAS** for review: a publicly reachable Synology with a
-      read-only demo account, credentials given in the App Review notes.
-      Without this Apple guideline 5.1.1 makes the review awkward
-      ("the app requires user accounts to function"); reviewers want a
-      working sign-in path.
-- [ ] **Trademark risk note:** reject rate for unofficial Synology
+      read-only demo account, credentials supplied in the App Review
+      notes. Without this Apple guideline 5.1.1 makes the review
+      awkward ("the app requires user accounts to function");
+      reviewers want a working sign-in path.
+- [ ] **Trademark risk note:** the reject rate for unofficial Synology
       clients is non-trivial. Plan on at least one Resolution Center
-      back-and-forth where we re-state the disclaimer and that the app
-      is a third-party client.
-
-### Optional polish before submission
-
+      back-and-forth re-stating the disclaimer and that this is a
+      third-party client.
 - [ ] **Accessibility pass** — VoiceOver labels on icon-only buttons
-      (filter, settings, +), dynamic type sanity-check on the task list.
+      (filter, settings, +), Dynamic Type sanity-check on the task
+      list. Apple flags these.
 - [ ] **App Store screenshots** generated from the simulator on a
       decorated background — a couple of script-driven Xcode UI tests
       with localised strings would future-proof this.
