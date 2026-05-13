@@ -55,6 +55,30 @@ enum APIError: LocalizedError {
         return false
     }
 
+    /// True for errors that the next refresh tick is likely to recover from on its
+    /// own — connectivity glitches, timeouts during a Wi-Fi/cellular handoff,
+    /// transient server-side 5xx, etc. Callers should not surface these as alerts;
+    /// let the auto-refresh retry.
+    var isTransient: Bool {
+        switch self {
+        case .transport(let err):
+            let urlError = err as? URLError
+            switch urlError?.code {
+            case .notConnectedToInternet, .networkConnectionLost,
+                 .timedOut, .cannotConnectToHost, .cannotFindHost,
+                 .dnsLookupFailed, .secureConnectionFailed,
+                 .internationalRoamingOff, .dataNotAllowed:
+                return true
+            default:
+                return urlError != nil
+            }
+        case .http(let code):
+            return code >= 500
+        default:
+            return false
+        }
+    }
+
     /// 403 in the auth context means "2-step verification code required". For accounts
     /// with Synology Secure SignIn enabled the server also sends a push notification
     /// to the user's authenticator app; subsequent login attempts (without an OTP)

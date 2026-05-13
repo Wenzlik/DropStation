@@ -37,6 +37,14 @@ final class TaskListViewModel: ObservableObject {
         defer { isLoading = false }
         do {
             tasks = try await client.listTasks()
+            // Drop any stale error banner once a fresh poll succeeds.
+            errorMessage = nil
+        } catch let error as APIError where error.isTransient {
+            // Network/timeout/5xx during the background refresh. Don't alert the
+            // user — the next 5 s tick will almost certainly recover.
+            #if DEBUG
+            print("[SynoGet] refresh transient error, ignoring: \(error.localizedDescription)")
+            #endif
         } catch {
             errorMessage = error.localizedDescription
         }
