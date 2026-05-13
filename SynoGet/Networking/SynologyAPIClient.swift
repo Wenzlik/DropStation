@@ -158,13 +158,20 @@ actor SynologyAPIClient {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
-        let url = baseURL.appendingPathComponent("/webapi/entry.cgi")
+        // DS2 entry.cgi reads `_sid` from the URL query, not from the multipart
+        // body — passing it in the body returns 119 SID not found even when the
+        // session is valid for every other endpoint we use.
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("/webapi/entry.cgi"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "_sid", value: sid)]
+        guard let url = components.url else { throw APIError.invalidURL }
 
         var fields: [(String, String)] = [
             ("api", "SYNO.DownloadStation2.Task"),
             ("method", "create"),
             ("version", "2"),
-            ("_sid", sid),
             ("mtime", String(Int(Date().timeIntervalSince1970 * 1000))),
             ("size", String(fileData.count)),
             ("file", "[\"torrent\"]")
