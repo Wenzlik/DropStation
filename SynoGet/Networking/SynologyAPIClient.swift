@@ -345,9 +345,21 @@ actor SynologyAPIClient {
 
     private func encodeForm(_ params: [String: String]) -> String {
         params.map { key, value in
-            let k = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-            let v = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            let k = key.addingPercentEncoding(withAllowedCharacters: Self.formAllowed) ?? key
+            let v = value.addingPercentEncoding(withAllowedCharacters: Self.formAllowed) ?? value
             return "\(k)=\(v)"
         }.joined(separator: "&")
     }
+
+    /// RFC 3986 unreserved set (`A-Z a-z 0-9 - . _ ~`). Anything else — including the
+    /// form delimiters `&` `=` `+`, but also `,` `/` `:` and the `?` plus `&` chains
+    /// inside magnet URIs — gets percent-encoded. The previous `.urlQueryAllowed`
+    /// permitted `&` in values, so a magnet link's trailing `&dn=…&tr=…` was passed
+    /// through unencoded and the server saw each `&` as a new form parameter
+    /// boundary, producing Synology error 101 "Invalid parameter" on createTask.
+    private static let formAllowed: CharacterSet = {
+        var set = CharacterSet.alphanumerics
+        set.insert(charactersIn: "-._~")
+        return set
+    }()
 }
