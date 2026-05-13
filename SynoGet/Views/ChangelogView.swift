@@ -1,8 +1,10 @@
 import SwiftUI
 
-/// Renders the bundled `CHANGELOG.md` as a scrollable Markdown document inside the
-/// app. The file is added to the SynoGet target's resources via project.yml so
-/// it ships alongside the binary instead of being a remote fetch.
+/// Renders the bundled `CHANGELOG.md` as a scrollable document. The body of each
+/// version section is parsed into typed blocks (heading / paragraph / bullet list)
+/// and laid out with proper spacing instead of being dumped into a single Text —
+/// SwiftUI's Text + AttributedString doesn't preserve paragraph breaks between
+/// Markdown blocks, so without this everything collapses into one paragraph.
 struct ChangelogView: View {
     @State private var sections: [Section] = []
     @State private var loadError: String?
@@ -20,7 +22,7 @@ struct ChangelogView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 20) {
                         ForEach(sections) { section in
                             SectionView(section: section)
                         }
@@ -49,11 +51,10 @@ struct ChangelogView: View {
         }
     }
 
-    /// Crude Markdown chunker: splits on `##` version headings and keeps each
-    /// version's body verbatim so the iOS Markdown renderer can lay out
-    /// sub-headings, bullets and inline emphasis.
+    /// Split the file into version sections by `## ` heading. Everything before the
+    /// first version (the project intro paragraph) is dropped. Link-reference
+    /// footers (`[0.3.0]: https://…`) are dropped too.
     private static func parse(_ text: String) -> [Section] {
-        // Skip everything before the first version heading (intro paragraph).
         let lines = text.components(separatedBy: "\n")
         var sections: [Section] = []
         var currentTitle: String?
@@ -62,52 +63,141 @@ struct ChangelogView: View {
         for line in lines {
             if line.hasPrefix("## ") {
                 if let title = currentTitle {
-                    sections.append(Section(title: title, body: currentBody.joined(separator: "\n")))
+                    sections.append(Section(title: title, blocks: Block.parse(currentBody)))
                 }
                 currentTitle = String(line.dropFirst(3))
                 currentBody = []
             } else if currentTitle != nil {
-                // Drop the link-reference footer ([0.3.0]: https://…).
                 if line.hasPrefix("[") && line.contains("]:") { continue }
                 currentBody.append(line)
             }
         }
         if let title = currentTitle {
-            sections.append(Section(title: title, body: currentBody.joined(separator: "\n")))
+            sections.append(Section(title: title, blocks: Block.parse(currentBody)))
         }
         return sections
     }
 
     struct Section: Identifiable {
         let title: String
-        let body: String
+        let blocks: [Block]
         var id: String { title }
     }
+
+    enum Block: Identifiable {
+        case heading(String)        // ### Subheading
+        case paragraph(String)
+        case bullets([String])
+
+        var id: String {
+            switch self {
+            case .heading(let s): return "h:\(s)"
+            case .paragraph(let s): return "p:\(s.prefix(40))"
+            case .bullets(let xs): return "b:\(xs.first?.prefix(40) ?? "")"
+            }
+        }
+
+        /// Walk lines, fold consecutive non-bullet text into paragraphs and
+        /// consecutive `- ` lines into a single bullet block. Empty lines flush
+        /// whatever is being accumulated.
+        static func parse(_ lines: [String]) -> [Block] {
+            var blocks: [Block] = []
+            var bullets: [String] = []
+            var paragraph: [String] = []
+
+            func flushBullets() {
+                if !bullets.isEmpty { blocks.append(.bullets(bullets)); bullets = [] }
+            }
+            func flushParagraph() {
+                if !paragraph.isEmpty {
+                    let joined = paragraph.joined(separator: " ")
+                    if !joined.trimmingCharacters(in: .whitespaces).isEmpty {
+                        blocks.append(.paragraph(joined))
+                    }
+                    paragraph = []
+                }
+            }
+
+            for rawLine in lines {
+                let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+                if trimmed.isEmpty {
+                    flushBullets()
+                    flushParagraph()
+                } else if trimmed.hasPrefix("### ") {
+                    flushBullets()
+                    flushParagraph()
+                    blocks.append(.heading(String(trimmed.dropFirst(4))))
+                } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
+                    flushParagraph()
+                    bullets.append(String(trimmed.dropFirst(2)))
+                } else {
+                    flushBullets()
+                    paragraph.append(trimmed)
+                }
+            }
+            flushBullets()
+            flushParagraph()
+            return blocks
+        }
+    }
 }
+
+// MARK: - Rendering
 
 private struct SectionView: View {
     let section: ChangelogView.Section
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             Text(section.title)
                 .font(.title2.weight(.semibold))
-            Text(rendered)
-                .font(.body)
-                .foregroundStyle(.primary)
+            ForEach(section.blocks) { block in
+                BlockView(block: block)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(18)
         .glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
     }
+}
 
-    private var rendered: AttributedString {
-        // AttributedString's full-document Markdown parser handles headings,
-        // bullet lists, inline code, bold/italic and links. Fall back to plain
-        // text if parsing fails for any reason.
-        (try? AttributedString(
-            markdown: section.body,
-            options: .init(interpretedSyntax: .full)
-        )) ?? AttributedString(section.body)
+private struct BlockView: View {
+    let block: ChangelogView.Block
+
+    var body: some View {
+        switch block {
+        case .heading(let text):
+            Text(text)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+        case .paragraph(let text):
+            Text(attributed(text))
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+        case .bullets(let items):
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("•")
+                            .foregroundStyle(.tint)
+                            .font(.body.weight(.bold))
+                        Text(attributed(item))
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Parse inline Markdown (bold/italic/code/links) for a single line. Block-level
+    /// constructs are already handled by Block.parse, so the `.inlineOnlyPreservingWhitespace`
+    /// option is what we want.
+    private func attributed(_ s: String) -> AttributedString {
+        var opts = AttributedString.MarkdownParsingOptions()
+        opts.interpretedSyntax = .inlineOnlyPreservingWhitespace
+        return (try? AttributedString(markdown: s, options: opts)) ?? AttributedString(s)
     }
 }
