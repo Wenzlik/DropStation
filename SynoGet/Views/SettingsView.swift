@@ -88,9 +88,6 @@ struct SettingsView: View {
             Link(destination: URL(string: "https://github.com/Wenzlik/SynoGet")!) {
                 Label("Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
             }
-            Link(destination: URL(string: "https://github.com/keyfun/synology_ds_get")!) {
-                Label("Based on keyfun/synology_ds_get", systemImage: "doc.text")
-            }
         }
     }
 

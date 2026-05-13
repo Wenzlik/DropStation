@@ -1,9 +1,10 @@
 import Foundation
 
-/// Modern async/await client for Synology Download Station Web API.
+/// Async/await client for the Synology Download Station and FileStation Web APIs.
 ///
-/// Reference: `Synology_Download_Station_Web_API.pdf` (in repo root).
-/// Original logic ported from keyfun/synology_ds_get (APIManager.swift).
+/// Endpoints used: `SYNO.API.Auth`, `SYNO.DownloadStation.Task`,
+/// `SYNO.FileStation.List`. See Synology's published Download Station and
+/// DSM Login Web API guides (linked from the project README) for the wire format.
 actor SynologyAPIClient {
     private let session: URLSession
     private var baseURL: URL?

@@ -91,11 +91,6 @@ All requests are sent as `application/x-www-form-urlencoded` POST so that
 credentials and SIDs do not end up in URL logs (file uploads use multipart,
 with the file part last per the Synology spec).
 
-## Credits
+## License
 
-Bootstrapped from **keyfun**'s
-[github.com/keyfun/synology_ds_get](https://github.com/keyfun/synology_ds_get)
-(UIKit, MIT). The networking layer was ported and rewritten in modern Swift;
-the original license is preserved as `UPSTREAM-LICENSE-keyfun` for attribution.
-
-This project is released under the MIT license; see `LICENSE`.
+MIT — see [LICENSE](LICENSE).

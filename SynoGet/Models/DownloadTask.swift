@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct DownloadTask: Codable, Identifiable, Hashable {
     let id: String
@@ -138,6 +139,34 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             return true
         default:
             return false
+        }
+    }
+}
+
+extension DownloadTask.Status {
+    /// Accent colour used by the status pill and progress bar.
+    var tintColor: Color {
+        switch self {
+        case .downloading, .seeding, .extracting: return .green
+        case .waiting, .hash_checking, .filehosting_waiting, .finishing: return .blue
+        case .paused: return .orange
+        case .finished: return .gray
+        case .error: return .red
+        case .unknown: return .gray
+        }
+    }
+}
+
+extension DownloadTask.TaskType {
+    /// Small SF Symbol shown left of the task title.
+    var systemImage: String {
+        switch self {
+        case .bt, .magnet: return "arrow.triangle.2.circlepath"
+        case .http, .https: return "globe"
+        case .ftp: return "server.rack"
+        case .nzb: return "newspaper"
+        case .emule: return "person.2"
+        case .unknown: return "questionmark.circle"
         }
     }
 }

@@ -160,8 +160,14 @@ private struct TaskRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(task.title).font(.body).lineLimit(2)
+            HStack(spacing: 8) {
+                Image(systemName: task.type.systemImage)
+                    .foregroundStyle(.tint)
+                    .frame(width: 18)
+                Text(task.title).font(.body).lineLimit(2)
+            }
             ProgressView(value: task.progress)
+                .tint(task.status.tintColor)
             HStack(spacing: 8) {
                 StatusPill(status: task.status)
                 if let speed = liveSpeed, speed > 0 {
@@ -170,6 +176,7 @@ private struct TaskRow: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.green)
                         .monospacedDigit()
+                        .contentTransition(.numericText())
                 }
                 Spacer()
                 Text(formattedSize(task.size.value))
@@ -205,18 +212,7 @@ private struct StatusPill: View {
             .font(.caption.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .glassEffect(.regular.tint(tintColor.opacity(0.45)), in: .capsule)
+            .glassEffect(.regular.tint(status.tintColor.opacity(0.45)), in: .capsule)
             .foregroundStyle(.primary)
-    }
-
-    private var tintColor: Color {
-        switch status {
-        case .downloading, .seeding, .extracting: return .green
-        case .waiting, .hash_checking, .filehosting_waiting, .finishing: return .blue
-        case .paused: return .orange
-        case .finished: return .gray
-        case .error: return .red
-        case .unknown: return .gray
-        }
     }
 }

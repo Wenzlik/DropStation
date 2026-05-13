@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Tinted Home Screen variant (iOS 18+). iOS expects a single-color silhouette
+    on a transparent background; the system applies the user's tint.
+  -->
+  <rect width="1024" height="1024" fill="none"/>
+
+  <!-- Arrow shaft -->
+  <rect x="416" y="200" width="192" height="320" rx="32" ry="32" fill="#ffffff"/>
+
+  <!-- Arrowhead chevron -->
+  <path d="M 256 480
+           L 512 800
+           L 768 480
+           L 640 480
+           L 640 460
+           L 384 460
+           L 384 480
+           Z"
+        fill="#ffffff"/>
+
+  <!-- Tray / floor -->
+  <rect x="200" y="850" width="624" height="80" rx="40" ry="40" fill="#ffffff"/>
+</svg>

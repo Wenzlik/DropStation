@@ -65,7 +65,11 @@ struct TaskDetailView: View {
     private var overviewSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                Text(viewModel.task.title).font(.headline)
+                HStack(spacing: 8) {
+                    Image(systemName: viewModel.task.type.systemImage)
+                        .foregroundStyle(.tint)
+                    Text(viewModel.task.title).font(.headline)
+                }
                 HStack {
                     statusPill
                     Spacer()
@@ -73,8 +77,10 @@ struct TaskDetailView: View {
                         .font(.caption.weight(.medium))
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
                 }
                 ProgressView(value: viewModel.task.progress)
+                    .tint(viewModel.task.status.tintColor)
             }
             .padding(.vertical, 4)
         }
@@ -85,7 +91,7 @@ struct TaskDetailView: View {
             .font(.caption.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .glassEffect(.regular.tint(.blue.opacity(0.45)), in: .capsule)
+            .glassEffect(.regular.tint(viewModel.task.status.tintColor.opacity(0.45)), in: .capsule)
     }
 
     private var transferSection: some View {
@@ -184,7 +190,7 @@ struct TaskDetailView: View {
 
     private func row(_ label: String, value: String) -> some View {
         LabeledContent(label) {
-            Text(value).monospacedDigit()
+            Text(value).monospacedDigit().contentTransition(.numericText())
         }
     }
 
