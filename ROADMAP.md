@@ -8,7 +8,13 @@ into [CHANGELOG.md](CHANGELOG.md) once shipped.
 Pass 4 / 5 of the 0.3 cycle. Not shipped in 0.3.0 to keep that release
 tight; the work is short and self-contained.
 
-- [ ] **Confirm-before-delete** dialog on the swipe-delete action.
+- [ ] **Stop action for active downloads.** Pause is reversible; users want a
+      "final" termination they can issue from the row. Synology only exposes
+      `pause` and `delete`, so this is really about better delete UX: swipe-delete
+      pops a confirmation that also offers "Keep partial files" (maps to
+      `force_complete=true`) vs "Delete files" (`force_complete=false`).
+- [ ] **Confirm-before-delete** dialog on the swipe-delete action (subsumed by
+      the Stop dialog above).
 - [ ] **Clipboard hint** in AddTaskView: when `UIPasteboard` contains a
       magnet/HTTP URL, show a "Paste from clipboard" button above the URI
       field.
