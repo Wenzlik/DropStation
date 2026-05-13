@@ -1,7 +1,7 @@
 # XcodeGen project specification.
-# Run `xcodegen generate` to (re)create SynoGet.xcodeproj from this file.
+# Run `xcodegen generate` to (re)create DropStation.xcodeproj from this file.
 # Install with: `brew install xcodegen`
-name: SynoGet
+name: DropStation
 options:
   bundleIdPrefix: com.wenzlik
   deploymentTarget:
@@ -16,32 +16,32 @@ settings:
     CURRENT_PROJECT_VERSION: "6"
 
 targets:
-  SynoGet:
+  DropStation:
     type: application
     platform: iOS
     sources:
-      - path: SynoGet
+      - path: DropStation
         excludes:
           - "Resources/Info.plist"
       - path: CHANGELOG.md
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynoGet
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.DropStation
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_EMIT_LOC_STRINGS: "YES"
         GENERATE_INFOPLIST_FILE: "NO"
-        INFOPLIST_FILE: SynoGet/Resources/Info.plist
+        INFOPLIST_FILE: DropStation/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
-  SynoGetTests:
+  DropStationTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: SynoGetTests
+      - path: DropStationTests
     dependencies:
-      - target: SynoGet
+      - target: DropStation
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.SynoGetTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.DropStationTests
         GENERATE_INFOPLIST_FILE: "YES"

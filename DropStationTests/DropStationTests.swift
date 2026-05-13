@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import SynoGet
+@testable import DropStation
 
 final class ServerConfigTests: XCTestCase {
     func testBaseURLConstruction() {

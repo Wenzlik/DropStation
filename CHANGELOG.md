@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Syno Get** are recorded here. The format is loosely
+All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -147,7 +147,7 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - SwiftUI app skeleton with login, task list, add-by-URI / add-by-`.torrent`
   file, pause / resume / delete, pull-to-refresh + 5 s auto-refresh.
 - Magnet (`magnet:`) URL scheme handler — magnet links from Safari or other
-  apps open Syno Get with the URI pre-filled.
+  apps open DropStation with the URI pre-filled.
 - Async/await `actor`-based `SynologyAPIClient`, modernised from the
   [keyfun/synology_ds_get](https://github.com/keyfun/synology_ds_get)
   reference (UIKit, 2019).
@@ -161,9 +161,9 @@ iOS app, targeting iOS 26 with the Liquid Glass design language.
 - App icon (orange gradient + white download-into-tray arrow), generated
   from `icon.svg`.
 
-[0.3.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.3.0
-[0.2.3]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.3
-[0.2.2]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.2
-[0.2.1]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.1
-[0.2.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.2.0
-[0.1.0]: https://github.com/Wenzlik/SynoGet/releases/tag/v0.1.0
+[0.3.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.0
+[0.2.3]: https://github.com/Wenzlik/DropStation/releases/tag/v0.2.3
+[0.2.2]: https://github.com/Wenzlik/DropStation/releases/tag/v0.2.2
+[0.2.1]: https://github.com/Wenzlik/DropStation/releases/tag/v0.2.1
+[0.2.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.2.0
+[0.1.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.1.0

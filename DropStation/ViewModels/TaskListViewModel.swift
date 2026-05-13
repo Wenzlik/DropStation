@@ -43,7 +43,7 @@ final class TaskListViewModel: ObservableObject {
             // Network/timeout/5xx during the background refresh. Don't alert the
             // user — the next 5 s tick will almost certainly recover.
             #if DEBUG
-            print("[SynoGet] refresh transient error, ignoring: \(error.localizedDescription)")
+            print("[DropStation] refresh transient error, ignoring: \(error.localizedDescription)")
             #endif
         } catch {
             errorMessage = error.localizedDescription

@@ -1,6 +1,6 @@
 # Roadmap
 
-Living planning document for upcoming **Syno Get** releases. Items move
+Living planning document for upcoming **DropStation** releases. Items move
 into [CHANGELOG.md](CHANGELOG.md) once shipped.
 
 ## 0.3.1 — Quality of life follow-ups

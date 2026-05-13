@@ -8,7 +8,7 @@ import Security
 /// Items are tagged by Keychain "label" so the same NAS username can have
 /// distinct entries for password vs sid vs device id without colliding.
 enum KeychainStorage {
-    private static let service = "com.wenzlik.SynoGet"
+    private static let service = "com.wenzlik.DropStation"
 
     enum Kind: String {
         case password = "password"

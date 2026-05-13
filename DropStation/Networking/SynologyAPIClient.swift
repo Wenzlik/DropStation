@@ -204,9 +204,9 @@ actor SynologyAPIClient {
             let decoded = try JSONDecoder().decode(APIResponse<EmptyData>.self, from: data)
             #if DEBUG
             if !decoded.success, let s = String(data: data, encoding: .utf8) {
-                print("[SynoGet] createTask(file) FAILED → request URL: \(url.absoluteString)")
-                print("[SynoGet] createTask(file) FAILED → filename: \(filename)")
-                print("[SynoGet] createTask(file) FAILED → response: \(s)")
+                print("[DropStation] createTask(file) FAILED → request URL: \(url.absoluteString)")
+                print("[DropStation] createTask(file) FAILED → filename: \(filename)")
+                print("[DropStation] createTask(file) FAILED → response: \(s)")
             }
             #endif
             try ensureSuccess(decoded, context: .task)
@@ -395,7 +395,7 @@ actor SynologyAPIClient {
                 if !decoded.success, let s = String(data: data, encoding: .utf8) {
                     let method = params["method"] ?? "?"
                     let api = params["api"] ?? "?"
-                    print("[SynoGet] \(api) method=\(method) FAILED → \(s)")
+                    print("[DropStation] \(api) method=\(method) FAILED → \(s)")
                 }
                 #endif
                 return decoded

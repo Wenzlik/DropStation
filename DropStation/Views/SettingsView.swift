@@ -90,14 +90,14 @@ struct SettingsView: View {
 
     private var aboutSection: some View {
         Section("About") {
-            LabeledContent("App", value: "Syno Get")
+            LabeledContent("App", value: "DropStation")
             LabeledContent("Version", value: Self.versionString)
             NavigationLink {
                 ChangelogView()
             } label: {
                 Label("What's new", systemImage: "sparkles")
             }
-            Link(destination: URL(string: "https://github.com/Wenzlik/SynoGet")!) {
+            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation")!) {
                 Label("Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
             }
         }

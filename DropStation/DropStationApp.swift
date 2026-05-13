@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct SynoGetApp: App {
+struct DropStationApp: App {
     @StateObject private var session = SessionStore()
     @AppStorage(AppearanceSettings.storageKey) private var appearanceRaw: String = AppearanceMode.system.rawValue
 

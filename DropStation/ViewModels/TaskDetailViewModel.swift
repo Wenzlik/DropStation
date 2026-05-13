@@ -25,7 +25,7 @@ final class TaskDetailViewModel: ObservableObject {
             // Same logic as TaskListViewModel: swallow connectivity blips during
             // the background poll, the next tick will pick the data back up.
             #if DEBUG
-            print("[SynoGet] detail refresh transient error, ignoring: \(error.localizedDescription)")
+            print("[DropStation] detail refresh transient error, ignoring: \(error.localizedDescription)")
             #endif
         } catch {
             errorMessage = error.localizedDescription

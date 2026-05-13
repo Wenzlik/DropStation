@@ -1,4 +1,4 @@
-# Syno Get
+# DropStation
 
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
@@ -47,7 +47,7 @@ missing piece as a small, modern, self-buildable SwiftUI app.
 ```bash
 brew install xcodegen
 xcodegen generate
-open SynoGet.xcodeproj
+open DropStation.xcodeproj
 ```
 
 Then build & run on an iPhone simulator or a physical device. The first run
@@ -56,14 +56,14 @@ asks for the NAS scheme/host/port and credentials.
 ## Repository layout
 
 ```
-SynoGet/                    The SwiftUI app
+DropStation/                The SwiftUI app
 ├── Models/                 Codable types: ServerConfig, DownloadTask, TaskFilter, …
 ├── Networking/             SynologyAPIClient (async/await actor)
 ├── Storage/                Keychain + UserDefaults persistence
 ├── ViewModels/             SessionStore, TaskListViewModel, TaskDetailViewModel
 ├── Views/                  SwiftUI screens
 └── Resources/              Info.plist + Assets.xcassets (AppIcon)
-SynoGetTests/               Unit tests
+DropStationTests/           Unit tests
 project.yml                 XcodeGen project specification
 icon.svg                    Source for the app icon (rendered to PNG via rsvg-convert)
 ```
