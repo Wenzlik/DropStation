@@ -5,7 +5,7 @@ struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: SessionStore
 
-    @State private var mode: Mode = .uri
+    @State private var mode: Mode = .file
     @State private var uri: String = ""
     @State private var pickedFile: PickedFile?
     @State private var pickedDestination: FileNode?
