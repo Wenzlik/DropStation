@@ -67,6 +67,15 @@ tight; the work is short and self-contained.
 - [ ] **Per-task speed limit** — `max_download_rate` / `max_upload_rate`
       via DS2 `Task.BT` edit. Exposed as a Detail → "Speed limit…" row
       with a small number-pad sheet.
+- [ ] **BT search via Synology's integrated engines** —
+      `SYNO.DownloadStation.BTSearch` (`start` → `list` → `clean`). The
+      search modules (and any tracker credentials they need) live on the
+      NAS, configured in DSM Control Panel → BT Search, so the app
+      never touches credentials directly and works for any module the
+      user has installed (public engines plus user-installed private
+      tracker modules). UI: a search tab with a query field, sort and
+      category filters, and a tap-to-add flow that hands the result
+      torrent into the existing `createTask` path.
 
 ### Localization
 - [ ] **Czech localization** — `Localizable.strings` for key user-facing
@@ -103,7 +112,10 @@ tight; the work is short and self-contained.
       Settings + a sidebar quick-switcher.
 - [ ] **RSS feeds** — `SYNO.DownloadStation.RSS.Feed` integration with
       auto-add rules; subscribe to a feed, filter by title pattern, and
-      let the NAS pull matching torrents automatically.
+      let the NAS pull matching torrents automatically. Particularly
+      useful for private trackers that expose a personalised RSS feed
+      (passkey baked into the URL): the credential stays in the feed
+      URL on the NAS, the app just edits filter rules.
 
 ### TestFlight distribution
 
