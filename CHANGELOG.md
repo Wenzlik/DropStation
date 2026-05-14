@@ -4,6 +4,16 @@ All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — Unreleased
+
+### Fixed
+- **App launch no longer shows an error alert when the saved session
+  expired.** The launch-time session restore used to surface any
+  non-session-expired probe failure (network hiccup, transient server
+  error, etc.) as a red banner on the login screen. The new flow falls
+  through to the sign-in form silently — the form itself is the
+  feedback that you need to sign in again.
+
 ## [0.3.0] — 2026-05-13
 
 ### What's new

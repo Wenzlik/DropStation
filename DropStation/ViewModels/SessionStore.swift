@@ -54,10 +54,14 @@ final class SessionStore: ObservableObject {
 
     /// Try to restore a session on app launch:
     ///   1. If we have a saved SID, probe the API. Success → already logged in.
-    ///   2. If the SID expired, try a silent re-login using the saved password.
-    ///      The server will trigger 2FA again (push approval or OTP) — we surface
-    ///      the 2FA prompt so the user can complete it.
-    ///   3. If we have no SID and no saved password, show the login form.
+    ///   2. Otherwise (SID missing, expired, or any other probe failure),
+    ///      try a silent re-login using the saved password.
+    ///   3. If the silent re-login needs a 2FA code, surface the OTP card.
+    ///   4. Anything else (no credentials, network blip, wrong password) →
+    ///      land on the login form quietly. We don't ever surface an
+    ///      `.error` from this path: launch-time housekeeping shouldn't pop
+    ///      a "session expired" alert at the user the moment they open the
+    ///      app — they just want to sign in.
     private func restoreSession() async {
         guard !config.host.isEmpty, !config.account.isEmpty,
               let url = config.baseURL else {
@@ -66,35 +70,42 @@ final class SessionStore: ObservableObject {
         }
         await client.configure(baseURL: url)
 
+        // Step 1: Try the saved SID.
         if let savedSID = KeychainStorage.sid(for: accountAtHost) {
             await client.restoreSession(sid: savedSID)
             do {
                 _ = try await client.listTasks()
                 state = .loggedIn
                 return
-            } catch let error as APIError where error.isSessionExpired {
-                // Expected: SID expired. Drop it and fall through to silent re-login.
+            } catch {
+                // Failed for any reason — expired SID, transient network
+                // hiccup, server unreachable. Drop the SID and fall
+                // through to silent re-login. We don't tell the user yet;
+                // the form they're about to see is feedback enough.
                 KeychainStorage.deleteSID(for: accountAtHost)
                 await client.clearSession()
-            } catch {
-                // Any other error (network, server down) — keep the saved SID, surface the form
-                // so the user can retry. We don't drop the SID; it may still be valid later.
-                state = .error(error.localizedDescription)
-                return
             }
         }
 
-        // Try silent re-login using stored password.
+        // Step 2: Try silent re-login with stored password.
         if let savedPassword = KeychainStorage.password(for: config.account) {
-            self.pendingCredentials = PendingCredentials(config: config, password: savedPassword)
-            await attemptLogin(
-                password: savedPassword,
-                otpCode: nil,
-                onOTPNeeded: { [weak self] in
-                    self?.state = .twoFactorRequired
-                }
-            )
-            return
+            pendingCredentials = PendingCredentials(config: config, password: savedPassword)
+            do {
+                try await performLogin(password: savedPassword, otpCode: nil)
+                ServerConfigStore.save(config)
+                pendingCredentials = nil
+                return
+            } catch let error as APIError where error.isOTPRequired {
+                // 2FA is on — show the OTP card so the user can finish.
+                state = .twoFactorRequired
+                return
+            } catch {
+                // Any other failure (wrong password, server down, account
+                // disabled) is handed off to the credentials form without
+                // an alert. If the user retries there they'll see the real
+                // error from that attempt.
+                pendingCredentials = nil
+            }
         }
 
         state = .loggedOut
