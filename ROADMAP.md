@@ -63,7 +63,11 @@ tight; the work is short and self-contained.
 
 ### Power-user features
 - [ ] **Bulk select / Edit mode** — multi-select rows, then pause / resume
-      / delete all together. Useful for "delete all finished".
+      / delete all together. Toolbar gains a "Select all" affordance that
+      respects the active filter, so the common "switch to **Finished** →
+      Select all → Delete" cleanup is two taps + a confirm. The bulk
+      delete reuses the upcoming confirm-delete dialog with the "Keep
+      partial files" toggle from 0.3.1.
 - [ ] **Per-task speed limit** — `max_download_rate` / `max_upload_rate`
       via DS2 `Task.BT` edit. Exposed as a Detail → "Speed limit…" row
       with a small number-pad sheet.
