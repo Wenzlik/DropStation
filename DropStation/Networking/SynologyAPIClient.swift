@@ -99,7 +99,10 @@ actor SynologyAPIClient {
             "api": "SYNO.DownloadStation.Task",
             "version": "1",
             "method": "list",
-            "additional": "transfer",
+            // detail = create_time + completed_time + destination + priority + peer
+            // counts. We use create_time + completed_time for sort-by-date in the
+            // list UI; the rest is shown on the Detail screen but cheap to include.
+            "additional": "transfer,detail",
             "_sid": sid
         ]
         let response: APIResponse<TaskListData> = try await postForm(url: url, params: params)
@@ -227,6 +230,38 @@ actor SynologyAPIClient {
         return task
     }
 
+    /// Stop an active task: transition it to the documented `finished` status
+    /// without deleting it. This is what DSM web's "End" button does.
+    ///
+    /// Uses the DS2 endpoint `SYNO.DownloadStation2.Task.Complete` with method
+    /// `start` (the API names the method "start" because it kicks off the
+    /// background completion process; despite the name it ends the task).
+    /// The legacy DS1 task.cgi has no equivalent.
+    func stopTasks(ids: [String]) async throws {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+        guard !ids.isEmpty else { return }
+
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("/webapi/entry.cgi"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "_sid", value: sid)]
+        guard let url = components.url else { throw APIError.invalidURL }
+
+        // id is a JSON array of strings, matching how dvcol/synology-download
+        // wires its DS2 calls — DS2 endpoints uniformly expect JSON values.
+        let idJSON = "[" + ids.map { "\"\($0)\"" }.joined(separator: ",") + "]"
+        let params: [String: String] = [
+            "api": "SYNO.DownloadStation2.Task.Complete",
+            "method": "start",
+            "version": "1",
+            "id": idJSON
+        ]
+        let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+    }
+
     func pauseTasks(ids: [String]) async throws {
         try await taskAction(method: "pause", ids: ids)
     }
@@ -248,6 +283,72 @@ actor SynologyAPIClient {
             "id": ids.joined(separator: ","),
             "_sid": sid
         ]
+        let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+    }
+
+    // MARK: - Priority (BT only)
+
+    /// Change the overall priority of a BT task. DS2 endpoint, `Task.BT` API,
+    /// `method=set`. Synology only accepts low/normal/high here — the `auto`
+    /// state shown in `additional=detail` responses is a default, not a
+    /// user-selectable value.
+    func setTaskPriority(taskId: String, priority: TaskPriority) async throws {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("/webapi/entry.cgi"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "_sid", value: sid)]
+        guard let url = components.url else { throw APIError.invalidURL }
+
+        let params: [String: String] = [
+            "api": "SYNO.DownloadStation2.Task.BT",
+            "method": "set",
+            "version": "2",
+            "task_id": "\"\(taskId)\"",
+            "priority": "\"\(priority.rawValue)\""
+        ]
+        let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+    }
+
+    /// Change per-file priority (and the "wanted" flag) inside a BT torrent.
+    /// DS2 endpoint, `Task.BT.File` API, `method=set`. `indices` are positions
+    /// in the torrent's file list as returned by `additional=file` on a list
+    /// or getinfo call — Synology preserves this ordering across calls.
+    func setFilePriorities(
+        taskId: String,
+        indices: [Int],
+        priority: FilePriority
+    ) async throws {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+        guard !indices.isEmpty else { return }
+
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("/webapi/entry.cgi"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "_sid", value: sid)]
+        guard let url = components.url else { throw APIError.invalidURL }
+
+        let indexJSON = "[" + indices.map(String.init).joined(separator: ",") + "]"
+        var params: [String: String] = [
+            "api": "SYNO.DownloadStation2.Task.BT.File",
+            "method": "set",
+            "version": "2",
+            "task_id": "\"\(taskId)\"",
+            "index": indexJSON,
+            "wanted": priority.wanted ? "true" : "false"
+        ]
+        // Only send `priority` when the file is being kept; for skip it's
+        // meaningless and some DSM builds reject the combination.
+        if let p = priority.taskPriority {
+            params["priority"] = "\"\(p.rawValue)\""
+        }
         let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)
         try ensureSuccess(response, context: .task)
     }
@@ -293,7 +394,15 @@ actor SynologyAPIClient {
         return response.data?.files ?? []
     }
 
-    func deleteTask(id: String) async throws {
+    /// Delete a task.
+    /// - Parameters:
+    ///   - id: Task ID returned by Synology.
+    ///   - keepPartialFiles: When `true`, Synology marks any partially-downloaded
+    ///     files as "force complete" and leaves them on disk. When `false`
+    ///     (default), the partial files are removed along with the task. Maps
+    ///     to the API's `force_complete` parameter, which the Synology spec
+    ///     describes as "force to move uncompleted download files".
+    func deleteTask(id: String, keepPartialFiles: Bool = false) async throws {
         guard let baseURL else { throw APIError.invalidURL }
         guard let sid else { throw APIError.notLoggedIn }
 
@@ -303,7 +412,7 @@ actor SynologyAPIClient {
             "version": "1",
             "method": "delete",
             "id": id,
-            "force_complete": "false",
+            "force_complete": keepPartialFiles ? "true" : "false",
             "_sid": sid
         ]
         let response: APIResponse<EmptyData> = try await postForm(url: url, params: params)

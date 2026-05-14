@@ -58,9 +58,17 @@ enum TaskFilter: String, CaseIterable, Identifiable {
                 return false
             }
         case .paused:
-            return task.status == .paused
+            // Only "really paused" tasks (still partial) belong here; tasks
+            // paused after they hit 100 % are conceptually done and live in
+            // the Finished bucket below.
+            return task.status == .paused && !task.isAtCompletion
         case .finished:
+            // Includes both the API-level `.finished` (HTTP/FTP and some BT)
+            // and BT tasks that are paused at 100 % (the state DS2
+            // Task.Complete leaves a seeding task in). Matches the user's
+            // mental model of "done = done".
             return task.status == .finished
+                || (task.status == .paused && task.isAtCompletion)
         case .error:
             return task.status == .error
         }

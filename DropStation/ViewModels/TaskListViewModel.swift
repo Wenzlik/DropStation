@@ -7,9 +7,24 @@ final class TaskListViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
     @Published var filter: TaskFilter = .all
+    @Published var searchText: String = ""
+    @Published var sort: TaskSort = .dateAdded {
+        didSet { UserDefaults.standard.set(sort.rawValue, forKey: TaskSortSettings.sortKey) }
+    }
+    @Published var sortDirection: TaskSortDirection = .descending {
+        didSet { UserDefaults.standard.set(sortDirection.rawValue, forKey: TaskSortSettings.directionKey) }
+    }
 
+    /// Tasks matching the current filter and (optionally) the search query,
+    /// ordered by the chosen sort. Search uses `localizedStandardContains`
+    /// so the match is case- and diacritic-insensitive.
     var filteredTasks: [DownloadTask] {
-        tasks.filter { filter.matches($0) }
+        var result = tasks.filter { filter.matches($0) }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty {
+            result = result.filter { $0.title.localizedStandardContains(query) }
+        }
+        return result.sorted(by: sort, direction: sortDirection)
     }
 
     func count(for filter: TaskFilter) -> Int {
@@ -30,6 +45,16 @@ final class TaskListViewModel: ObservableObject {
 
     init(client: SynologyAPIClient) {
         self.client = client
+        // Restore sort preferences. didSet observers don't fire from init,
+        // so the writes happen only on user changes — not on every launch.
+        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.sortKey),
+           let restored = TaskSort(rawValue: raw) {
+            self.sort = restored
+        }
+        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.directionKey),
+           let restored = TaskSortDirection(rawValue: raw) {
+            self.sortDirection = restored
+        }
     }
 
     func refresh() async {
@@ -76,6 +101,15 @@ final class TaskListViewModel: ObservableObject {
         }
     }
 
+    func stop(_ task: DownloadTask) async {
+        do {
+            try await client.stopTasks(ids: [task.id])
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func resume(_ task: DownloadTask) async {
         do {
             try await client.resumeTasks(ids: [task.id])
@@ -85,9 +119,9 @@ final class TaskListViewModel: ObservableObject {
         }
     }
 
-    func delete(_ task: DownloadTask) async {
+    func delete(_ task: DownloadTask, keepPartialFiles: Bool = false) async {
         do {
-            try await client.deleteTask(id: task.id)
+            try await client.deleteTask(id: task.id, keepPartialFiles: keepPartialFiles)
             await refresh()
         } catch {
             errorMessage = error.localizedDescription

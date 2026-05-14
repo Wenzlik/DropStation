@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TaskDetailView: View {
     @StateObject private var viewModel: TaskDetailViewModel
-    @EnvironmentObject private var session: SessionStore
+    @State private var showingTaskPriorityPicker = false
+    /// File index whose priority picker is currently open (nil = closed).
+    @State private var filePriorityFileIndex: Int?
 
     init(task: DownloadTask, client: SynologyAPIClient) {
         _viewModel = StateObject(wrappedValue: TaskDetailViewModel(task: task, client: client))
@@ -23,24 +25,36 @@ struct TaskDetailView: View {
         .navigationTitle(viewModel.task.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    if viewModel.task.canPause {
-                        Button {
-                            Task { await viewModel.pause() }
-                        } label: {
-                            Label("Pause", systemImage: "pause.fill")
+            // Hide the menu entirely when there's nothing to do (e.g. an
+            // .unknown status with neither canPause nor canResume) so the
+            // ellipsis isn't a dead tap-target.
+            if viewModel.task.canPause || viewModel.task.canStop || viewModel.task.canResume {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if viewModel.task.canPause {
+                            Button {
+                                Task { await viewModel.pause() }
+                            } label: {
+                                Label("Pause", systemImage: "pause.fill")
+                            }
                         }
-                    }
-                    if viewModel.task.canResume {
-                        Button {
-                            Task { await viewModel.resume() }
-                        } label: {
-                            Label("Resume", systemImage: "play.fill")
+                        if viewModel.task.canStop {
+                            Button {
+                                Task { await viewModel.stop() }
+                            } label: {
+                                Label("Stop", systemImage: "stop.fill")
+                            }
                         }
+                        if viewModel.task.canResume {
+                            Button {
+                                Task { await viewModel.resume() }
+                            } label: {
+                                Label("Resume", systemImage: "play.fill")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
@@ -58,6 +72,45 @@ struct TaskDetailView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+        .taskPriorityPicker(
+            isPresented: $showingTaskPriorityPicker,
+            currentPriority: currentTaskPriority
+        ) { picked in
+            Task { await viewModel.setTaskPriority(picked) }
+        }
+        .filePriorityPicker(
+            isPresented: .init(
+                get: { filePriorityFileIndex != nil },
+                set: { if !$0 { filePriorityFileIndex = nil } }
+            ),
+            currentPriority: currentFilePriority,
+            filename: currentFileFilename
+        ) { picked in
+            if let idx = filePriorityFileIndex {
+                Task { await viewModel.setFilePriority(picked, fileIndex: idx) }
+            }
+        }
+    }
+
+    private var currentTaskPriority: TaskPriority? {
+        guard let raw = viewModel.task.additional?.detail?.priority else { return nil }
+        return TaskPriority(rawValue: raw.lowercased())
+    }
+
+    private var currentFilePriority: FilePriority? {
+        guard let idx = filePriorityFileIndex,
+              let files = viewModel.task.additional?.file,
+              idx < files.count
+        else { return nil }
+        return FilePriority.from(rawPriority: files[idx].priority)
+    }
+
+    private var currentFileFilename: String? {
+        guard let idx = filePriorityFileIndex,
+              let files = viewModel.task.additional?.file,
+              idx < files.count
+        else { return nil }
+        return files[idx].filename
     }
 
     // MARK: - Sections
@@ -80,18 +133,21 @@ struct TaskDetailView: View {
                         .contentTransition(.numericText())
                 }
                 ProgressView(value: viewModel.task.progress)
-                    .tint(viewModel.task.status.tintColor)
+                    .tint(viewModel.task.displayStatusTintRaw.tintColor)
             }
             .padding(.vertical, 4)
         }
     }
 
     private var statusPill: some View {
-        Text(viewModel.task.status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+        // Uses the task-aware display label + tint so paused-at-100 % shows as
+        // "Ended" (grey) just like a true `.finished` status — see
+        // DownloadTask.displayStatusLabel.
+        Text(viewModel.task.displayStatusLabel)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .glassEffect(.regular.tint(viewModel.task.status.tintColor.opacity(0.45)), in: .capsule)
+            .glassEffect(.regular.tint(viewModel.task.displayStatusTintRaw.tintColor.opacity(0.45)), in: .capsule)
     }
 
     private var transferSection: some View {
@@ -125,21 +181,32 @@ struct TaskDetailView: View {
 
     private func filesSection(files: [DownloadTask.Additional.TorrentFile]) -> some View {
         Section("Files (\(files.count))") {
-            ForEach(files) { file in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(file.filename ?? "(unnamed)").lineLimit(2).font(.subheadline)
-                    HStack {
-                        let down = file.sizeDownloaded?.value ?? 0
-                        let total = file.size?.value ?? 0
-                        Text("\(Self.bytes(down)) / \(Self.bytes(total))")
-                        Spacer()
-                        if let p = file.priority { Text(p.capitalized) }
+            // We need the index alongside each file for the per-file priority
+            // API. Synology returns files in stable torrent-order so positional
+            // index in this array matches the BT info dictionary's order.
+            ForEach(Array(files.enumerated()), id: \.element.id) { idx, file in
+                Button {
+                    filePriorityFileIndex = idx
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(file.filename ?? "(unnamed)")
+                            .lineLimit(2)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                        HStack {
+                            let down = file.sizeDownloaded?.value ?? 0
+                            let total = file.size?.value ?? 0
+                            Text("\(Self.bytes(down)) / \(Self.bytes(total))")
+                            Spacer()
+                            if let p = file.priority { Text(p.capitalized) }
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        ProgressView(value: file.progress)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    ProgressView(value: file.progress)
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
             }
         }
     }
@@ -172,7 +239,9 @@ struct TaskDetailView: View {
             }
             if let d = viewModel.task.additional?.detail {
                 if let dest = d.destination { row("Destination", value: dest) }
-                if let prio = d.priority { row("Priority", value: prio.capitalized) }
+                if let prio = d.priority {
+                    priorityRow(rawPriority: prio)
+                }
                 if let t = d.createTime {
                     let date = Date(timeIntervalSince1970: TimeInterval(t.value))
                     row("Created", value: date.formatted(date: .abbreviated, time: .shortened))
@@ -185,6 +254,31 @@ struct TaskDetailView: View {
                     .padding(.vertical, 2)
                 }
             }
+        }
+    }
+
+    /// Priority row — tappable for BT torrents (Synology's DS2 set-priority
+    /// endpoint is BT-only). For HTTP/FTP/NZB it renders as plain text so the
+    /// user doesn't tap into a dead-end picker.
+    @ViewBuilder
+    private func priorityRow(rawPriority: String) -> some View {
+        let isBT = viewModel.task.type == .bt || viewModel.task.type == .magnet
+        if isBT {
+            Button {
+                showingTaskPriorityPicker = true
+            } label: {
+                HStack {
+                    Text("Priority").foregroundStyle(.primary)
+                    Spacer()
+                    Text(rawPriority.capitalized)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            row("Priority", value: rawPriority.capitalized)
         }
     }
 

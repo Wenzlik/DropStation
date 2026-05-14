@@ -5,6 +5,9 @@ struct TaskListView: View {
     @StateObject private var viewModel: TaskListViewModel
     @State private var showingAddTask = false
     @State private var showingSettings = false
+    /// Task the user just swiped to delete; non-nil presents the
+    /// keep-partial-files confirmation dialog.
+    @State private var taskPendingDelete: DownloadTask?
 
     init(session: SessionStore) {
         _viewModel = StateObject(wrappedValue: TaskListViewModel(client: session.client))
@@ -30,7 +33,7 @@ struct TaskListView: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
-                                Task { await viewModel.delete(task) }
+                                taskPendingDelete = task
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -43,6 +46,14 @@ struct TaskListView: View {
                                     Label("Pause", systemImage: "pause.fill")
                                 }
                                 .tint(.orange)
+                            }
+                            if task.canStop {
+                                Button {
+                                    Task { await viewModel.stop(task) }
+                                } label: {
+                                    Label("Stop", systemImage: "stop.fill")
+                                }
+                                .tint(.gray)
                             }
                             if task.canResume {
                                 Button {
@@ -58,6 +69,7 @@ struct TaskListView: View {
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .refreshable { await viewModel.refresh() }
+                .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
             }
             .overlay {
                 if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
@@ -77,6 +89,9 @@ struct TaskListView: View {
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    sortMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     filterMenu
@@ -123,6 +138,25 @@ struct TaskListView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
+            .confirmationDialog(
+                "Delete this download?",
+                isPresented: .init(
+                    get: { taskPendingDelete != nil },
+                    set: { if !$0 { taskPendingDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: taskPendingDelete
+            ) { task in
+                Button("Delete task and files", role: .destructive) {
+                    Task { await viewModel.delete(task, keepPartialFiles: false) }
+                }
+                Button("Delete task only (keep partial files)") {
+                    Task { await viewModel.delete(task, keepPartialFiles: true) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { task in
+                Text(task.title)
+            }
         }
     }
 
@@ -148,6 +182,29 @@ struct TaskListView: View {
         }
     }
 
+    private var sortMenu: some View {
+        Menu {
+            // Two nested pickers: criterion, then direction. Tapping the
+            // currently-selected criterion is a no-op (Picker swallows it),
+            // so the direction is exposed as its own toggle below.
+            Picker("Sort by", selection: $viewModel.sort) {
+                ForEach(TaskSort.allCases) { s in
+                    Label(s.label, systemImage: s.systemImage).tag(s)
+                }
+            }
+            Divider()
+            Picker("Direction", selection: $viewModel.sortDirection) {
+                ForEach(TaskSortDirection.allCases) { d in
+                    Label(d.label, systemImage: d.systemImage).tag(d)
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.sortDirection == .ascending
+                  ? "arrow.up.arrow.down.circle"
+                  : "arrow.up.arrow.down.circle.fill")
+        }
+    }
+
     private var navigationTitle: String {
         viewModel.filter == .all ? "Downloads" : "Downloads — \(viewModel.filter.label)"
     }
@@ -161,16 +218,24 @@ struct TaskListView: View {
         return "↓ \(f.string(fromByteCount: down))/s   ↑ \(f.string(fromByteCount: up))/s"
     }
 
+    private var hasSearch: Bool {
+        !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var emptyStateTitle: String {
-        viewModel.filter == .all ? "No downloads" : "No \(viewModel.filter.label.lowercased()) downloads"
+        if hasSearch { return "No matches" }
+        return viewModel.filter == .all
+            ? "No downloads"
+            : "No \(viewModel.filter.label.lowercased()) downloads"
     }
 
     private var emptyStateIcon: String {
-        viewModel.filter.systemImage
+        hasSearch ? "magnifyingglass" : viewModel.filter.systemImage
     }
 
     private var emptyStateMessage: String {
-        viewModel.filter == .all
+        if hasSearch { return "No downloads match \"\(viewModel.searchText)\"." }
+        return viewModel.filter == .all
             ? "Tap + to add a magnet, URL, or .torrent file."
             : "Switch filter or pull down to refresh."
     }
@@ -188,9 +253,9 @@ private struct TaskRow: View {
                 Text(task.title).font(.body).lineLimit(2)
             }
             ProgressView(value: task.progress)
-                .tint(task.status.tintColor)
+                .tint(task.displayStatusTintRaw.tintColor)
             HStack(spacing: 8) {
-                StatusPill(status: task.status)
+                StatusPill(task: task)
                 if let speed = liveSpeed, speed > 0 {
                     Label(formattedSpeed(speed), systemImage: "arrow.down")
                         .labelStyle(.titleAndIcon)
@@ -225,15 +290,17 @@ private struct TaskRow: View {
 }
 
 /// Compact status indicator rendered as a tinted Liquid Glass capsule.
+/// Takes the whole `DownloadTask` rather than just the raw status so it can
+/// fold paused-at-100 % into the same "Ended" label/colour as `.finished`.
 private struct StatusPill: View {
-    let status: DownloadTask.Status
+    let task: DownloadTask
 
     var body: some View {
-        Text(status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized)
+        Text(task.displayStatusLabel)
             .font(.caption.weight(.medium))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .glassEffect(.regular.tint(status.tintColor.opacity(0.45)), in: .capsule)
+            .glassEffect(.regular.tint(task.displayStatusTintRaw.tintColor.opacity(0.45)), in: .capsule)
             .foregroundStyle(.primary)
     }
 }

@@ -49,6 +49,37 @@ final class TaskDetailViewModel: ObservableObject {
         }
     }
 
+    func stop() async {
+        do {
+            try await client.stopTasks(ids: [task.id])
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setTaskPriority(_ priority: TaskPriority) async {
+        do {
+            try await client.setTaskPriority(taskId: task.id, priority: priority)
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setFilePriority(_ priority: FilePriority, fileIndex: Int) async {
+        do {
+            try await client.setFilePriorities(
+                taskId: task.id,
+                indices: [fileIndex],
+                priority: priority
+            )
+            await refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func startAutoRefresh() {
         stopAutoRefresh()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in

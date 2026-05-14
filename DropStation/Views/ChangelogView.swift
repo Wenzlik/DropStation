@@ -130,8 +130,12 @@ struct ChangelogView: View {
                 } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
                     flushParagraph()
                     bullets.append(String(trimmed.dropFirst(2)))
+                } else if !bullets.isEmpty {
+                    // Continuation of the previous bullet — wrapped lines in
+                    // the source markdown belong to the last bullet, not as
+                    // their own paragraph. Fold them in with a space.
+                    bullets[bullets.count - 1] += " " + trimmed
                 } else {
-                    flushBullets()
                     paragraph.append(trimmed)
                 }
             }

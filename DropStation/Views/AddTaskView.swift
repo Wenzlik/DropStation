@@ -49,6 +49,18 @@ struct AddTaskView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .lineLimit(3...10)
+
+                        // PasteButton enables itself only when the system clipboard
+                        // currently holds a URL (magnet:?…, http(s)://…) — iOS handles
+                        // the detection without firing the "X pasted from Y" privacy
+                        // banner that a manual UIPasteboard peek would trigger.
+                        PasteButton(payloadType: URL.self) { urls in
+                            if let url = urls.first {
+                                uri = url.absoluteString
+                            }
+                        }
+                        .labelStyle(.titleAndIcon)
+                        .buttonBorderShape(.capsule)
                     }
                 case .file:
                     Section("Torrent file") {

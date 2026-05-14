@@ -3,45 +3,6 @@
 Living planning document for upcoming **DropStation** releases. Items move
 into [CHANGELOG.md](CHANGELOG.md) once shipped.
 
-## 0.3.1 — Quality of life follow-ups
-
-Pass 4 / 5 of the 0.3 cycle. Not shipped in 0.3.0 to keep that release
-tight; the work is short and self-contained.
-
-- [ ] **Stop action.** Real API call, found in dvcol/synology-download:
-      `SYNO.DownloadStation2.Task.Complete` `method=start` (id = task ID list).
-      Transitions an active / seeding task to the documented `finished` status
-      — what DSM web's "End" button does. Add a Stop swipe action (stop.fill
-      icon) and Stop entry in the detail-view menu. No new client-side status
-      needed; rely on the existing `finished` rendering, just gated so that
-      Stop only shows for `canPause` rows.
-- [ ] **Confirm-before-delete** dialog with a "Keep partial files" toggle
-      (maps to `force_complete=true` vs `false` on the delete call).
-- [ ] **Clipboard hint** in AddTaskView: when `UIPasteboard` contains a
-      magnet/HTTP URL, show a "Paste from clipboard" button above the URI
-      field.
-- [ ] **Search by name** — search field above the task list, incremental
-      filter on `task.title`.
-- [ ] **Sort order for the task list.** Options: name (alphabetical), size,
-      date added, date completed — each asc / desc. UI is a sort menu next
-      to the filter menu in the toolbar; the selected order is persisted via
-      `@AppStorage` so it survives launches. Implementation notes:
-      - Sort is client-side. Synology's list endpoint doesn't accept a
-        `sort_by` parameter for tasks, so we order `filteredTasks` ourselves.
-      - "Date added" uses `additional.detail.create_time` (already decoded);
-        "Date completed" needs `completed_time` added to
-        `DownloadTask.Additional.Detail` (it's in the API but not in our
-        model yet).
-      - The list refresh currently asks for `additional=transfer`; bump to
-        `additional=transfer,detail` so both timestamps are populated on
-        every poll.
-- [ ] **Priority change** — tappable priority row on the task detail (DS2
-      `SYNO.DownloadStation2.Task.BT` `method=set`) and per-file priority
-      picker for BT torrents (DS2 `…Task.BT.File` `method=set`), with
-      skip/low/normal/high.
-
----
-
 ## 0.4 — Detail screen, bulk actions, locale
 
 ### Detail screen polish

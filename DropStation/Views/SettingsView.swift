@@ -25,6 +25,7 @@ struct SettingsView: View {
             Form {
                 appearanceSection
                 if isSignedIn { accountSection }
+                feedbackSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -88,18 +89,45 @@ struct SettingsView: View {
         }
     }
 
+    private var feedbackSection: some View {
+        // Opens GitHub's "New issue" page with the matching template pre-
+        // selected. The user needs a GitHub account to actually post — that's
+        // handled by github.com, we just deep-link the right form.
+        Section {
+            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!) {
+                Label("Suggest a feature", systemImage: "lightbulb")
+            }
+            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=bug_report.md")!) {
+                Label("Report a bug", systemImage: "ladybug")
+            }
+        } header: {
+            Text("Feedback")
+        } footer: {
+            Text("Opens GitHub in Safari. A GitHub account is required to post.")
+        }
+    }
+
     private var aboutSection: some View {
-        Section("About") {
+        Section {
             LabeledContent("App", value: "DropStation")
-            LabeledContent("Version", value: Self.versionString)
+            // Tappable Version row: the value reads as plain text but the
+            // whole row pushes the in-app changelog. A chevron makes the
+            // affordance discoverable without an extra "What's new" entry.
             NavigationLink {
                 ChangelogView()
             } label: {
-                Label("What's new", systemImage: "sparkles")
+                LabeledContent("Version", value: Self.versionString)
+            }
+            Link(destination: URL(string: "https://github.com/Wenzlik")!) {
+                Label("Made by @Wenzlik", systemImage: "person.circle")
             }
             Link(destination: URL(string: "https://github.com/Wenzlik/DropStation")!) {
                 Label("Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
             }
+        } header: {
+            Text("About")
+        } footer: {
+            Text("© 2026 Vasek Zmrhal · MIT License")
         }
     }
 

@@ -62,6 +62,10 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             let uri: String?
             /// Unix timestamp. Spec says "string" but real DSM returns it as a number.
             let createTime: FlexibleInt64?
+            /// Unix timestamp when the task transitioned to `finished`. Absent
+            /// or 0 for tasks that haven't completed yet. Used by sort-by-date-
+            /// completed in the list.
+            let completedTime: FlexibleInt64?
             let priority: String?
             let connectedSeeders: FlexibleInt64?
             let connectedLeechers: FlexibleInt64?
@@ -70,6 +74,7 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             enum CodingKeys: String, CodingKey {
                 case destination, uri, priority
                 case createTime = "create_time"
+                case completedTime = "completed_time"
                 case connectedSeeders = "connected_seeders"
                 case connectedLeechers = "connected_leechers"
                 case totalPeers = "total_peers"
@@ -124,6 +129,38 @@ struct DownloadTask: Codable, Identifiable, Hashable {
         return min(1.0, Double(downloaded) / Double(total))
     }
 
+    /// True when the task has fully downloaded its payload. Used to fold the
+    /// various "done" representations together — Synology returns `paused`
+    /// for BT tasks stopped after they completed (DS2 Task.Complete makes a
+    /// seeding task look paused, not finished), so we lean on the size
+    /// comparison to recognise an effectively-finished row.
+    var isAtCompletion: Bool {
+        let total = size.value
+        guard total > 0,
+              let downloaded = additional?.transfer?.sizeDownloaded.value
+        else { return false }
+        return downloaded >= total
+    }
+
+    /// Combined display label for the status pill. Folds paused-at-100 % and
+    /// `.finished` into a single user-facing "Ended" — matching how DSM web
+    /// labels these — so users aren't confused by Stop landing them in a
+    /// "Paused" label that sounds temporary.
+    var displayStatusLabel: String {
+        if isAtCompletion, status == .paused { return "Ended" }
+        if status == .finished { return "Ended" }
+        return status.rawValue
+            .replacingOccurrences(of: "_", with: " ")
+            .capitalized
+    }
+
+    /// Tint shown by the StatusPill. Matches displayStatusLabel by collapsing
+    /// the "ended" states onto the finished colour (grey).
+    var displayStatusTintRaw: DownloadTask.Status {
+        if isAtCompletion, status == .paused { return .finished }
+        return status
+    }
+
     var canPause: Bool {
         switch status {
         case .downloading, .waiting, .seeding, .hash_checking, .filehosting_waiting:
@@ -135,7 +172,26 @@ struct DownloadTask: Codable, Identifiable, Hashable {
 
     var canResume: Bool {
         switch status {
-        case .paused, .error:
+        case .paused, .error, .finished:
+            // `.finished` is in here so Stop is reversible: after stopping
+            // a BT task its status is `finished`, and a Resume puts it
+            // back into seeding. For non-BT types Resume on finished is
+            // a server-side no-op, which is fine.
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Whether the Stop action makes sense: DS2 Task.Complete only finalizes
+    /// tasks that are already 100 % (seeding or finishing — typical BT
+    /// after-download states). Stopping a still-downloading task just pauses
+    /// it without actually transitioning to `finished`, which is confusing
+    /// UX, so we hide the affordance there. DSM web does the same — its
+    /// "End" button only appears on seeding rows.
+    var canStop: Bool {
+        switch status {
+        case .seeding, .finishing:
             return true
         default:
             return false

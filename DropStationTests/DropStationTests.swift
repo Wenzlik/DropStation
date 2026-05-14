@@ -53,8 +53,18 @@ final class DownloadTaskDecodingTests: XCTestCase {
         XCTAssertFalse(task(status: .paused).canPause)
         XCTAssertTrue(task(status: .paused).canResume)
         XCTAssertTrue(task(status: .error).canResume)
-        XCTAssertFalse(task(status: .finished).canResume)
+        // .finished tasks are resumable so a Stop is reversible
+        // (BT: re-enters seeding; HTTP/FTP: server-side no-op).
+        XCTAssertTrue(task(status: .finished).canResume)
         XCTAssertFalse(task(status: .downloading).canResume)
+        // Stop only makes sense for already-100 % tasks. Stopping a still-
+        // downloading task on the API side just pauses it without
+        // transitioning to finished, which is confusing UX — so hide it.
+        XCTAssertTrue(task(status: .seeding).canStop)
+        XCTAssertTrue(task(status: .finishing).canStop)
+        XCTAssertFalse(task(status: .downloading).canStop)
+        XCTAssertFalse(task(status: .paused).canStop)
+        XCTAssertFalse(task(status: .finished).canStop)
     }
 }
 
@@ -62,6 +72,25 @@ final class TaskFilterTests: XCTestCase {
     private func task(_ status: DownloadTask.Status) -> DownloadTask {
         DownloadTask(id: UUID().uuidString, title: "t", size: 1,
                      status: status, type: .bt, username: "u", additional: nil)
+    }
+
+    /// A task that has fully downloaded its payload — used to exercise the
+    /// "paused after 100 %" → Finished bucket folding.
+    private func taskAtCompletion(_ status: DownloadTask.Status) -> DownloadTask {
+        let transfer = DownloadTask.Additional.Transfer(
+            sizeDownloaded: 10,
+            sizeUploaded: 0,
+            speedDownload: 0,
+            speedUpload: 0
+        )
+        return DownloadTask(
+            id: UUID().uuidString, title: "t", size: 10,
+            status: status, type: .bt, username: "u",
+            additional: DownloadTask.Additional(
+                transfer: transfer,
+                detail: nil, file: nil, tracker: nil
+            )
+        )
     }
 
     func testAllMatchesEverything() {
@@ -104,11 +133,30 @@ final class TaskFilterTests: XCTestCase {
         XCTAssertFalse(TaskFilter.finished.matches(task(.seeding)))
     }
 
+    func testFinishedIncludesPausedAtCompletion() {
+        // DS2 Task.Complete leaves a stopped seeding task as `paused` at
+        // 100 %. The filter should treat that as Finished so the user sees
+        // it where they expect.
+        XCTAssertTrue(TaskFilter.finished.matches(taskAtCompletion(.paused)))
+    }
+
+    func testPausedExcludesPausedAtCompletion() {
+        // A task paused at 100 % belongs in Finished, not Paused.
+        XCTAssertTrue(TaskFilter.paused.matches(task(.paused))) // partial
+        XCTAssertFalse(TaskFilter.paused.matches(taskAtCompletion(.paused))) // 100 %
+    }
+
     func testPausedAndErrorAreSingleStatusFilters() {
-        XCTAssertTrue(TaskFilter.paused.matches(task(.paused)))
         XCTAssertFalse(TaskFilter.paused.matches(task(.error)))
         XCTAssertTrue(TaskFilter.error.matches(task(.error)))
         XCTAssertFalse(TaskFilter.error.matches(task(.paused)))
+    }
+
+    func testDisplayStatusLabelFoldsPausedAtCompletionToEnded() {
+        XCTAssertEqual(task(.downloading).displayStatusLabel, "Downloading")
+        XCTAssertEqual(task(.paused).displayStatusLabel, "Paused")    // partial
+        XCTAssertEqual(taskAtCompletion(.paused).displayStatusLabel, "Ended")
+        XCTAssertEqual(task(.finished).displayStatusLabel, "Ended")
     }
 }
 
