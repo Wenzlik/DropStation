@@ -4,6 +4,18 @@ All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-05-18
+
+### Added
+- Sign in via DSM web login in a WKWebView (Synology Secure SignIn push approval works)
+- Picker on the sign-in screen to choose verification code vs. Secure SignIn
+- "Re-authenticate now" in Settings to trigger a fresh 2FA challenge
+- Session cookies persisted in Keychain for cross-launch session restore
+
+### Changed
+- Sign-out now wipes SID, cookies, and WKWebsiteDataStore (full cleanup)
+- Form sign-in clears DSM trusted-device cookies so 2FA always fires
+
 ## [0.3.1] — 2026-05-14
 
 ### Added
@@ -57,6 +69,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Initial release.
 
+[0.4.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.4.0
 [0.3.1]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.0
 [0.2]: https://github.com/Wenzlik/DropStation/releases/tag/v0.2.3
