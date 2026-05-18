@@ -380,24 +380,35 @@ struct LoginView: View {
 
     // MARK: - Session-unauthorized (105 recovery) sub-view
 
-    /// Shown when the post-web-sign-in Download Station probe came
-    /// back with "session does not have permission" (Synology error
-    /// 105). DSM accepted the user's credentials at the web layer but
-    /// refused to extend that auth to the Download Station API.
+    /// Shown when the active session is no longer good for Download
+    /// Station. Reached from two distinct paths:
     ///
-    /// Recovery is binary: switch to OTP (the only flow that mints a
-    /// DownloadStation-scoped SID via auth.cgi credentials) or retry
-    /// the web sign-in (rare — usually only useful if the user thinks
-    /// they signed in as the wrong account). A small "Sign out" link
-    /// at the bottom is the escape hatch back to a fresh form.
+    ///   - Foreground probe (or list refresh) returns 105/106/107/119
+    ///     after we believed we were signed in. The reason string
+    ///     starts with "Session expired".
+    ///   - Post-web-sign-in probe returns 105 (web identity verified
+    ///     but DSM didn't extend auth to Download Station).
+    ///
+    /// The heading and icon adapt to the case so the user gets honest
+    /// copy in both, but the recovery actions are identical: switch to
+    /// OTP (the only flow that reliably mints a DownloadStation-scoped
+    /// SID), retry the web sign-in, or sign out entirely.
     @ViewBuilder
     private func sessionUnauthorizedContent(reason: String) -> some View {
+        // Heuristic on the reason string keeps the state machine in
+        // SessionStore simple while still letting the view show
+        // case-appropriate copy. Both reasons originate in
+        // SessionStore so the contract is local.
+        let isExpiry = reason.localizedCaseInsensitiveContains("expired")
+        let title = isExpiry ? "Session expired" : "Re-authentication required"
+        let symbol = isExpiry ? "clock.badge.exclamationmark" : "exclamationmark.shield"
+
         VStack(spacing: 8) {
-            Image(systemName: "exclamationmark.shield")
+            Image(systemName: symbol)
                 .font(.system(size: 36))
                 .foregroundStyle(.orange)
                 .padding(.bottom, 4)
-            Text("Session is not authorized for Download Station")
+            Text(title)
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
             Text(reason)
@@ -415,14 +426,14 @@ struct LoginView: View {
         // user out (preserving the password in Keychain so silent
         // re-login can use it) and flips AuthMethod to .otp; they
         // land back on the credentials form.
-        signInButton(label: "Continue with verification code", isWorking: false) {
+        signInButton(label: "Re-authenticate with verification code", isWorking: false) {
             Task { await session.switchToOTPAndSignOut() }
         }
 
         Button {
             Task { await session.retryWebSignIn() }
         } label: {
-            Label("Retry Secure SignIn", systemImage: "arrow.clockwise")
+            Label("Try Secure SignIn", systemImage: "arrow.clockwise")
                 .font(.body.weight(.medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -475,9 +486,9 @@ struct LoginView: View {
         port = String(cfg.port)
         account = cfg.account
         serverExpanded = host.isEmpty
-        if !account.isEmpty, let saved = KeychainStorage.password(for: account) {
-            password = saved
-        }
+        // Password is intentionally not prefilled. 0.4.0 dropped
+        // automatic password persistence — a separate "Remember
+        // password" opt-in is intended for a later release.
     }
 
     private func login() async {

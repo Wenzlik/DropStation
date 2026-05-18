@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: SessionStore
     @AppStorage(AppearanceSettings.storageKey) private var appearanceRaw: String = AppearanceMode.system.rawValue
+    @AppStorage(RememberSessionSettings.storageKey) private var rememberSession: Bool = true
     @State private var confirmForget = false
 
     private var appearance: Binding<AppearanceMode> {
@@ -25,6 +26,7 @@ struct SettingsView: View {
             Form {
                 appearanceSection
                 if isSignedIn { accountSection }
+                privacySection
                 feedbackSection
                 aboutSection
             }
@@ -44,7 +46,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Removes the saved password and session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch.")
+                Text("Removes the saved session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch.")
             }
         }
     }
@@ -71,14 +73,6 @@ struct SettingsView: View {
             }
             Button {
                 Task {
-                    await session.reauthenticate()
-                    dismiss()
-                }
-            } label: {
-                Label("Re-authenticate now", systemImage: "arrow.clockwise.circle")
-            }
-            Button {
-                Task {
                     await session.logout()
                     dismiss()
                 }
@@ -93,7 +87,32 @@ struct SettingsView: View {
         } header: {
             Text("Account")
         } footer: {
-            Text("Re-authenticate triggers a fresh 2FA challenge using your saved password. Sign out keeps the password for next time. Forget clears the password too.")
+            Text("Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored.")
+        }
+    }
+
+    /// Controls credential persistence. Default ON: the app caches the
+    /// Download Station SID in the Keychain so cold starts can skip the
+    /// OTP prompt. Switching OFF clears every saved credential we hold
+    /// for the current account (SID, cookies, metadata, password). The
+    /// active in-memory session keeps working until the next launch.
+    private var privacySection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { rememberSession },
+                set: { newValue in
+                    rememberSession = newValue
+                    session.setRememberSession(newValue)
+                }
+            )) {
+                Label("Remember session", systemImage: "lock.rotation")
+            }
+        } header: {
+            Text("Privacy")
+        } footer: {
+            Text(rememberSession
+                ? "Your SID is stored in the iOS Keychain so the app stays signed in across launches."
+                : "Saved credentials are removed. You'll need to sign in every time you open the app.")
         }
     }
 

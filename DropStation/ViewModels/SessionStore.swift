@@ -69,16 +69,28 @@ final class SessionStore: ObservableObject {
     }
 
     /// Try to restore a session on app launch:
-    ///   1. If we have a saved SID, probe the API. Success → already logged in.
-    ///   2. Otherwise (SID missing, expired, or any other probe failure),
-    ///      try a silent re-login using the saved password via
-    ///      `silentReLogin`, which handles the 2FA-required branch.
-    ///   3. No credentials → land on the login form quietly.
+    ///   1. If we have a saved SID, probe Download Station with it.
+    ///      Success → already logged in, no OTP prompt.
+    ///   2. SID rejected by DSM (105/106/107/119) → drop SID +
+    ///      metadata + cookies, land on the login screen so the user
+    ///      can re-authenticate. We **do not** silently retry with a
+    ///      stored password — password persistence is gated behind a
+    ///      separate opt-in we haven't shipped yet.
+    ///   3. Transient failure (offline, DNS, 5xx) → keep the SID
+    ///      untouched so the next launch can try again, but land on
+    ///      the login screen for this launch.
+    ///   4. No saved SID → quiet `.loggedOut`.
     ///
     /// We don't ever surface an `.error` from this path: launch-time
     /// housekeeping shouldn't pop a "session expired" alert at the user
     /// the moment they open the app — they just want to sign in.
     private func restoreSession() async {
+        // One-shot migration: clear any password an earlier build left
+        // in the Keychain. 0.4.0 stops persisting passwords entirely,
+        // and we don't want a stale credential lingering on disk on
+        // users who upgraded.
+        purgeLegacyPasswordIfPresent()
+
         guard !config.host.isEmpty, !config.account.isEmpty,
               let url = config.baseURL else {
             state = .loggedOut
@@ -86,63 +98,75 @@ final class SessionStore: ObservableObject {
         }
         await client.configure(baseURL: url)
 
-        // Step 1: Try the saved SID.
-        //
         // If we also have Secure SignIn web cookies on file, rehydrate
         // them into HTTPCookieStorage.shared *before* probing the API.
         // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
         // in addition to the `_sid` URL parameter, and the cookies are
         // what the web sign-in actually produced — without them an
         // expired SID lookup would be more aggressive than necessary.
-        if let savedSID = KeychainStorage.sid(for: accountAtHost) {
-            restoreCookiesFromKeychain()
-            await client.restoreSession(sid: savedSID)
-            do {
-                _ = try await client.listTasks()
-                state = .loggedIn
-                return
-            } catch {
-                // Failed for any reason — expired SID, transient network
-                // hiccup, server unreachable. Drop the SID and cookies,
-                // fall through to silent re-login. We don't tell the
-                // user yet; the form they're about to see is feedback
-                // enough.
-                KeychainStorage.deleteSID(for: accountAtHost)
-                KeychainStorage.deleteCookies(for: accountAtHost)
-                await client.clearSession()
-                await client.clearAuthCookies()
-            }
-        }
-
-        // Step 2: Try silent re-login with stored password.
-        if let savedPassword = KeychainStorage.password(for: config.account) {
-            await silentReLogin(password: savedPassword)
+        guard let savedSID = KeychainStorage.sid(for: accountAtHost) else {
+            state = .loggedOut
             return
         }
-
-        state = .loggedOut
-    }
-
-    /// Silent re-login with a known password. Drives the same flow as the
-    /// initial form-driven sign-in but without UI prompts:
-    ///   - success → `.loggedIn` (via `performLogin`)
-    ///   - 403 (2FA required) → `.twoFactorRequired`
-    ///   - any other error → `.loggedOut`, no alert
-    ///
-    /// Shared by `restoreSession` (step 2) and `reauthenticate` so both
-    /// paths handle 2FA consistently.
-    private func silentReLogin(password: String) async {
-        pendingCredentials = PendingCredentials(config: config, password: password)
+        restoreCookiesFromKeychain()
+        await client.restoreSession(sid: savedSID)
         do {
-            try await performLogin(password: password, otpCode: nil)
-            ServerConfigStore.save(config)
-            pendingCredentials = nil
-        } catch let error as APIError where error.isOTPRequired {
-            state = .twoFactorRequired
+            _ = try await client.listTasks()
+            touchSessionMetadata()
+            state = .loggedIn
+        } catch let error as APIError where error.isSessionExpired {
+            // DSM actively rejected the SID — wipe it so the next
+            // launch doesn't keep retrying a dead session, and land
+            // on the login screen so the user can sign in fresh.
+            DSLog.session("restoreSession: SID rejected (\(error.localizedDescription)); dropping")
+            await clearStoredSession()
+            state = .loggedOut
+        } catch let error as APIError where error.isTransient {
+            // Offline / Wi-Fi handoff / server 5xx. Don't punish the
+            // user by deleting a SID that's probably still good —
+            // they'll get a normal sign-in form for this launch and
+            // we'll try again next time.
+            DSLog.session("restoreSession: transient (\(error.localizedDescription)); keeping SID")
+            state = .loggedOut
         } catch {
-            pendingCredentials = nil
+            // Anything else (decoding, unexpected HTTP code). Treat
+            // like transient: don't drop the SID, just show the
+            // login screen.
+            DSLog.session("restoreSession: unexpected probe error (\(error.localizedDescription)); keeping SID")
             state = .loggedOut
         }
+    }
+
+    /// Best-effort delete of a password an earlier build may have left
+    /// in the Keychain. 0.4.0 dropped password persistence; this
+    /// migration keeps users who upgrade from <0.4.0 from carrying a
+    /// stale credential indefinitely. Runs on every launch (it's
+    /// idempotent and cheap when there's nothing to remove).
+    private func purgeLegacyPasswordIfPresent() {
+        guard !config.account.isEmpty else { return }
+        if KeychainStorage.password(for: config.account) != nil {
+            DSLog.session("purging legacy stored password from Keychain")
+            KeychainStorage.deletePassword(for: config.account)
+        }
+    }
+
+    /// Drop every persisted credential we hold for the current
+    /// account+host, plus the in-memory SID on the API client. Used by
+    /// every path that needs to invalidate a session: a rejected SID
+    /// probe, an unauthorized list refresh, a logout. Idempotent.
+    private func clearStoredSession() async {
+        clearStoredKeychainSession()
+        await client.clearSession()
+        await client.clearAuthCookies()
+    }
+
+    /// Keychain-only teardown for callers that can't await (sync
+    /// MainActor hooks). The caller is responsible for tearing the
+    /// in-memory SID / cookies down separately via a `Task`.
+    private func clearStoredKeychainSession() {
+        KeychainStorage.deleteSID(for: accountAtHost)
+        KeychainStorage.deleteCookies(for: accountAtHost)
+        KeychainStorage.deleteSessionMetadata(for: accountAtHost)
     }
 
     // MARK: - Login
@@ -201,7 +225,11 @@ final class SessionStore: ObservableObject {
     ) async {
         do {
             try await performLogin(password: password, otpCode: otpCode)
-            try? KeychainStorage.setPassword(password, for: config.account)
+            // Server config (host/port/account/scheme) is not a
+            // credential — always remember it so the login form
+            // prefills. The password is never persisted by
+            // "Remember session"; that's reserved for a separate
+            // opt-in toggle we haven't added yet.
             ServerConfigStore.save(config)
             pendingCredentials = nil
         } catch let error as APIError where error.isOTPRequired {
@@ -214,25 +242,69 @@ final class SessionStore: ObservableObject {
     }
 
     /// The single Synology `login` call. Sends just account/password/otpCode —
-    /// no device-token plumbing. SID is the only thing we persist; when it
-    /// expires, the next launch surfaces the password+2FA prompt again.
+    /// no device-token plumbing. When "Remember session" is on, persists the
+    /// returned SID plus a `SessionMetadata` sidecar; otherwise the SID stays
+    /// in memory for the duration of the app run only.
     private func performLogin(password: String, otpCode: String?) async throws {
         let result = try await client.login(
             account: config.account,
             password: password,
             otpCode: otpCode
         )
-        try? KeychainStorage.setSID(result.sid, for: accountAtHost)
+        persistSessionIfAllowed(sid: result.sid, cookies: [])
         state = .loggedIn
+    }
+
+    /// Persist the freshly-acquired SID + session metadata (and any
+    /// Secure SignIn web cookies) when the user has opted in to
+    /// "Remember session". A best-effort write — keychain failures
+    /// don't break the active session, they just mean the next launch
+    /// will require a fresh sign-in.
+    private func persistSessionIfAllowed(sid: String, cookies: [HTTPCookie]) {
+        guard RememberSessionSettings.enabled else { return }
+        try? KeychainStorage.setSID(sid, for: accountAtHost)
+        if !cookies.isEmpty {
+            let stored = cookies.map(StoredCookie.init(cookie:))
+            try? KeychainStorage.setCookies(stored, for: accountAtHost)
+        }
+        try? KeychainStorage.setSessionMetadata(makeMetadata(), for: accountAtHost)
+    }
+
+    /// Build a fresh `SessionMetadata` snapshot for the current config.
+    /// `createdAt` and `lastValidatedAt` are both set to `now` — the
+    /// probe path bumps `lastValidatedAt` independently on every
+    /// successful API round-trip.
+    private func makeMetadata(now: Date = Date()) -> SessionMetadata {
+        SessionMetadata(
+            baseURL: config.baseURL?.absoluteString ?? "",
+            account: config.account,
+            sessionName: SessionMetadata.downloadStationSession,
+            createdAt: now,
+            lastValidatedAt: now
+        )
+    }
+
+    /// Bump `lastValidatedAt` after a successful API call so the
+    /// foreground probe knows the session is fresh. Reads the existing
+    /// metadata to preserve `createdAt`; if nothing's on file (remember
+    /// turned on mid-session, or first-ever launch after upgrade), we
+    /// synthesize a record so the next probe still has something to
+    /// throttle against.
+    private func touchSessionMetadata() {
+        guard RememberSessionSettings.enabled else { return }
+        var meta = KeychainStorage.sessionMetadata(for: accountAtHost) ?? makeMetadata()
+        meta.lastValidatedAt = Date()
+        try? KeychainStorage.setSessionMetadata(meta, for: accountAtHost)
     }
 
     // MARK: - Logout
 
-    /// Soft logout — invalidates the active session on every layer
-    /// we know about, but keeps the saved password so the user can
-    /// sign in again without retyping. Touches:
+    /// Logout — invalidates the active session on every layer we know
+    /// about. Touches:
     ///   - DSM server-side SID (best-effort, ignore failures)
-    ///   - Keychain SID + Secure SignIn cookies
+    ///   - Keychain SID + Secure SignIn cookies + session metadata
+    ///   - Any legacy password an older build may have left behind
+    ///     (current builds never persist passwords)
     ///   - HTTPCookieStorage.shared (URLSession layer)
     ///   - WKWebsiteDataStore (anything the web-sign-in WKWebView left
     ///     behind in its non-persistent jar will already be gone, but
@@ -240,23 +312,19 @@ final class SessionStore: ObservableObject {
     ///     in-app browser run — wipe it for good measure)
     func logout() async {
         try? await client.logout()
-        await client.clearAuthCookies()
-        KeychainStorage.deleteSID(for: accountAtHost)
-        KeychainStorage.deleteCookies(for: accountAtHost)
+        await clearStoredSession()
+        KeychainStorage.deletePassword(for: config.account)
         await clearWebsiteData()
         state = .loggedOut
     }
 
-    /// Same as logout, plus wipes the saved password — "remove every
-    /// trace of this NAS from the device".
+    /// Same as logout. Kept as a separate entry point because the
+    /// Settings UI still surfaces it under a distinct "Forget this
+    /// device" affordance with destructive-button styling — the user
+    /// expectation differs (full wipe vs. casual sign-out) even though
+    /// the underlying cleanup is now identical to `logout`.
     func forgetDevice() async {
-        try? await client.logout()
-        await client.clearAuthCookies()
-        KeychainStorage.deleteSID(for: accountAtHost)
-        KeychainStorage.deleteCookies(for: accountAtHost)
-        KeychainStorage.deletePassword(for: config.account)
-        await clearWebsiteData()
-        state = .loggedOut
+        await logout()
     }
 
     /// Wipe cookies + local storage owned by `WKWebsiteDataStore.default()`.
@@ -354,10 +422,8 @@ final class SessionStore: ObservableObject {
         }
 
         // Probe passed — now (and only now) we're fully authenticated.
-        try? KeychainStorage.setSID(sid, for: accountAtHost)
-        let stored = cookies.map(StoredCookie.init(cookie:))
-        try? KeychainStorage.setCookies(stored, for: accountAtHost)
         ServerConfigStore.save(config)
+        persistSessionIfAllowed(sid: sid, cookies: cookies)
         pendingCredentials = nil
         state = .loggedIn
         DSLog.session("completeWebSignIn → loggedIn (sid=\(redact(sid)))")
@@ -385,12 +451,80 @@ final class SessionStore: ObservableObject {
 
     /// Called by `TaskListViewModel` when an API call comes back with
     /// "session does not have permission" or related auth-loss codes
-    /// after we believed we were logged in. Drops the current session
-    /// state and surfaces the recovery card with three options:
-    /// re-authenticate, switch to OTP, or full sign out.
+    /// after we believed we were logged in. Drops the persisted SID +
+    /// metadata + cookies (so the next launch doesn't immediately try
+    /// the same dead session) and surfaces the recovery card with three
+    /// options: re-authenticate, switch to OTP, or full sign out. The
+    /// in-memory client state is torn down on a detached task because
+    /// the caller is a synchronous hook.
     func handleUnauthorized(reason: String) {
         DSLog.session("handleUnauthorized: \(reason)")
+        clearStoredKeychainSession()
+        Task {
+            await client.clearSession()
+            await client.clearAuthCookies()
+        }
         state = .sessionUnauthorized(reason: reason)
+    }
+
+    // MARK: - Foreground probe
+
+    /// Throttled silent revalidation. Designed to run from
+    /// `scenePhase == .active` on every foreground transition: if the
+    /// SID hasn't been confirmed alive in the last `throttle` seconds,
+    /// fire a cheap `listTasks` request and react to whatever DSM
+    /// returns.
+    ///
+    /// Bails early — and silently — in the common case (nothing to
+    /// probe, just-validated session, transient network blip), so the
+    /// only user-visible effect is the recovery card popping when the
+    /// session is genuinely gone.
+    func probeIfStale(throttle: TimeInterval = 600) async {
+        guard state == .loggedIn else { return }
+        guard let meta = KeychainStorage.sessionMetadata(for: accountAtHost) else { return }
+        let elapsed = Date().timeIntervalSince(meta.lastValidatedAt)
+        guard elapsed >= throttle else { return }
+
+        DSLog.session("probeIfStale: elapsed=\(Int(elapsed))s, probing")
+        do {
+            _ = try await client.listTasks()
+            touchSessionMetadata()
+        } catch let error as APIError where error.isSessionExpired {
+            DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
+            await clearStoredSession()
+            state = .sessionUnauthorized(reason: "Session expired. Please re-authenticate.")
+        } catch let error as APIError where error.isTransient {
+            // Offline / handoff / 5xx — leave the session alone, the
+            // next probe will retry.
+            DSLog.session("probeIfStale: transient (\(error.localizedDescription))")
+        } catch {
+            // Decoding or unexpected HTTP — also leave the session
+            // alone. We'd rather mis-classify than kick the user out
+            // for a parser glitch.
+            DSLog.session("probeIfStale: ignored (\(error.localizedDescription))")
+        }
+    }
+
+    // MARK: - Remember-session preference
+
+    /// Settings-toggle entry point. Writes the user pref. Turning the
+    /// toggle off clears the persisted SID + metadata + cookies — the
+    /// "session" being remembered. The active in-memory session is
+    /// left intact so the user can keep using the app for this run
+    /// without an immediate re-sign-in.
+    ///
+    /// Password isn't part of "Remember session" any more (0.4.0
+    /// dropped automatic password persistence), but we still call
+    /// `deletePassword` here defensively so that flipping the toggle
+    /// off on a device upgraded from an older build clears the legacy
+    /// credential too.
+    func setRememberSession(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: RememberSessionSettings.storageKey)
+        DSLog.session("rememberSession = \(enabled)")
+        if !enabled {
+            clearStoredKeychainSession()
+            KeychainStorage.deletePassword(for: config.account)
+        }
     }
 
     /// Recovery action — switch the auth method preference back to OTP
@@ -418,30 +552,6 @@ final class SessionStore: ObservableObject {
                 storage.setCookie(http)
             }
         }
-    }
-
-    /// Force a fresh 2FA challenge without making the user retype their
-    /// password. Invalidates the local + server-side session and wipes
-    /// DSM's trusted-device cookies, then silently re-logs in with the
-    /// saved password — which will hit a real 2FA prompt because the
-    /// trust is gone. Surfaced in Settings as "Re-authenticate now".
-    ///
-    /// Falls back to a normal logout if no password is on file (we can't
-    /// re-login silently without it).
-    func reauthenticate() async {
-        guard !config.host.isEmpty, !config.account.isEmpty,
-              let url = config.baseURL,
-              let savedPassword = KeychainStorage.password(for: config.account)
-        else {
-            await logout()
-            return
-        }
-        await client.configure(baseURL: url)
-        try? await client.logout()
-        KeychainStorage.deleteSID(for: accountAtHost)
-        await client.clearAuthCookies()
-        state = .restoring
-        await silentReLogin(password: savedPassword)
     }
 
     /// Handle magnet: links opened from outside the app.

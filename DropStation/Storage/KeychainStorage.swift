@@ -1,10 +1,11 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper. Stores three classes of items keyed under one service:
-///   - Password   (account = NAS username)
-///   - SID        (account = "<username>@<host>")
-///   - Cookies    (account = "<username>@<host>", JSON-encoded [StoredCookie])
+/// Minimal Keychain wrapper. Stores four classes of items keyed under one service:
+///   - Password    (account = NAS username)
+///   - SID         (account = "<username>@<host>")
+///   - Cookies     (account = "<username>@<host>", JSON-encoded [StoredCookie])
+///   - SessionMeta (account = "<username>@<host>", JSON-encoded SessionMetadata)
 /// Items are tagged by Keychain "label" so the same NAS username can have
 /// distinct entries without colliding.
 enum KeychainStorage {
@@ -14,6 +15,7 @@ enum KeychainStorage {
         case password = "password"
         case sid = "sid"
         case cookies = "cookies"
+        case sessionMeta = "sessionMeta"
     }
 
     // MARK: - Password
@@ -73,6 +75,38 @@ enum KeychainStorage {
 
     static func deleteCookies(for accountAtHost: String) {
         remove(kind: .cookies, account: accountAtHost)
+    }
+
+    // MARK: - Session metadata
+
+    /// Persist sidecar info (createdAt / lastValidatedAt / sessionName) for
+    /// the SID under the same account-at-host key. JSON-encoded for the
+    /// generic password slot. Encoding failures surface as
+    /// `KeychainError.encoding` — the SID itself is unaffected, we just
+    /// lose the staleness hint and the next launch will run a fresh
+    /// validation probe regardless.
+    static func setSessionMetadata(_ metadata: SessionMetadata, for accountAtHost: String) throws {
+        do {
+            let data = try JSONEncoder().encode(metadata)
+            guard let json = String(data: data, encoding: .utf8) else {
+                throw KeychainError.encoding
+            }
+            try store(value: json, kind: .sessionMeta, account: accountAtHost)
+        } catch let error as KeychainError {
+            throw error
+        } catch {
+            throw KeychainError.encoding
+        }
+    }
+
+    static func sessionMetadata(for accountAtHost: String) -> SessionMetadata? {
+        guard let json = load(kind: .sessionMeta, account: accountAtHost),
+              let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(SessionMetadata.self, from: data)
+    }
+
+    static func deleteSessionMetadata(for accountAtHost: String) {
+        remove(kind: .sessionMeta, account: accountAtHost)
     }
 
     // MARK: - Common

@@ -9,16 +9,45 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - Sign in via DSM web login in a WKWebView (Synology Secure SignIn push approval works)
 - Picker on the sign-in screen to choose verification code vs. Secure SignIn
-- "Re-authenticate now" in Settings to trigger a fresh 2FA challenge
 - Session cookies persisted in Keychain for cross-launch session restore
+- **Stay signed in across launches.** Cold start reuses the cached
+  Download Station SID — no OTP prompt unless DSM has actually
+  expired the session.
+- **Foreground revalidation.** When the app comes back from background,
+  a silent throttled probe (max once per 10 min) confirms the session is
+  still good and surfaces a recovery card if it isn't.
+- **"Remember session" toggle** in Settings → Privacy. Default on;
+  switching off clears the saved SID, metadata, and cookies and forces
+  a fresh sign-in on every cold start.
+
+### Security
+- **Passwords are no longer persisted.** Earlier 0.4 builds saved the
+  user's DSM password in the Keychain to enable a silent re-login
+  fallback. That cache has been removed; the app only persists the
+  Download Station SID + session metadata + Secure SignIn cookies.
+  Future builds will reintroduce password persistence as a separate
+  explicit opt-in — distinct from "Remember session".
+- One-shot migration on launch removes any legacy password an upgraded
+  install may still have stored.
+- "Re-authenticate now" in Settings is gone — without a saved
+  password, "Sign out" achieves the same effect (you sign in fresh).
 
 ### Changed
-- Sign-out now wipes SID, cookies, and WKWebsiteDataStore (full cleanup)
+- Sign-out now wipes SID, cookies, session metadata, any legacy
+  password, and WKWebsiteDataStore (full cleanup).
 - Form sign-in clears DSM trusted-device cookies so 2FA always fires
 - Secure SignIn web flow now probes Download Station before declaring
   loggedIn; if DSM rejects API access (error 105), surfaces a recovery
   card with "Continue with verification code" instead of a broken task
   list
+- Re-authentication card adapts its heading to the situation — "Session
+  expired" when the cached SID timed out, "Re-authentication required"
+  when DSM refused API access after a Secure SignIn web login.
+
+### Fixed
+- Saved SID is no longer thrown away when the launch-time probe fails
+  for transient reasons (offline, Wi-Fi handoff, server 5xx); only
+  DSM-confirmed session-expiry codes (105/106/107/119) wipe it.
 
 ## [0.3.1] — 2026-05-14
 
