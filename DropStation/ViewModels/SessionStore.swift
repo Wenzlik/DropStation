@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+@preconcurrency import WebKit
 
 @MainActor
 final class SessionStore: ObservableObject {
@@ -212,18 +213,47 @@ final class SessionStore: ObservableObject {
 
     // MARK: - Logout
 
+    /// Soft logout — invalidates the active session on every layer
+    /// we know about, but keeps the saved password so the user can
+    /// sign in again without retyping. Touches:
+    ///   - DSM server-side SID (best-effort, ignore failures)
+    ///   - Keychain SID + Secure SignIn cookies
+    ///   - HTTPCookieStorage.shared (URLSession layer)
+    ///   - WKWebsiteDataStore (anything the web-sign-in WKWebView left
+    ///     behind in its non-persistent jar will already be gone, but
+    ///     the default store may still have something from a prior
+    ///     in-app browser run — wipe it for good measure)
     func logout() async {
         try? await client.logout()
+        await client.clearAuthCookies()
         KeychainStorage.deleteSID(for: accountAtHost)
+        KeychainStorage.deleteCookies(for: accountAtHost)
+        await clearWebsiteData()
         state = .loggedOut
     }
 
+    /// Same as logout, plus wipes the saved password — "remove every
+    /// trace of this NAS from the device".
     func forgetDevice() async {
         try? await client.logout()
         await client.clearAuthCookies()
         KeychainStorage.deleteSID(for: accountAtHost)
+        KeychainStorage.deleteCookies(for: accountAtHost)
         KeychainStorage.deletePassword(for: config.account)
+        await clearWebsiteData()
         state = .loggedOut
+    }
+
+    /// Wipe cookies + local storage owned by `WKWebsiteDataStore.default()`.
+    /// The Secure SignIn web sheet uses `.nonPersistent()` so its own
+    /// jar dies with the sheet, but DSM may have set cookies in the
+    /// default store at any earlier point (e.g. if a future revision
+    /// opens DSM pages outside the sign-in sheet). Catching everything
+    /// here keeps logout semantically honest.
+    private func clearWebsiteData() async {
+        let store = WKWebsiteDataStore.default()
+        let types = WKWebsiteDataStore.allWebsiteDataTypes()
+        await store.removeData(ofTypes: types, modifiedSince: .distantPast)
     }
 
     /// Finish a Secure SignIn web login. Called by `LoginView` after
