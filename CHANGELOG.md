@@ -20,18 +20,6 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   switching off clears the saved SID, metadata, and cookies and forces
   a fresh sign-in on every cold start.
 
-### Security
-- **Passwords are no longer persisted.** Earlier 0.4 builds saved the
-  user's DSM password in the Keychain to enable a silent re-login
-  fallback. That cache has been removed; the app only persists the
-  Download Station SID + session metadata + Secure SignIn cookies.
-  Future builds will reintroduce password persistence as a separate
-  explicit opt-in — distinct from "Remember session".
-- One-shot migration on launch removes any legacy password an upgraded
-  install may still have stored.
-- "Re-authenticate now" in Settings is gone — without a saved
-  password, "Sign out" achieves the same effect (you sign in fresh).
-
 ### Changed
 - Sign-out now wipes SID, cookies, session metadata, any legacy
   password, and WKWebsiteDataStore (full cleanup).
@@ -43,6 +31,18 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Re-authentication card adapts its heading to the situation — "Session
   expired" when the cached SID timed out, "Re-authentication required"
   when DSM refused API access after a Secure SignIn web login.
+
+### Security
+- **Passwords are no longer persisted.** Earlier 0.4 builds saved the
+  user's DSM password in the Keychain to enable a silent re-login
+  fallback. That cache has been removed; the app only persists the
+  Download Station SID + session metadata + Secure SignIn cookies.
+  Future builds will reintroduce password persistence as a separate
+  explicit opt-in — distinct from "Remember session".
+- One-shot migration on launch removes any legacy password an upgraded
+  install may still have stored.
+- "Re-authenticate now" in Settings is gone — without a saved
+  password, "Sign out" achieves the same effect (you sign in fresh).
 
 ### Fixed
 - Saved SID is no longer thrown away when the launch-time probe fails
