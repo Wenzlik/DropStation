@@ -29,6 +29,11 @@ struct DashboardView: View {
     @StateObject private var viewModel: DashboardViewModel
     @State private var showingAddTask = false
     @State private var showingSettings = false
+    /// Bumped after each user-initiated pull-to-refresh completes.
+    /// Drives a `.sensoryFeedback(.success)` so the gesture has a
+    /// tactile completion cue. Kept separate from the 5 s timer
+    /// poll so background refreshes don't fire haptics.
+    @State private var pullRefreshCount = 0
 
     init(session: SessionStore) {
         _viewModel = StateObject(
@@ -51,12 +56,21 @@ struct DashboardView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DSSpacing.xl) {
                         heroCard
+                            .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
+                            .animation(.easeInOut(duration: 0.25), value: viewModel.isIdle)
+                            .animation(.easeInOut(duration: 0.2), value: viewModel.isOnline)
                         quickActions
                         recentSection
+                            .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
+                            .animation(.easeInOut(duration: 0.2), value: viewModel.recentlyCompleted.map(\.id))
                     }
                     .padding(DSSpacing.lg)
                 }
-                .refreshable { await viewModel.refresh() }
+                .refreshable {
+                    await viewModel.refresh()
+                    pullRefreshCount &+= 1
+                }
+                .sensoryFeedback(.success, trigger: pullRefreshCount)
             }
             .navigationTitle("Dashboard")
             .toolbar {
@@ -258,7 +272,20 @@ struct DashboardView: View {
 
     private var recentSection: some View {
         DSSection("Recently completed", systemImage: "checkmark.circle") {
-            if viewModel.recentlyCompleted.isEmpty {
+            if !viewModel.hasLoadedOnce {
+                // First load — show skeleton rows instead of the empty
+                // state so the section reads as "loading" rather than
+                // "we checked and there's nothing". The `.redacted`
+                // modifier on the outer recentSection then paints
+                // these grey.
+                VStack(spacing: DSSpacing.sm) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        DSCard {
+                            ActivityFeedRow(task: .skeletonPlaceholder)
+                        }
+                    }
+                }
+            } else if viewModel.recentlyCompleted.isEmpty {
                 DSCard {
                     DSEmptyState(
                         title: "Nothing finished yet",
@@ -397,4 +424,24 @@ private struct ActivityFeedRow: View {
         f.unitsStyle = .abbreviated
         return f
     }()
+}
+
+private extension DownloadTask {
+    /// Sentinel task used only to feed `ActivityFeedRow` placeholder
+    /// rows behind a `.redacted(.placeholder)` modifier during the
+    /// first dashboard load. Never decoded from the wire and never
+    /// observed by users with the redaction off; the title text
+    /// just needs enough length for the placeholder bar to look
+    /// right.
+    static var skeletonPlaceholder: DownloadTask {
+        DownloadTask(
+            id: "skeleton",
+            title: "Loading recently completed download",
+            size: 0,
+            status: .finished,
+            type: .bt,
+            username: nil,
+            additional: nil
+        )
+    }
 }

@@ -18,6 +18,12 @@ struct DSQuickAction: View {
     let isEnabled: Bool
     let action: () -> Void
 
+    /// Counter bumped on every successful tap. Drives an internal
+    /// `.sensoryFeedback(.impact)` so every caller gets a subtle
+    /// haptic for free — keeps the action grid feeling tactile
+    /// without each call site re-implementing the same modifier.
+    @State private var tapCount: Int = 0
+
     init(
         _ title: LocalizedStringKey,
         systemImage: String,
@@ -33,7 +39,10 @@ struct DSQuickAction: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            tapCount &+= 1
+            action()
+        } label: {
             VStack(spacing: DSSpacing.sm) {
                 Image(systemName: systemImage)
                     .font(.title3)
@@ -54,5 +63,6 @@ struct DSQuickAction: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+        .sensoryFeedback(.impact(weight: .light), trigger: tapCount)
     }
 }
