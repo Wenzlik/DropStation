@@ -43,8 +43,13 @@ DropStation supports two paths through DSM's 2-factor authentication:
   The app opens the real DSM web login inside a `WKWebView`; you sign
   in there (username + password) and tap Approve on the notification
   that pops up in Synology Secure SignIn. DropStation harvests the
-  resulting session cookies and continues. Picked from a toggle on
-  the sign-in screen; the choice persists across launches.
+  resulting session cookies and probes Download Station to confirm
+  the session is usable. **Best-effort:** Synology binds API
+  permissions to the session name passed at login time, and on
+  strict DSM configurations the cookie-derived session doesn't
+  grant Download Station access (Synology error 105). When that
+  happens, the app shows a recovery card pointing you at the
+  verification-code path, which always works.
 
 After the first successful sign-in, the session is restored
 automatically on every relaunch (SID + cookies kept in the iOS

@@ -147,6 +147,8 @@ struct LoginView: View {
         VStack(spacing: 16) {
             if case .twoFactorRequired = session.state {
                 twoFactorContent
+            } else if case .validatingApiAccess = session.state {
+                validatingApiAccessContent
             } else if case .sessionUnauthorized(let reason) = session.state {
                 sessionUnauthorizedContent(reason: reason)
             } else {
@@ -347,13 +349,47 @@ struct LoginView: View {
         .padding(.top, 4)
     }
 
+    // MARK: - Validating API access (post-web-sign-in probe) sub-view
+
+    /// Brief progress card shown while we POST a real Download Station
+    /// request to confirm the cookies harvested from WKWebView
+    /// actually grant API access. Either flips to the task list
+    /// (`.loggedIn`) or to the recovery card (`.sessionUnauthorized`)
+    /// in well under a second; the spinner is mostly there so the
+    /// user doesn't see the login form blink between sheet dismissal
+    /// and final state.
+    @ViewBuilder
+    private var validatingApiAccessContent: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.shield")
+                .font(.system(size: 36))
+                .foregroundStyle(.tint)
+            Text("Secure SignIn verified")
+                .font(.title3.weight(.semibold))
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Checking Download Station access…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+
     // MARK: - Session-unauthorized (105 recovery) sub-view
 
-    /// Shown when an API call surfaces "session does not have permission"
-    /// after we believed we were signed in — typically the Secure SignIn
-    /// web flow handing us a DSM-wide SID that DSM then refuses to use
-    /// for Download Station. Offers three recovery paths so the user
-    /// isn't stuck on a generic error alert.
+    /// Shown when the post-web-sign-in Download Station probe came
+    /// back with "session does not have permission" (Synology error
+    /// 105). DSM accepted the user's credentials at the web layer but
+    /// refused to extend that auth to the Download Station API.
+    ///
+    /// Recovery is binary: switch to OTP (the only flow that mints a
+    /// DownloadStation-scoped SID via auth.cgi credentials) or retry
+    /// the web sign-in (rare — usually only useful if the user thinks
+    /// they signed in as the wrong account). A small "Sign out" link
+    /// at the bottom is the escape hatch back to a fresh form.
     @ViewBuilder
     private func sessionUnauthorizedContent(reason: String) -> some View {
         VStack(spacing: 8) {
@@ -371,14 +407,22 @@ struct LoginView: View {
         }
         .padding(.bottom, 8)
 
-        signInButton(label: "Re-authenticate", isWorking: false) {
-            Task { await session.reauthenticate() }
+        // Primary recovery — switch to OTP. This is the only path
+        // that reliably mints a session DSM accepts for Download
+        // Station: auth.cgi with username + password + (optional)
+        // otp_code returns a SID scoped to whatever `session=` we
+        // ask for, including DownloadStation. The button signs the
+        // user out (preserving the password in Keychain so silent
+        // re-login can use it) and flips AuthMethod to .otp; they
+        // land back on the credentials form.
+        signInButton(label: "Continue with verification code", isWorking: false) {
+            Task { await session.switchToOTPAndSignOut() }
         }
 
         Button {
-            Task { await session.switchToOTPAndSignOut() }
+            Task { await session.retryWebSignIn() }
         } label: {
-            Label("Use verification code instead", systemImage: "number.square")
+            Label("Retry Secure SignIn", systemImage: "arrow.clockwise")
                 .font(.body.weight(.medium))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -387,10 +431,9 @@ struct LoginView: View {
         Button(role: .destructive) {
             Task { await session.logout() }
         } label: {
-            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                .font(.body.weight(.medium))
+            Text("Sign out")
+                .font(.footnote)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
         }
         .padding(.top, 4)
     }

@@ -12,12 +12,21 @@ final class SessionStore: ObservableObject {
         /// verification code from an authenticator app (Synology Secure SignIn
         /// Codes tab, Google Authenticator, 1Password, etc.).
         case twoFactorRequired
+        /// Brief intermediate state after a Secure SignIn web sign-in:
+        /// the WKWebView's auth round-trip succeeded, but we haven't yet
+        /// confirmed Download Station accepts the resulting session.
+        /// Shown as "Secure SignIn verified. Checking Download Station
+        /// access…" with a spinner. Either flips to `.loggedIn` or
+        /// `.sessionUnauthorized` depending on the probe outcome.
+        case validatingApiAccess
+        /// Terminal "fully authenticated" state — Download Station API
+        /// probe came back success=true. Only this state grants access
+        /// to the main task list.
         case loggedIn
-        /// We were logged in, but Download Station rejected the session
-        /// with "no permission" (Synology error 105) or a related code.
-        /// Distinguishes a recoverable permission loss from a generic
-        /// `.error` — the LoginView shows a dedicated recovery card
-        /// with re-authenticate / use OTP / sign out actions.
+        /// Web sign-in succeeded but DSM did not extend that auth to
+        /// the Download Station API (Synology error 105). Web identity
+        /// is verified; API identity is not. The recovery card offers
+        /// "Continue with OTP" and "Retry web login".
         case sessionUnauthorized(reason: String)
         case error(String)
     }
@@ -264,20 +273,31 @@ final class SessionStore: ObservableObject {
 
     /// Finish a Secure SignIn web login.
     ///
-    /// The `id` cookie SID returned by the WKWebView is DSM-wide — not
-    /// scoped to Download Station. Using it against
-    /// `SYNO.DownloadStation.*` endpoints triggers Synology error 105
-    /// ("session does not have permission"). To bridge this we POST
-    /// `SYNO.API.Auth.Login` with `session=DownloadStation` *and no
-    /// credentials*; DSM authenticates that call via the cookies
-    /// URLSession just inherited from the web view, and returns a
-    /// fresh SID scoped to Download Station.
+    /// What the WKWebView round-trip actually buys us: a *web identity*
+    /// — DSM's cookies (`id`, `did`, `stay_login`) say "this user is
+    /// signed in to DSM web". That is **not** the same thing as having
+    /// API access to Download Station. Synology binds API permissions
+    /// to a `session=...` parameter passed to `auth.cgi` at login time,
+    /// and the web flow's session name is the DSM-wide one, which
+    /// `SYNO.DownloadStation.*` endpoints reject with error 105.
     ///
-    /// We then validate the upgraded session with a cheap `listTasks`
-    /// probe before declaring `.loggedIn`. If anything along the way
-    /// goes sideways we surface `.sessionUnauthorized` with a recovery
-    /// menu instead of leaving the user staring at a perpetually
-    /// 105-erroring task list.
+    /// Earlier we tried to "upgrade" the cookie session by re-calling
+    /// `auth.cgi&method=login&session=DownloadStation` without
+    /// credentials — DSM treats that as a brand-new login attempt and
+    /// returns 400 "No such account". So instead we treat web identity
+    /// and API identity as separate concerns:
+    ///
+    ///   1. Install the harvested cookies into the shared jar.
+    ///   2. Use the `id` cookie value as a candidate SID.
+    ///   3. Run a real Download Station probe (`validateDownloadStationAccess`).
+    ///   4. Probe succeeds → persist + transition to `.loggedIn`.
+    ///   5. Probe returns 105 → `.sessionUnauthorized` with a recovery
+    ///      card directing the user to OTP (or retry).
+    ///   6. Probe fails transiently → `.error(...)`, user retries from
+    ///      the login form.
+    ///
+    /// We never call `.loggedIn` before step 4 succeeds, so the task
+    /// list never appears with a broken session behind it.
     func completeWebSignIn(
         config: ServerConfig,
         sid: String,
@@ -295,66 +315,72 @@ final class SessionStore: ObservableObject {
 
         await client.configure(baseURL: url)
         // Push the WKWebView's cookies into the shared jar so URLSession
-        // requests can send them alongside any `_sid` parameter.
+        // requests can send them automatically.
         let storage = HTTPCookieStorage.shared
         for cookie in cookies {
             storage.setCookie(cookie)
         }
+        await client.restoreSession(sid: sid)
 
-        // Diagnostic: log which APIs DSM exposes. Best-effort — if
-        // query.cgi itself is broken or unreachable we don't want to
-        // block the sign-in over that.
+        // Show the user we're working before the probe completes —
+        // otherwise the WKWebView sheet just dismisses and they're
+        // looking at the login form for a beat with no feedback.
+        state = .validatingApiAccess
+
+        // Diagnostic: dump available APIs once per web sign-in. Behind
+        // DEBUG only via DSLog. Doesn't gate the probe.
         if let info = try? await client.apiInfo() {
             for (api, entry) in info {
                 DSLog.auth("apiInfo \(api) path=\(entry.path) versions=\(entry.minVersion)..\(entry.maxVersion)")
             }
         } else {
-            DSLog.auth("apiInfo unavailable (continuing without it)")
+            DSLog.auth("apiInfo unavailable")
         }
 
-        // Try to upgrade the cookie-auth'd DSM session into a real
-        // DownloadStation-scoped SID. If this works, replace the SID
-        // we picked off the `id` cookie with the new one.
-        var effectiveSID = sid
         do {
-            let upgraded = try await client.loginUsingCookies(sessionName: "DownloadStation")
-            effectiveSID = upgraded.sid
-            DSLog.session("session upgrade succeeded: ds sid=\(redact(upgraded.sid))")
-        } catch {
-            // Upgrade failed — fall back to the raw cookie SID and
-            // let the listTasks probe determine if we're stuck. Some
-            // DSM builds may not require the upgrade.
-            DSLog.session("session upgrade failed: \(error.localizedDescription) — falling back to cookie SID")
-            await client.restoreSession(sid: sid)
-        }
-        await client.restoreSession(sid: effectiveSID)
-
-        // Validate: list tasks. On 105 we're authenticated DSM-wide
-        // but not for Download Station; surface a dedicated recovery
-        // state rather than a generic .error so the user sees actionable
-        // options.
-        do {
-            _ = try await client.listTasks()
+            try await validateDownloadStationAccess()
         } catch let error as APIError where error.isUnauthorized {
-            DSLog.session("post-upgrade probe got \(error.localizedDescription) — surfacing recovery UI")
+            DSLog.session("DS probe → 105; web identity verified but no API permission")
             pendingCredentials = nil
-            state = .sessionUnauthorized(reason: "Web sign-in succeeded but Download Station rejected the session (\(error.localizedDescription)).")
+            state = .sessionUnauthorized(
+                reason: "Secure SignIn login succeeded, but DSM did not grant API access to Download Station."
+            )
             return
         } catch {
-            DSLog.session("post-upgrade probe failed (\(error.localizedDescription)) — proceeding anyway, refresh will retry")
-            // Other errors are likely transient — let auto-refresh
-            // handle them in the task list.
+            DSLog.session("DS probe failed: \(error.localizedDescription)")
+            pendingCredentials = nil
+            state = .error("Couldn't reach Download Station: \(error.localizedDescription)")
+            return
         }
 
-        try? KeychainStorage.setSID(effectiveSID, for: accountAtHost)
-        // Persist the cookies too so the next launch can rehydrate the
-        // jar before probing the API.
+        // Probe passed — now (and only now) we're fully authenticated.
+        try? KeychainStorage.setSID(sid, for: accountAtHost)
         let stored = cookies.map(StoredCookie.init(cookie:))
         try? KeychainStorage.setCookies(stored, for: accountAtHost)
         ServerConfigStore.save(config)
         pendingCredentials = nil
         state = .loggedIn
-        DSLog.session("completeWebSignIn → loggedIn (effectiveSid=\(redact(effectiveSID)))")
+        DSLog.session("completeWebSignIn → loggedIn (sid=\(redact(sid)))")
+    }
+
+    /// Run a real Download Station request and require success=true.
+    /// Throws on any failure (105, transient, decoding, etc.) so the
+    /// caller can branch on `isUnauthorized` / `isTransient` and react
+    /// appropriately. Used by `completeWebSignIn` as the gating probe
+    /// between web sign-in and `.loggedIn`.
+    private func validateDownloadStationAccess() async throws {
+        _ = try await client.listTasks()
+    }
+
+    /// Recovery action from the `.sessionUnauthorized` card — re-open
+    /// the Secure SignIn web flow without changing the user's saved
+    /// auth-method preference. Implemented as "drop the half-broken
+    /// session and go back to the login form"; the picker already
+    /// shows `.secureSignInWeb`, so the next tap on Continue re-opens
+    /// the WKWebView sheet.
+    func retryWebSignIn() async {
+        DSLog.session("retryWebSignIn — clearing session, returning to login form")
+        await logout()
     }
 
     /// Called by `TaskListViewModel` when an API call comes back with

@@ -15,6 +15,10 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - Sign-out now wipes SID, cookies, and WKWebsiteDataStore (full cleanup)
 - Form sign-in clears DSM trusted-device cookies so 2FA always fires
+- Secure SignIn web flow now probes Download Station before declaring
+  loggedIn; if DSM rejects API access (error 105), surfaces a recovery
+  card with "Continue with verification code" instead of a broken task
+  list
 
 ## [0.3.1] — 2026-05-14
 

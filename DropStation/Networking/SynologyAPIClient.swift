@@ -72,42 +72,6 @@ actor SynologyAPIClient {
     /// not wired up — the public `auth.cgi` endpoint can't trigger it, and the
     /// `enable_device_token` flow that would mint a long-lived device id
     /// suppresses the push entirely, so we keep the call minimal.
-    /// Upgrade an existing DSM cookie-based session into a Download
-    /// Station-scoped SID. After a WKWebView web sign-in the user is
-    /// authenticated DSM-wide (HTTPCookieStorage carries the `id` and
-    /// related cookies), but Synology binds permissions to the
-    /// `session` name passed to `auth.cgi`. A SID obtained from a
-    /// `session=FileStation` or implicit DSM-web session will hit
-    /// Synology error 105 ("session does not have permission") when
-    /// used against `SYNO.DownloadStation.*`.
-    ///
-    /// This call POSTs to `auth.cgi` with no credentials — DSM
-    /// recognises the user via the cookies URLSession attaches
-    /// automatically and grants a fresh SID scoped to the requested
-    /// session name (here: `DownloadStation`). Returns the new SID
-    /// and sets it on the client.
-    @discardableResult
-    func loginUsingCookies(sessionName: String) async throws -> LoginResult {
-        guard let baseURL else { throw APIError.invalidURL }
-        let url = baseURL.appendingPathComponent("/webapi/auth.cgi")
-        let params: [String: String] = [
-            "api": "SYNO.API.Auth",
-            "version": "6",
-            "method": "login",
-            "session": sessionName,
-            "format": "sid"
-        ]
-        DSLog.auth("loginUsingCookies POST \(url.absoluteString) session=\(sessionName)")
-        let response: APIResponse<LoginData> = try await postForm(url: url, params: params)
-        try ensureSuccess(response)
-        guard let data = response.data else {
-            throw APIError.synology(code: -1, message: "Cookie login: no session id.")
-        }
-        DSLog.auth("loginUsingCookies OK sid=\(redact(data.sid))")
-        self.sid = data.sid
-        return LoginResult(sid: data.sid)
-    }
-
     /// Query DSM for which APIs are available + their paths + accepted
     /// version range. Useful for diagnostics — different DSM versions
     /// expose different sub-APIs and method versions; logging this
