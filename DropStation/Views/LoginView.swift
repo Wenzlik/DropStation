@@ -7,6 +7,16 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject private var session: SessionStore
 
+    /// Persisted across launches so a returning user lands on the same
+    /// auth flow they last used (OTP vs. Secure SignIn web).
+    @AppStorage(AuthMethodSettings.storageKey) private var authMethodRaw: String = AuthMethod.otp.rawValue
+    private var authMethod: Binding<AuthMethod> {
+        Binding(
+            get: { AuthMethod(rawValue: authMethodRaw) ?? .otp },
+            set: { authMethodRaw = $0.rawValue }
+        )
+    }
+
     @State private var scheme: ServerConfig.Scheme = .https
     @State private var host: String = ""
     @State private var port: String = "5001"
@@ -119,6 +129,41 @@ struct LoginView: View {
 
     @ViewBuilder
     private var credentialsContent: some View {
+        authMethodPicker
+
+        switch authMethod.wrappedValue {
+        case .otp:
+            otpCredentialsContent
+        case .secureSignInWeb:
+            secureSignInCredentialsContent
+        }
+    }
+
+    /// Compact picker that lets the user flip between the two 2FA flows
+    /// before they commit credentials. Rendered as a segmented control so
+    /// it stays out of the way visually but the two options are both
+    /// always visible (vs. hiding one behind a menu).
+    private var authMethodPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Sign-in method", selection: authMethod) {
+                ForEach(AuthMethod.allCases) { method in
+                    Label(method.label, systemImage: method.systemImage).tag(method)
+                }
+            }
+            .pickerStyle(.segmented)
+            Text(authMethod.wrappedValue.subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.bottom, 4)
+    }
+
+    /// Username + password + server config, as before. The OTP six-digit
+    /// code (when required) is collected by `twoFactorContent` on a
+    /// second pass through the card.
+    @ViewBuilder
+    private var otpCredentialsContent: some View {
         IconField(systemImage: "person.crop.circle", placeholder: "Username", text: $account)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -148,6 +193,37 @@ struct LoginView: View {
             Task { await login() }
         }
         .disabled(!credentialsValid || session.state == .authenticating)
+    }
+
+    /// Placeholder card for the Secure SignIn web flow. The actual
+    /// WKWebView-driven login lands in the next commit; until then we
+    /// keep this branch visible (so the picker isn't a dead toggle) but
+    /// gate the action behind a disabled button with an explanatory
+    /// label.
+    @ViewBuilder
+    private var secureSignInCredentialsContent: some View {
+        DisclosureGroup(isExpanded: $serverExpanded) {
+            serverConfigFields
+        } label: {
+            HStack {
+                Image(systemName: "server.rack").foregroundStyle(.secondary)
+                Text("Server").font(.callout)
+                Spacer()
+                Text(serverSummary)
+                    .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(.vertical, 4)
+
+        Text("Tap Continue to open your NAS sign-in page. Enter your username and password there, then approve the push notification in Synology Secure SignIn.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.vertical, 4)
+
+        signInButton(label: "Continue to web sign-in", isWorking: false) {
+            // Wired up in the next commit (WKWebView flow).
+        }
+        .disabled(true)
     }
 
     private var serverConfigFields: some View {
