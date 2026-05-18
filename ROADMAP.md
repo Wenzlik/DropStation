@@ -3,152 +3,267 @@
 Living planning document for upcoming **DropStation** releases. Items move
 into [CHANGELOG.md](CHANGELOG.md) once shipped.
 
-## 0.4 — Detail screen, bulk actions, locale
-
-### Detail screen polish
-- [ ] Header card with gradient background coloured by status, large title,
-      status pill, progress — turns the detail view from a list-of-rows
-      into a landing.
-- [ ] **Speed sparkline** — store the last ~30 transfer-speed samples and
-      render as a tiny `Chart` line in the Transfer section.
-
-### Tactile + visual polish
-- [ ] **Haptic feedback** on swipe actions (light) and on destructive
-      confirms (success/error).
-- [ ] **Empty-state illustrations** with personality — better copy plus
-      either a tweaked SF Symbol arrangement or a small custom rendered
-      asset.
-- [ ] **Stats card at the top of the task list** — `X active · ↓ total ·
-      ↑ total · finished today`, replaces or complements the navigation
-      subtitle aggregate.
-
-### Power-user features
-- [ ] **Bulk select / Edit mode** — multi-select rows, then pause / resume
-      / delete all together. Toolbar gains a "Select all" affordance that
-      respects the active filter, so the common "switch to **Finished** →
-      Select all → Delete" cleanup is two taps + a confirm. The bulk
-      delete reuses the upcoming confirm-delete dialog with the "Keep
-      partial files" toggle from 0.3.1.
-- [ ] **Per-task speed limit** — `max_download_rate` / `max_upload_rate`
-      via DS2 `Task.BT` edit. Exposed as a Detail → "Speed limit…" row
-      with a small number-pad sheet.
-- [ ] **BT search via Synology's integrated engines** —
-      `SYNO.DownloadStation.BTSearch` (`start` → `list` → `clean`). The
-      search modules (and any tracker credentials they need) live on the
-      NAS, configured in DSM Control Panel → BT Search, so the app
-      never touches credentials directly and works for any module the
-      user has installed (public engines plus user-installed private
-      tracker modules). UI: a search tab with a query field, sort and
-      category filters, and a tap-to-add flow that hands the result
-      torrent into the existing `createTask` path.
-
-### Localization
-- [ ] **Czech localization** — `Localizable.strings` for key user-facing
-      strings (LoginView, TaskListView, status pill, Settings, AddTask).
+After the auth/session rewrite stabilised in 0.4.0, the roadmap pivots
+away from filling out features in a utility-style list and toward a
+dashboard-first product with a real design system underneath it. The
+shift is **incremental**, not a rewrite — each version adds a layer that
+can ship on its own.
 
 ---
 
-## 0.5 — Extensions, background, multi-device
+## 0.4.1 — Stabilization & polish
 
-### Extensions & background
-- [ ] **Share Extension** for `.torrent` files from Safari / Files /
-      anywhere. Requires a separate target with an App Group so it can
-      reach the same Keychain.
-- [ ] **Background refresh** with `BGAppRefreshTask` — poll the task list
-      while the app is suspended so we can detect completions.
-- [ ] **Completion notifications** — `UNUserNotification` fires when a
-      previously-active task transitions to `.finished` (driven by the
-      foreground refresh as well as the background task).
+**Goal:** Shake out the new auth/session system under real use. Small,
+boring, defensive work — no UI redesign yet.
 
-### Widgets
-- [ ] **Home Screen widget** — small variant showing active task count and
-      total ↓ speed; medium variant adds the top 1-2 task progress bars.
-- [ ] **Lock Screen widget** (inline / circular) — just the active count
-      and ↓ speed.
+### Focus
+- Auth UX polish
+- Recovery flows
+- Loading / error states
+- Self-signed certificate handling
+- Secure SignIn fallback polish
+- Debug logging cleanup
+- Edge-case fixes
 
-### iPad / form factors
-- [ ] **iPad layout** — `NavigationSplitView` with the task list in the
-      sidebar and the detail in the trailing column. Better use of the
-      bigger screen than a stretched phone layout.
+### Tasks
+- [ ] Improve "session expired" recovery copy — distinguish DSM-confirmed
+      expiry from transient network failure in the message the user sees.
+- [ ] Better loading states during launch-time restore / foreground
+      probe (placeholder list rather than a flash of the login screen).
+- [ ] Retry handling for transient network failures during restore so
+      a flaky Wi-Fi handoff doesn't dump the user back to sign-in.
+- [ ] Certificate-warning UX cleanup for NAS with a self-signed cert
+      (clear "trust this server" choice instead of a generic URLSession
+      error).
+- [ ] Reduce noisy auth logs in release builds — gate the DSLog
+      session/api categories behind `#if DEBUG` where they aren't
+      already.
+- [ ] Verify foreground probe behaviour after long inactivity
+      (overnight background, days suspended) and add tests covering the
+      `probeIfStale` throttle.
+- [ ] Additional unit-test coverage for restore / logout / "Remember
+      session" off paths.
 
-### Multi-server
-- [ ] **Multiple servers** — switch between NASes; per-server Keychain
-      slots (already mostly account+host keyed). UI: a "Servers" row in
-      Settings + a sidebar quick-switcher.
-- [ ] **RSS feeds** — `SYNO.DownloadStation.RSS.Feed` integration with
-      auto-add rules; subscribe to a feed, filter by title pattern, and
-      let the NAS pull matching torrents automatically. Particularly
-      useful for private trackers that expose a personalised RSS feed
-      (passkey baked into the URL): the credential stays in the feed
-      URL on the NAS, the app just edits filter rules.
-
-### TestFlight distribution
-
-Low-gate distribution: internal testers only, no formal review.
-Targeting this version for the actual roll-out so it lands together
-with the share extension / background refresh polish.
-
-- [ ] Enroll in **Apple Developer Program** ($99/year).
-- [ ] Register the `com.wenzlik.DropStation` bundle ID in the developer
-      portal; let Xcode auto-manage signing certificates and the App
-      Store distribution profile.
-- [ ] Add `ITSAppUsesNonExemptEncryption = false` to `Info.plist` (HTTPS
-      via URLSession is covered by Apple's umbrella, so no export
-      compliance paperwork — but the flag must be set explicitly on
-      every upload).
-- [ ] Add a **`PrivacyInfo.xcprivacy`** privacy manifest declaring the
-      "required reason" API categories the app touches (UserDefaults,
-      file timestamps). Apple has been rejecting uploads without it
-      since late 2024.
-- [ ] Archive in Xcode → upload to App Store Connect.
-- [ ] Create the App Store Connect listing (the minimal version is
-      fine for internal TestFlight — no screenshots / description /
-      privacy policy strictly required).
-- [ ] Add up to 100 **internal testers** by Apple ID. No review,
-      installs in minutes.
-- [ ] For external testers / a public TestFlight link, submit for
-      **Beta App Review** (lighter than full App Store review,
-      typically 24–48 h).
+### Non-goals
+- No large UI redesign.
+- No architecture rewrite.
 
 ---
 
-## 0.6 — App Store submission
+## 0.5.0 — Dashboard & design system
 
-The full gate. Most items are paperwork rather than code; the
-trademark disclaimer and the demo NAS are the two things to plan for
-carefully.
+**Goal:** Transform DropStation from a utility-style task list into a
+modern dashboard-first experience. Introduce the design-system layer
+that future versions build on.
 
-- [ ] **Privacy policy URL** hosted somewhere (GitHub Pages works).
-      Short and honest: "DropStation stores credentials in the iOS
-      Keychain on this device only. It connects to the Synology NAS
-      you configure and to no other server. No analytics, no
-      third-party SDKs."
-- [ ] **App Store Connect listing** — category (Utilities), screenshots
-      at 6.9″ / 6.7″ iPhone (+ iPad if supported), description with
-      the mandatory **trademark disclaimer**: "Unofficial client for
-      Synology Download Station. Not affiliated with or endorsed by
-      Synology Inc."
-- [ ] **In-app disclaimer** in Settings → About: mirror the same line
-      so reviewers can see it without leaving the binary.
-- [ ] **Privacy nutrition label** filled in App Store Connect (Username
-      and Hostname collected for App Functionality; not used for
-      tracking; linked to user).
-- [ ] **App Transport Security** tightened — drop
-      `NSAllowsArbitraryLoads`, add `NSAllowsLocalNetworking = true`
-      instead so `.local` NAS hostnames work without HTTPS while public
-      hosts go through the normal ATS path with a valid cert.
-- [ ] **Demo NAS** for review: a publicly reachable Synology with a
-      read-only demo account, credentials supplied in the App Review
-      notes. Without this Apple guideline 5.1.1 makes the review
-      awkward ("the app requires user accounts to function");
-      reviewers want a working sign-in path.
-- [ ] **Trademark risk note:** the reject rate for unofficial Synology
-      clients is non-trivial. Plan on at least one Resolution Center
-      back-and-forth re-stating the disclaimer and that this is a
-      third-party client.
-- [ ] **Accessibility pass** — VoiceOver labels on icon-only buttons
-      (filter, settings, +), Dynamic Type sanity-check on the task
-      list. Apple flags these.
-- [ ] **App Store screenshots** generated from the simulator on a
-      decorated background — a couple of script-driven Xcode UI tests
-      with localised strings would future-proof this.
+### Primary focus
+- Dashboard screen
+- Design-system foundation
+- Richer task-detail UX
+- Native iOS feel
+- Reusable components
+
+### Dashboard
+
+New home screen shown after login. Replaces the bare task list as the
+post-login landing.
+
+#### Content
+- [ ] Active downloads count
+- [ ] Current total download speed
+- [ ] Current total upload speed
+- [ ] Queue count
+- [ ] Failed tasks count
+- [ ] Recently completed downloads
+- [ ] NAS free disk space
+- [ ] Quick actions row:
+  - [ ] Add magnet link
+  - [ ] Pause all
+  - [ ] Resume all
+  - [ ] Open search
+
+#### UX goals
+- Glanceable information.
+- "Control-center" feel.
+- Minimal taps to important actions.
+- Visually richer than the current list-first layout.
+
+#### Design direction
+- Cards.
+- Grouped sections.
+- Large typography.
+- Subtle glass / material usage.
+- Smooth transitions.
+- Native iOS aesthetics.
+
+### Design-system foundation
+
+Introduce a reusable UI layer so each subsequent screen doesn't reinvent
+spacing, type, and colour.
+
+#### Reusable components
+- [ ] `DSButton`
+- [ ] `DSCard`
+- [ ] `DSSection`
+- [ ] `DSStatTile`
+- [ ] `DSErrorState`
+- [ ] `DSEmptyState`
+- [ ] `DSLoadingView`
+
+#### Design tokens
+- [ ] Spacing scale
+- [ ] Typography scale
+- [ ] Corner-radius rules
+- [ ] Elevation / shadow rules
+- [ ] Semantic colours
+
+#### Goals
+- Consistent spacing.
+- Consistent typography.
+- Reusable visual language.
+- Easier future redesigns.
+
+### Navigation improvements
+
+Move toward a dashboard-first hierarchy.
+
+```
+Dashboard
+├── Active
+├── Queue
+├── Completed
+├── Failed
+├── Search
+└── Settings
+```
+
+#### Requirements
+- Scalable for future multi-server support.
+- Better grouping of task states.
+- Easier access to common actions.
+
+### Task-detail redesign
+
+Re-cut the torrent / task detail screen around the actual information
+hierarchy.
+
+#### Layout goals
+- Progress-first layout.
+- Richer metadata presentation.
+- Better file-list presentation.
+- Grouped actions.
+- Clearer ETA / speed information.
+
+#### Additions
+- [ ] Progress hero section.
+- [ ] Speed indicators.
+- [ ] Peer / seeder info.
+- [ ] File summary.
+- [ ] Grouped action buttons.
+
+### Native iOS UX improvements
+
+#### Add
+- [ ] Swipe actions.
+- [ ] Better context menus.
+- [ ] Haptics.
+- [ ] Improved pull-to-refresh.
+- [ ] Animated loading states.
+- [ ] Smoother transitions.
+
+#### Explicitly avoid
+- Overdesigned custom navigation.
+- Flashy effects.
+- Full custom animation systems.
+- Complete SwiftUI rewrite.
+
+### Architecture direction
+
+Do **not** do a full rewrite. Move incrementally toward:
+
+```
+Core/
+Networking/
+Features/
+Shared/
+Persistence/
+DesignSystem/
+```
+
+#### Potential future modules
+- `AuthCoordinator`
+- `SessionManager`
+- `DashboardFeature`
+- `DownloadTaskStore`
+- `BackgroundRefreshService`
+
+---
+
+## 0.6.0 — Sharing & notifications
+
+### Features
+- [ ] Share Extension
+- [ ] Magnet-link sharing from Safari
+- [ ] `.torrent` file import
+- [ ] Download-completed notifications
+- [ ] Failed-download notifications
+- [ ] Background-refresh improvements
+
+---
+
+## 0.7.0 — Multi-server & iPad
+
+### Features
+- [ ] Multiple NAS servers
+- [ ] Server switcher
+- [ ] iPad `NavigationSplitView`
+- [ ] Better large-screen layouts
+
+---
+
+## 0.8.0 — Automation & discovery
+
+### Features
+- [ ] RSS support
+- [ ] Search providers
+- [ ] Saved searches
+- [ ] Smart filters
+- [ ] Auto-download rules
+
+---
+
+## 0.9.0 — TestFlight readiness
+
+### Features
+- [ ] Apple Developer integration
+- [ ] Signing / notarization cleanup
+- [ ] Privacy manifest
+- [ ] Telemetry / crash reporting
+- [ ] TestFlight internal beta
+
+---
+
+## 1.0.0 — Public release
+
+### Goals
+- [ ] Production polish
+- [ ] Accessibility pass
+- [ ] Onboarding polish
+- [ ] App Store assets
+- [ ] Screenshots
+- [ ] Documentation
+- [ ] Stability / performance pass
+
+---
+
+## Important product direction
+
+**Do not** pursue undocumented reverse-engineering of Synology Secure
+SignIn internals unless Synology officially exposes API support.
+
+Primary supported auth remains:
+- OTP + persistent SID session
+
+Secure SignIn remains:
+- Convenience DSM web login.
+- Fallback / recovery UX.
