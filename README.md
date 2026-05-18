@@ -26,9 +26,15 @@ Synology Secure SignIn ([sign-in methods](#sign-in-methods) below) — then:
   Downloading / Seeding / Paused / Finished / Error.
 - Open magnet links from Safari straight into the app.
 
-The app stays signed in across launches (SID and password held in the
-iOS Keychain), recovers silently from Wi-Fi ↔ cellular switches, and
-runs on iOS 26 or newer.
+The app stays signed in across launches — the Download Station SID
+and Secure SignIn cookies live in the iOS Keychain so a cold start
+goes straight to the task list, with no OTP prompt until DSM
+actually expires the session. Passwords are **not** persisted. You
+can opt out of session persistence in Settings → Privacy via the
+**Remember session** toggle (defaults on; flipping it off clears
+the saved SID, cookies, and session metadata and forces a fresh
+sign-in on every cold start). The app recovers silently from Wi-Fi ↔
+cellular switches and runs on iOS 26 or newer.
 
 ## Sign-in methods
 
@@ -53,9 +59,10 @@ DropStation supports two paths through DSM's 2-factor authentication:
 
 After the first successful sign-in, the session is restored
 automatically on every relaunch (SID + cookies kept in the iOS
-Keychain). "Re-authenticate now" in Settings forces a fresh challenge
-without retyping credentials, and "Sign out" / "Forget this device"
-clear the SID, cookies, and any web data left over.
+Keychain). "Sign out" clears the SID, cookies, session metadata,
+any legacy password an older build may have left behind, and the
+WKWebsiteDataStore — so the next launch starts from a fresh
+sign-in screen.
 
 ## Installing
 
