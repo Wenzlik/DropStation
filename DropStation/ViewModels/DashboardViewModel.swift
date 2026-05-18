@@ -1,21 +1,42 @@
 import Foundation
 import SwiftUI
 
-/// Drives the post-login Dashboard. Phase-1 scope: poll the same
-/// `listTasks` endpoint the task list already uses, derive a handful
-/// of aggregate stats, and expose a "recently completed" slice for
-/// the dashboard's completed-downloads section.
+/// Drives the post-login Dashboard. Phase 2 extends Phase 1 with
+/// NAS context (hostname / online state / free-disk placeholder)
+/// and an idle/active derivation so the hero card can show a
+/// friendly "All downloads completed · NAS is idle" message instead
+/// of a row of zeros when nothing is transferring.
 ///
-/// Polls independently of `TaskListViewModel` for now. When the user
-/// is on the Dashboard tab the auto-refresh runs here; switching to
-/// the Downloads tab spins up the list's own refresh on top of this
-/// one. The duplicate is acceptable for Phase 1 — sharing a single
-/// task store is on the 0.5.0 roadmap (DownloadTaskStore).
+/// Polls independently of `TaskListViewModel` for now. Sharing a
+/// single task store is on the 0.5 roadmap (DownloadTaskStore).
 @MainActor
 final class DashboardViewModel: ObservableObject {
     @Published private(set) var tasks: [DownloadTask] = []
     @Published private(set) var isLoading = false
+    /// True once the first refresh has come back (success or handled
+    /// failure). Drives the first-load skeleton state — distinct
+    /// from `isLoading`, which flips on every poll.
+    @Published private(set) var hasLoadedOnce = false
+    /// True when the most recent refresh succeeded. Drives the
+    /// Online / Offline badge in the hero card. Transient failures
+    /// (the kind the polling loop intentionally swallows) flip this
+    /// to false; the next successful tick flips it back.
+    @Published private(set) var isOnline = true
     @Published var errorMessage: String?
+
+    /// Free disk space on the configured volume, in bytes. Phase 2
+    /// keeps this as architectural placeholder (always `nil` for
+    /// now) — wiring `SYNO.FileStation.Info` or `SYNO.Core.Storage`
+    /// will land in a follow-up commit. The hero card already
+    /// renders the row conditionally so the value can drop in
+    /// without further plumbing.
+    @Published private(set) var freeDiskBytes: Int64? = nil
+
+    /// Human-readable label for the NAS in the hero card. Phase 2
+    /// uses the configured host (e.g. "nas.local" or an IP); when
+    /// `SYNO.FileStation.Info` is wired up later, this can be
+    /// upgraded to the real device name ("DS920+").
+    let hostname: String
 
     private let client: SynologyAPIClient
     /// Invoked when a `listTasks` call returns Synology error 105.
@@ -25,8 +46,13 @@ final class DashboardViewModel: ObservableObject {
     private let onUnauthorized: (String) -> Void
     private var refreshTimer: Timer?
 
-    init(client: SynologyAPIClient, onUnauthorized: @escaping (String) -> Void = { _ in }) {
+    init(
+        client: SynologyAPIClient,
+        hostname: String,
+        onUnauthorized: @escaping (String) -> Void = { _ in }
+    ) {
         self.client = client
+        self.hostname = hostname
         self.onUnauthorized = onUnauthorized
     }
 
@@ -51,6 +77,14 @@ final class DashboardViewModel: ObservableObject {
         tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedUpload.value ?? 0) }
     }
 
+    /// True when neither direction is currently transferring bytes
+    /// and there's nothing waiting in the active bucket. Drives
+    /// the hero card's friendly "All downloads completed · NAS is
+    /// idle" copy instead of a 0 KB/s row.
+    var isIdle: Bool {
+        totalDownloadSpeed == 0 && totalUploadSpeed == 0 && activeCount == 0
+    }
+
     /// Up to five most-recently-completed tasks, newest first. Tasks
     /// without a `completed_time` (e.g. paused-at-100 % rows from
     /// older DSM builds that didn't stamp one) sort to the end of
@@ -67,15 +101,23 @@ final class DashboardViewModel: ObservableObject {
 
     func refresh() async {
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            hasLoadedOnce = true
+        }
         do {
             tasks = try await client.listTasks()
             errorMessage = nil
+            isOnline = true
         } catch let error as APIError where error.isUnauthorized {
             stopAutoRefresh()
             onUnauthorized(error.localizedDescription)
         } catch let error as APIError where error.isTransient {
             // Same swallow-and-retry pattern as TaskListViewModel.
+            // The badge flips to Offline so the user knows we're
+            // currently out of contact; the next successful tick
+            // flips it back.
+            isOnline = false
         } catch {
             errorMessage = error.localizedDescription
         }
