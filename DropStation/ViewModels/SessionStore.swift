@@ -55,13 +55,13 @@ final class SessionStore: ObservableObject {
     /// Try to restore a session on app launch:
     ///   1. If we have a saved SID, probe the API. Success → already logged in.
     ///   2. Otherwise (SID missing, expired, or any other probe failure),
-    ///      try a silent re-login using the saved password.
-    ///   3. If the silent re-login needs a 2FA code, surface the OTP card.
-    ///   4. Anything else (no credentials, network blip, wrong password) →
-    ///      land on the login form quietly. We don't ever surface an
-    ///      `.error` from this path: launch-time housekeeping shouldn't pop
-    ///      a "session expired" alert at the user the moment they open the
-    ///      app — they just want to sign in.
+    ///      try a silent re-login using the saved password via
+    ///      `silentReLogin`, which handles the 2FA-required branch.
+    ///   3. No credentials → land on the login form quietly.
+    ///
+    /// We don't ever surface an `.error` from this path: launch-time
+    /// housekeeping shouldn't pop a "session expired" alert at the user
+    /// the moment they open the app — they just want to sign in.
     private func restoreSession() async {
         guard !config.host.isEmpty, !config.account.isEmpty,
               let url = config.baseURL else {
@@ -89,26 +89,33 @@ final class SessionStore: ObservableObject {
 
         // Step 2: Try silent re-login with stored password.
         if let savedPassword = KeychainStorage.password(for: config.account) {
-            pendingCredentials = PendingCredentials(config: config, password: savedPassword)
-            do {
-                try await performLogin(password: savedPassword, otpCode: nil)
-                ServerConfigStore.save(config)
-                pendingCredentials = nil
-                return
-            } catch let error as APIError where error.isOTPRequired {
-                // 2FA is on — show the OTP card so the user can finish.
-                state = .twoFactorRequired
-                return
-            } catch {
-                // Any other failure (wrong password, server down, account
-                // disabled) is handed off to the credentials form without
-                // an alert. If the user retries there they'll see the real
-                // error from that attempt.
-                pendingCredentials = nil
-            }
+            await silentReLogin(password: savedPassword)
+            return
         }
 
         state = .loggedOut
+    }
+
+    /// Silent re-login with a known password. Drives the same flow as the
+    /// initial form-driven sign-in but without UI prompts:
+    ///   - success → `.loggedIn` (via `performLogin`)
+    ///   - 403 (2FA required) → `.twoFactorRequired`
+    ///   - any other error → `.loggedOut`, no alert
+    ///
+    /// Shared by `restoreSession` (step 2) and `reauthenticate` so both
+    /// paths handle 2FA consistently.
+    private func silentReLogin(password: String) async {
+        pendingCredentials = PendingCredentials(config: config, password: password)
+        do {
+            try await performLogin(password: password, otpCode: nil)
+            ServerConfigStore.save(config)
+            pendingCredentials = nil
+        } catch let error as APIError where error.isOTPRequired {
+            state = .twoFactorRequired
+        } catch {
+            pendingCredentials = nil
+            state = .loggedOut
+        }
     }
 
     // MARK: - Login
@@ -122,6 +129,11 @@ final class SessionStore: ObservableObject {
             return
         }
         await client.configure(baseURL: url)
+        // Wipe any DSM trusted-device cookies left over from previous
+        // logins. Without this, DSM may silently honour a stale `did`
+        // cookie and skip the 2FA challenge entirely. Every form-driven
+        // sign-in should be a fresh, fully-challenged login.
+        await client.clearAuthCookies()
         state = .authenticating
         pendingCredentials = PendingCredentials(config: config, password: password)
         await attemptLogin(
@@ -197,9 +209,34 @@ final class SessionStore: ObservableObject {
 
     func forgetDevice() async {
         try? await client.logout()
+        await client.clearAuthCookies()
         KeychainStorage.deleteSID(for: accountAtHost)
         KeychainStorage.deletePassword(for: config.account)
         state = .loggedOut
+    }
+
+    /// Force a fresh 2FA challenge without making the user retype their
+    /// password. Invalidates the local + server-side session and wipes
+    /// DSM's trusted-device cookies, then silently re-logs in with the
+    /// saved password — which will hit a real 2FA prompt because the
+    /// trust is gone. Surfaced in Settings as "Re-authenticate now".
+    ///
+    /// Falls back to a normal logout if no password is on file (we can't
+    /// re-login silently without it).
+    func reauthenticate() async {
+        guard !config.host.isEmpty, !config.account.isEmpty,
+              let url = config.baseURL,
+              let savedPassword = KeychainStorage.password(for: config.account)
+        else {
+            await logout()
+            return
+        }
+        await client.configure(baseURL: url)
+        try? await client.logout()
+        KeychainStorage.deleteSID(for: accountAtHost)
+        await client.clearAuthCookies()
+        state = .restoring
+        await silentReLogin(password: savedPassword)
     }
 
     /// Handle magnet: links opened from outside the app.

@@ -71,6 +71,14 @@ struct SettingsView: View {
             }
             Button {
                 Task {
+                    await session.reauthenticate()
+                    dismiss()
+                }
+            } label: {
+                Label("Re-authenticate now", systemImage: "arrow.clockwise.circle")
+            }
+            Button {
+                Task {
                     await session.logout()
                     dismiss()
                 }
@@ -85,7 +93,7 @@ struct SettingsView: View {
         } header: {
             Text("Account")
         } footer: {
-            Text("Sign out keeps your saved password for next time. Forget clears the password too.")
+            Text("Re-authenticate triggers a fresh 2FA challenge using your saved password. Sign out keeps the password for next time. Forget clears the password too.")
         }
     }
 
