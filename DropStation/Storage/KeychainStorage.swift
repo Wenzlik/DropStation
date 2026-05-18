@@ -1,17 +1,19 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper. Stores two classes of items keyed under one service:
+/// Minimal Keychain wrapper. Stores three classes of items keyed under one service:
 ///   - Password   (account = NAS username)
 ///   - SID        (account = "<username>@<host>")
+///   - Cookies    (account = "<username>@<host>", JSON-encoded [StoredCookie])
 /// Items are tagged by Keychain "label" so the same NAS username can have
-/// distinct entries for password vs sid without colliding.
+/// distinct entries without colliding.
 enum KeychainStorage {
     private static let service = "com.wenzlik.DropStation"
 
     enum Kind: String {
         case password = "password"
         case sid = "sid"
+        case cookies = "cookies"
     }
 
     // MARK: - Password
@@ -40,6 +42,37 @@ enum KeychainStorage {
 
     static func deleteSID(for accountAtHost: String) {
         remove(kind: .sid, account: accountAtHost)
+    }
+
+    // MARK: - Cookies
+
+    /// Persist the Secure SignIn web session cookies. JSON-encoded so the
+    /// generic password storage primitive keeps working. Encoding errors
+    /// surface as `KeychainError.encoding` rather than crashing — a
+    /// cookie that can't be encoded just means session restore won't be
+    /// available next launch, not that the current session breaks.
+    static func setCookies(_ cookies: [StoredCookie], for accountAtHost: String) throws {
+        do {
+            let data = try JSONEncoder().encode(cookies)
+            guard let json = String(data: data, encoding: .utf8) else {
+                throw KeychainError.encoding
+            }
+            try store(value: json, kind: .cookies, account: accountAtHost)
+        } catch let error as KeychainError {
+            throw error
+        } catch {
+            throw KeychainError.encoding
+        }
+    }
+
+    static func cookies(for accountAtHost: String) -> [StoredCookie]? {
+        guard let json = load(kind: .cookies, account: accountAtHost),
+              let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode([StoredCookie].self, from: data)
+    }
+
+    static func deleteCookies(for accountAtHost: String) {
+        remove(kind: .cookies, account: accountAtHost)
     }
 
     // MARK: - Common
@@ -87,5 +120,6 @@ enum KeychainStorage {
 
     enum KeychainError: Error {
         case status(OSStatus)
+        case encoding
     }
 }

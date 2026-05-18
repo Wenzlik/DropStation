@@ -71,7 +71,15 @@ final class SessionStore: ObservableObject {
         await client.configure(baseURL: url)
 
         // Step 1: Try the saved SID.
+        //
+        // If we also have Secure SignIn web cookies on file, rehydrate
+        // them into HTTPCookieStorage.shared *before* probing the API.
+        // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
+        // in addition to the `_sid` URL parameter, and the cookies are
+        // what the web sign-in actually produced — without them an
+        // expired SID lookup would be more aggressive than necessary.
         if let savedSID = KeychainStorage.sid(for: accountAtHost) {
+            restoreCookiesFromKeychain()
             await client.restoreSession(sid: savedSID)
             do {
                 _ = try await client.listTasks()
@@ -79,11 +87,14 @@ final class SessionStore: ObservableObject {
                 return
             } catch {
                 // Failed for any reason — expired SID, transient network
-                // hiccup, server unreachable. Drop the SID and fall
-                // through to silent re-login. We don't tell the user yet;
-                // the form they're about to see is feedback enough.
+                // hiccup, server unreachable. Drop the SID and cookies,
+                // fall through to silent re-login. We don't tell the
+                // user yet; the form they're about to see is feedback
+                // enough.
                 KeychainStorage.deleteSID(for: accountAtHost)
+                KeychainStorage.deleteCookies(for: accountAtHost)
                 await client.clearSession()
+                await client.clearAuthCookies()
             }
         }
 
@@ -245,9 +256,33 @@ final class SessionStore: ObservableObject {
         }
         await client.restoreSession(sid: sid)
         try? KeychainStorage.setSID(sid, for: accountAtHost)
+        // Persist the cookies too so the next launch can rehydrate the
+        // jar before probing the API. Without these the web flow's
+        // session would survive at the SID level but lose whatever
+        // Synology-side state the cookies carry.
+        let stored = cookies.map(StoredCookie.init(cookie:))
+        try? KeychainStorage.setCookies(stored, for: accountAtHost)
         ServerConfigStore.save(config)
         pendingCredentials = nil
         state = .loggedIn
+    }
+
+    /// Hydrate `HTTPCookieStorage.shared` from any cookies we previously
+    /// persisted for this account+host. Filters out anything past its
+    /// expiry — DSM session cookies routinely have multi-week
+    /// lifetimes, but the user might also be coming back to a launch
+    /// that already lapsed. No-op when nothing is stored.
+    private func restoreCookiesFromKeychain() {
+        guard let stored = KeychainStorage.cookies(for: accountAtHost),
+              !stored.isEmpty else { return }
+        let now = Date()
+        let storage = HTTPCookieStorage.shared
+        for cookie in stored {
+            if let expires = cookie.expiresDate, expires < now { continue }
+            if let http = cookie.makeHTTPCookie() {
+                storage.setCookie(http)
+            }
+        }
     }
 
     /// Force a fresh 2FA challenge without making the user retype their
