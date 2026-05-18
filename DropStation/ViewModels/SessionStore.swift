@@ -215,6 +215,41 @@ final class SessionStore: ObservableObject {
         state = .loggedOut
     }
 
+    /// Finish a Secure SignIn web login. Called by `LoginView` after
+    /// the `WKWebView` detects DSM has navigated past the login page
+    /// and harvested cookies + the session id from the `id` cookie.
+    /// The cookies argument is stored in `HTTPCookieStorage.shared`
+    /// for later API calls (DSM's CGI endpoints accept the SID either
+    /// as `_sid` URL parameter or as the matching cookie — we keep
+    /// both available); persisting them across launches is Stage 4's
+    /// problem. For now we just install the SID, save the config, and
+    /// transition straight to `.loggedIn`.
+    func completeWebSignIn(
+        config: ServerConfig,
+        sid: String,
+        cookies: [HTTPCookie]
+    ) async {
+        self.config = config
+        guard let url = config.baseURL else {
+            state = .error("Invalid server URL.")
+            return
+        }
+        await client.configure(baseURL: url)
+        // Push the WKWebView's cookies into the shared jar so URLSession
+        // requests can send them alongside the `_sid` parameter. DSM
+        // tolerates the redundancy; some endpoints (the DS2 entry.cgi
+        // ones) also key off the cookie when the URL param is missing.
+        let storage = HTTPCookieStorage.shared
+        for cookie in cookies {
+            storage.setCookie(cookie)
+        }
+        await client.restoreSession(sid: sid)
+        try? KeychainStorage.setSID(sid, for: accountAtHost)
+        ServerConfigStore.save(config)
+        pendingCredentials = nil
+        state = .loggedIn
+    }
+
     /// Force a fresh 2FA challenge without making the user retype their
     /// password. Invalidates the local + server-side session and wipes
     /// DSM's trusted-device cookies, then silently re-logs in with the

@@ -25,6 +25,11 @@ struct LoginView: View {
     @State private var otpCode: String = ""
     @State private var serverExpanded: Bool = false
     @State private var showingSettings: Bool = false
+    /// Presents the WKWebView-backed DSM sign-in sheet. Carries the
+    /// computed login URL so the sheet can build itself without
+    /// re-doing the host/scheme/port arithmetic. Wrapped in
+    /// `IdentifiableURL` because `.sheet(item:)` requires `Identifiable`.
+    @State private var webSignInURL: IdentifiableURL?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -48,6 +53,37 @@ struct LoginView: View {
         .onAppear(perform: prefill)
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+        }
+        .sheet(item: $webSignInURL) { wrapped in
+            SecureSignInWebView(
+                loginURL: wrapped.url,
+                onSuccess: { sid, cookies in
+                    let captured = ServerConfig(
+                        scheme: scheme,
+                        host: host,
+                        port: Int(port) ?? 5001,
+                        // The web flow doesn't expose which DSM user
+                        // signed in — DSM identifies the session purely
+                        // by SID at this point. Fall back to whatever
+                        // the user typed in the (now-hidden) form, or
+                        // an empty string if they used Secure SignIn
+                        // straight off the bat. The session probe will
+                        // populate state from the actual user later.
+                        account: account
+                    )
+                    webSignInURL = nil
+                    Task {
+                        await session.completeWebSignIn(
+                            config: captured,
+                            sid: sid,
+                            cookies: cookies
+                        )
+                    }
+                },
+                onCancel: {
+                    webSignInURL = nil
+                }
+            )
         }
     }
 
@@ -195,11 +231,10 @@ struct LoginView: View {
         .disabled(!credentialsValid || session.state == .authenticating)
     }
 
-    /// Placeholder card for the Secure SignIn web flow. The actual
-    /// WKWebView-driven login lands in the next commit; until then we
-    /// keep this branch visible (so the picker isn't a dead toggle) but
-    /// gate the action behind a disabled button with an explanatory
-    /// label.
+    /// Secure SignIn web flow card. The actual sign-in (username,
+    /// password, Approve sign-in push approval / OTP) runs inside the
+    /// DSM web UI itself, hosted in a `WKWebView` we present as a
+    /// sheet. We just collect host details here and hand off.
     @ViewBuilder
     private var secureSignInCredentialsContent: some View {
         DisclosureGroup(isExpanded: $serverExpanded) {
@@ -220,10 +255,25 @@ struct LoginView: View {
             .foregroundStyle(.secondary)
             .padding(.vertical, 4)
 
-        signInButton(label: "Continue to web sign-in", isWorking: false) {
-            // Wired up in the next commit (WKWebView flow).
+        if case .error(let message) = session.state {
+            inlineErrorLabel(message)
         }
-        .disabled(true)
+
+        signInButton(label: "Continue to web sign-in", isWorking: false) {
+            presentWebSignIn()
+        }
+        .disabled(!hostValid)
+    }
+
+    private var hostValid: Bool {
+        !host.isEmpty && Int(port) != nil
+    }
+
+    private func presentWebSignIn() {
+        guard let portInt = Int(port),
+              let url = ServerConfig(scheme: scheme, host: host, port: portInt, account: account).baseURL
+        else { return }
+        webSignInURL = IdentifiableURL(url: url)
     }
 
     private var serverConfigFields: some View {
@@ -342,6 +392,14 @@ struct LoginView: View {
         let cfg = ServerConfig(scheme: scheme, host: host, port: portInt, account: account)
         await session.login(config: cfg, password: password)
     }
+}
+
+/// `.sheet(item:)` requires the payload to be `Identifiable`. `URL`
+/// isn't (and conforming it globally would risk colliding with other
+/// code), so wrap it for the one place we need it.
+private struct IdentifiableURL: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
 }
 
 // MARK: - Field components
