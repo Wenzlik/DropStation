@@ -3,7 +3,7 @@
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
 
-> Current version: **0.3.1** — see [CHANGELOG.md](CHANGELOG.md) for what's
+> Current version: **0.4.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
 > shipping and [ROADMAP.md](ROADMAP.md) for what's planned.
 > Picking up the repo as a contributor (or AI assistant)? Start with
 > [AGENTS.md](AGENTS.md).
@@ -11,8 +11,9 @@ the discontinued **DS get** app.
 ## What it does
 
 DropStation connects to your Synology NAS and lets you manage Download
-Station from your iPhone. Sign in with your DSM credentials (2FA via
-TOTP supported), then:
+Station from your iPhone. Sign in with your DSM credentials — either by
+typing a TOTP code into the app or by approving a push notification in
+Synology Secure SignIn ([sign-in methods](#sign-in-methods) below) — then:
 
 - See every download in one list — progress, speed, size, status — with
   iOS 26 Liquid Glass cards and live, smoothly-ticking counters.
@@ -29,17 +30,68 @@ The app stays signed in across launches (SID and password held in the
 iOS Keychain), recovers silently from Wi-Fi ↔ cellular switches, and
 runs on iOS 26 or newer.
 
-## Building
+## Sign-in methods
+
+DropStation supports two paths through DSM's 2-factor authentication:
+
+- **Verification code (TOTP)** — Default. Type your username and
+  password into the app; when DSM challenges for a second factor, enter
+  the 6-digit code from a TOTP app (Synology Secure SignIn Codes tab,
+  Google Authenticator, 1Password, …). Uses
+  `SYNO.API.Auth` over `auth.cgi`.
+- **Secure SignIn app** — DSM's "Approve sign-in" push notification.
+  The app opens the real DSM web login inside a `WKWebView`; you sign
+  in there (username + password) and tap Approve on the notification
+  that pops up in Synology Secure SignIn. DropStation harvests the
+  resulting session cookies and continues. Picked from a toggle on
+  the sign-in screen; the choice persists across launches.
+
+After the first successful sign-in, the session is restored
+automatically on every relaunch (SID + cookies kept in the iOS
+Keychain). "Re-authenticate now" in Settings forces a fresh challenge
+without retyping credentials, and "Sign out" / "Forget this device"
+clear the SID, cookies, and any web data left over.
+
+## Installing
+
+DropStation is currently distributed as source — there is no public
+TestFlight or App Store listing yet. To run it on your own device:
 
 ```bash
+git clone https://github.com/Wenzlik/DropStation.git
+cd DropStation
 brew install xcodegen
 xcodegen generate
 open DropStation.xcodeproj
 ```
 
-Then build & run on an iPhone simulator or a physical device. On the
-first launch the app asks for the NAS scheme / host / port and
-credentials.
+Then build & run on an iPhone simulator or a physical device from
+Xcode. On the first launch the app asks for the NAS scheme / host /
+port and credentials.
+
+### GitHub Releases
+
+Tagging `vX.Y.Z` produces a [GitHub Release](https://github.com/Wenzlik/DropStation/releases)
+via CI with a zipped `.app` attached. **That zip is a simulator smoke-test artefact, not
+an installable iPhone build:** it is unsigned, has no provisioning
+profile, and cannot be sideloaded onto a physical device or imported
+into TestFlight. Use it to verify the tagged commit compiles or to
+drop into the iOS Simulator. Proper distribution lands in a later
+release once a TestFlight pipeline is set up (tracked in
+[ROADMAP.md](ROADMAP.md)).
+
+## Known limitations
+
+- **No installable iOS build.** As above — TestFlight / App Store
+  distribution is on the roadmap, not in 0.4.
+- **No background refresh / completion notifications yet.** Refresh
+  ticks only while the app is in the foreground.
+- **Single NAS only.** Multi-server switching is on the 0.5 roadmap.
+- **iOS 26 required.** The app leans heavily on iOS 26 Liquid Glass.
+- **Secure SignIn web flow needs a working DSM web UI.** If the user
+  has disabled the DSM web login (or it's behind a reverse proxy with
+  Path rewriting that doesn't preserve `/webman/`), use the verification
+  code method instead.
 
 ## Stack
 
