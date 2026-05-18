@@ -135,18 +135,25 @@ struct DashboardView: View {
     }
 
     private var idlePrimary: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.xs) {
-            Text("All downloads completed")
-                .font(.title2.weight(.semibold))
-            Text("NAS is idle")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            if let bytes = viewModel.freeDiskBytes {
-                Text("\(formattedSize(bytes)) free")
-                    .font(.footnote)
+        HStack(alignment: .center, spacing: DSSpacing.lg) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 38, weight: .regular))
+                .foregroundStyle(.green)
+                .symbolRenderingMode(.hierarchical)
+            VStack(alignment: .leading, spacing: DSSpacing.xs) {
+                Text("All downloads completed")
+                    .font(.title3.weight(.semibold))
+                Text("NAS is idle")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .padding(.top, DSSpacing.xs)
+                if let bytes = viewModel.freeDiskBytes {
+                    Text("\(formattedSize(bytes)) free")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
             }
+            Spacer()
         }
     }
 
@@ -263,19 +270,7 @@ struct DashboardView: View {
                 VStack(spacing: DSSpacing.sm) {
                     ForEach(viewModel.recentlyCompleted) { task in
                         DSCard {
-                            HStack(spacing: DSSpacing.md) {
-                                Image(systemName: task.type.systemImage)
-                                    .foregroundStyle(.tint)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(task.title)
-                                        .font(.subheadline)
-                                        .lineLimit(2)
-                                    Text(formattedSize(task.size.value))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
+                            ActivityFeedRow(task: task)
                         }
                     }
                 }
@@ -329,4 +324,77 @@ struct DashboardView: View {
             viewModel.errorMessage = error.localizedDescription
         }
     }
+}
+
+/// Single row in the "Recently completed" activity feed. Visual
+/// hierarchy:
+///
+///   - Big tinted icon disc on the left, emphasising the task
+///     type (BT / HTTP / FTP / NZB).
+///   - Title on top, monospaced size + relative completion time
+///     on a secondary metadata line below ("Completed 5m ago •
+///     18.7 GB").
+///
+/// Kept private to DashboardView for now — generalising it into
+/// a reusable DSActivityRow can come once a second screen needs
+/// the same shape.
+private struct ActivityFeedRow: View {
+    let task: DownloadTask
+
+    var body: some View {
+        HStack(spacing: DSSpacing.md) {
+            iconDisc
+            VStack(alignment: .leading, spacing: 2) {
+                Text(task.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                Text(metadataLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Tinted-glass disc with the task-type SF Symbol centred.
+    /// Picks up the type accent from existing extensions so the
+    /// dashboard agrees with the list's icon vocabulary.
+    private var iconDisc: some View {
+        Image(systemName: task.type.systemImage)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.tint)
+            .frame(width: 36, height: 36)
+            .glassEffect(
+                .regular.tint(Color.accentColor.opacity(0.18)),
+                in: .circle
+            )
+    }
+
+    /// "Completed 5m ago • 18.7 GB" when a completion timestamp is
+    /// available; falls back to just the size string otherwise
+    /// (older DSM builds occasionally omit `completed_time` for
+    /// paused-at-100 % rows).
+    private var metadataLine: String {
+        let size = ByteCountFormatter.string(fromByteCount: task.size.value, countStyle: .file)
+        guard let completed = completedDate else { return size }
+        let relative = Self.relativeFormatter.localizedString(for: completed, relativeTo: Date())
+        return "Completed \(relative) • \(size)"
+    }
+
+    private var completedDate: Date? {
+        guard let raw = task.additional?.detail?.completedTime?.value, raw > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(raw))
+    }
+
+    /// Single shared RelativeDateTimeFormatter — instantiation is
+    /// non-trivial and the same instance is safe to reuse on the
+    /// main actor where these rows render.
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
 }
