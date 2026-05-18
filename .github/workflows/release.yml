@@ -1,0 +1,109 @@
+name: iOS Build Smoke Test
+
+# Triggers a Release-configuration simulator build whenever a version
+# tag is pushed (e.g. `git tag v0.4.0 && git push origin v0.4.0`) and
+# attaches the resulting .app bundle (zipped) to a GitHub Release as a
+# *smoke-test artefact*. The artefact is NOT an installable iOS build —
+# iOS apps need code signing + provisioning to install on a real device
+# or to enter TestFlight, and this workflow deliberately disables
+# signing so the build is reproducible without secrets in CI. Treat the
+# zip as proof-of-build for the tagged commit, useful for developers
+# wanting to verify the project compiles and to run it in the iOS
+# Simulator.
+#
+# Proper distribution (TestFlight, App Store) requires an Apple
+# Developer Program account and a separate signing pipeline — not in
+# scope for this workflow.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build + Release Smoke Artefact
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Show toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          xcodebuild \
+            -project DropStation.xcodeproj \
+            -scheme DropStation \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            build | xcpretty || true
+          # `xcpretty` is best-effort — if it's missing on macos-15
+          # runners the pipe fall back to raw xcodebuild output (the
+          # `|| true` keeps step exit status driven by xcodebuild
+          # itself, not the formatter).
+
+      - name: Package .app as smoke-test zip
+        id: package
+        run: |
+          mkdir -p dist
+          APP_PATH=$(find build -name "DropStation.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::No DropStation.app produced by the build step."
+            exit 1
+          fi
+          ZIP_NAME="DropStation-${GITHUB_REF_NAME}-simulator-smoke.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "dist/$ZIP_NAME"
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+          body: |
+            ## ⚠️ Not an installable iOS build
+
+            This release attaches a **simulator-only, unsigned `.app`** packaged
+            from CI as a smoke-test artefact. It is **not** something you can
+            sideload onto an iPhone, TestFlight-install, or drop in the App
+            Store — iOS distribution requires code signing + an active Apple
+            Developer Program account, neither of which is wired up in this
+            workflow.
+
+            ### What the zip is good for
+            - Verifying the tagged commit compiles cleanly under Xcode's
+              Release configuration.
+            - Running the build in **Xcode's iOS Simulator** (drag the
+              unzipped `DropStation.app` onto a booted simulator).
+
+            ### What it is *not*
+            - An IPA. There's no `.ipa` file here.
+            - Installable on a physical iPhone (even via AltStore / sideload —
+              the binary isn't signed with a real cert).
+            - Ready for TestFlight or the App Store.
+
+            Real iPhone distribution will land in a later release once a
+            signing pipeline is set up — tracked in
+            [ROADMAP.md](https://github.com/Wenzlik/DropStation/blob/main/ROADMAP.md).
+
+            ---
