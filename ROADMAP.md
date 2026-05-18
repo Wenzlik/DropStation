@@ -177,6 +177,21 @@ hierarchy.
 - Full custom animation systems.
 - Complete SwiftUI rewrite.
 
+### Localization foundation
+
+Dashboard and design-system work touches every user-facing string in
+the app anyway, so this is the right moment to switch from hardcoded
+literals to a proper `Localizable.strings` flow. English stays the
+default; Czech ships alongside it.
+
+- [ ] Extract existing user-facing strings into `Localizable.strings`
+      (en).
+- [ ] Add Czech localization (`cs`).
+- [ ] No hardcoded user-facing strings in new dashboard / design-system
+      components — every label routes through `String(localized:)` /
+      `LocalizedStringKey`.
+- [ ] Keep English as the default development language.
+
 ### Architecture direction
 
 Do **not** do a full rewrite. Move incrementally toward:
@@ -241,6 +256,31 @@ DesignSystem/
 - [ ] Telemetry / crash reporting
 - [ ] TestFlight internal beta
 
+### TestFlight / submission preparation
+- [ ] Apple Developer account setup ($99/year, register
+      `com.wenzlik.DropStation`).
+- [ ] Proper signing configuration — Xcode-managed certificates +
+      distribution profile; remove the CI smoke-test workflow's
+      `CODE_SIGNING_ALLOWED=NO` carve-out for archived builds.
+- [ ] `PrivacyInfo.xcprivacy` privacy manifest declaring the
+      "required reason" API categories the app touches (UserDefaults,
+      file timestamps, etc.). Apple rejects uploads without it.
+- [ ] Local Network permission review — decide whether `.local`
+      mDNS NAS discovery needs `NSLocalNetworkUsageDescription` plus
+      a Bonjour service entry, or whether the user-typed host /
+      port path keeps us outside the local-network entitlement.
+- [ ] Verify whether `NSAllowsLocalNetworking = true` is still
+      needed once `NSAllowsArbitraryLoads` is dropped — public hosts
+      should go through normal ATS with a valid cert; `.local`
+      hostnames need the local-networking carve-out.
+- [ ] Crash reporting / diagnostics decision — stay zero-third-party
+      (Apple's MetricKit + the built-in crash logs) or accept one
+      lightweight SDK. Default leaning: MetricKit only, no
+      third-party.
+- [ ] Internal beta checklist — up to 100 internal testers by Apple
+      ID, no review, install in minutes. External / public TestFlight
+      link requires Beta App Review.
+
 ---
 
 ## 1.0.0 — Public release
@@ -253,6 +293,38 @@ DesignSystem/
 - [ ] Screenshots
 - [ ] Documentation
 - [ ] Stability / performance pass
+
+### App Store readiness
+- [ ] **Demo NAS / demo account** strategy for App Review — a
+      publicly reachable Synology with a read-only demo account,
+      credentials supplied in the App Review notes. Without this
+      guideline 5.1.1 makes the review awkward ("requires user
+      accounts to function").
+- [ ] **Synology trademark disclaimer** — App Store description
+      *and* Settings → About both carry: *"Unofficial client for
+      Synology Download Station. Not affiliated with or endorsed by
+      Synology Inc."* Plan on at least one Resolution Center
+      back-and-forth restating it; the reject rate for unofficial
+      Synology clients is non-trivial.
+- [ ] **Privacy policy** hosted somewhere (GitHub Pages works).
+      Short and honest: credentials stay in the iOS Keychain on this
+      device, the app talks only to the user-configured NAS, no
+      analytics, no third-party SDKs.
+- [ ] **App Store privacy nutrition label** — Username + Hostname
+      collected for App Functionality, not used for tracking, linked
+      to user.
+- [ ] **Screenshots and app preview assets** at 6.9″ / 6.7″ iPhone
+      (and iPad if supported by then) — script-driven Xcode UI tests
+      with localised strings so EN + CS sets stay in sync.
+- [ ] **Support URL** (GitHub issues page is the minimum acceptable).
+- [ ] **Marketing copy** — App Store description, subtitle, keywords;
+      keep it Apple-API-only and trademark-safe.
+- [ ] **Accessibility pass** — VoiceOver labels on every icon-only
+      button (filter, settings, +, swipe actions), Dynamic Type
+      sanity-check across the dashboard and task list. Apple flags
+      these.
+- [ ] **Final onboarding review** — first-launch host/port/credential
+      setup flow walked end-to-end with a fresh install, no shortcuts.
 
 ---
 
