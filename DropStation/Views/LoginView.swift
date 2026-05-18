@@ -147,6 +147,8 @@ struct LoginView: View {
         VStack(spacing: 16) {
             if case .twoFactorRequired = session.state {
                 twoFactorContent
+            } else if case .sessionUnauthorized(let reason) = session.state {
+                sessionUnauthorizedContent(reason: reason)
             } else {
                 credentialsContent
             }
@@ -342,6 +344,54 @@ struct LoginView: View {
         }
         .font(.footnote)
         .frame(maxWidth: .infinity)
+        .padding(.top, 4)
+    }
+
+    // MARK: - Session-unauthorized (105 recovery) sub-view
+
+    /// Shown when an API call surfaces "session does not have permission"
+    /// after we believed we were signed in — typically the Secure SignIn
+    /// web flow handing us a DSM-wide SID that DSM then refuses to use
+    /// for Download Station. Offers three recovery paths so the user
+    /// isn't stuck on a generic error alert.
+    @ViewBuilder
+    private func sessionUnauthorizedContent(reason: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.shield")
+                .font(.system(size: 36))
+                .foregroundStyle(.orange)
+                .padding(.bottom, 4)
+            Text("Session is not authorized for Download Station")
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(.center)
+            Text(reason)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.bottom, 8)
+
+        signInButton(label: "Re-authenticate", isWorking: false) {
+            Task { await session.reauthenticate() }
+        }
+
+        Button {
+            Task { await session.switchToOTPAndSignOut() }
+        } label: {
+            Label("Use verification code instead", systemImage: "number.square")
+                .font(.body.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+        }
+
+        Button(role: .destructive) {
+            Task { await session.logout() }
+        } label: {
+            Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                .font(.body.weight(.medium))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+        }
         .padding(.top, 4)
     }
 

@@ -10,7 +10,18 @@ struct TaskListView: View {
     @State private var taskPendingDelete: DownloadTask?
 
     init(session: SessionStore) {
-        _viewModel = StateObject(wrappedValue: TaskListViewModel(client: session.client))
+        // Forward 105s to the SessionStore so the host swaps in the
+        // recovery card instead of just flashing an error banner.
+        _viewModel = StateObject(
+            wrappedValue: TaskListViewModel(
+                client: session.client,
+                onUnauthorized: { [weak session] reason in
+                    Task { @MainActor in
+                        session?.handleUnauthorized(reason: reason)
+                    }
+                }
+            )
+        )
     }
 
     var body: some View {

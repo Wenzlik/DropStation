@@ -29,6 +29,31 @@ struct TaskListData: Decodable {
 
 struct EmptyData: Decodable {}
 
+/// Payload of `SYNO.API.Info.query` — DSM returns a top-level JSON
+/// object where each key is an API name (`SYNO.DownloadStation.Task`)
+/// and the value describes the endpoint (CGI path, min/max version).
+/// Decoded into a `[String: APIInfoEntry]` for ergonomics.
+struct APIInfoEntry: Decodable {
+    let path: String
+    let minVersion: Int
+    let maxVersion: Int
+
+    enum CodingKeys: String, CodingKey {
+        case path
+        case minVersion = "minVersion"
+        case maxVersion = "maxVersion"
+    }
+}
+
+struct APIInfoData: Decodable {
+    let entries: [String: APIInfoEntry]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.entries = try container.decode([String: APIInfoEntry].self)
+    }
+}
+
 struct FileStationShareList: Decodable {
     let shares: [FileNode]
 }

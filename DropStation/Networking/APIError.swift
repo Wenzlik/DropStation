@@ -55,6 +55,18 @@ enum APIError: LocalizedError {
         return false
     }
 
+    /// True specifically for "session does not have permission" (105). This
+    /// is the signature failure of using a SID scoped to the wrong DSM
+    /// session name (e.g. plain DSM web session against Download Station
+    /// APIs) — distinct from a generally expired session. The recovery
+    /// path is a session upgrade via cookies rather than a full re-login.
+    var isUnauthorized: Bool {
+        if case .synology(let code, _) = self {
+            return code == 105
+        }
+        return false
+    }
+
     /// True for errors that the next refresh tick is likely to recover from on its
     /// own — connectivity glitches, timeouts during a Wi-Fi/cellular handoff,
     /// transient server-side 5xx, etc. Callers should not surface these as alerts;

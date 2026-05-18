@@ -13,6 +13,12 @@ final class SessionStore: ObservableObject {
         /// Codes tab, Google Authenticator, 1Password, etc.).
         case twoFactorRequired
         case loggedIn
+        /// We were logged in, but Download Station rejected the session
+        /// with "no permission" (Synology error 105) or a related code.
+        /// Distinguishes a recoverable permission loss from a generic
+        /// `.error` — the LoginView shows a dedicated recovery card
+        /// with re-authenticate / use OTP / sign out actions.
+        case sessionUnauthorized(reason: String)
         case error(String)
     }
 
@@ -256,15 +262,22 @@ final class SessionStore: ObservableObject {
         await store.removeData(ofTypes: types, modifiedSince: .distantPast)
     }
 
-    /// Finish a Secure SignIn web login. Called by `LoginView` after
-    /// the `WKWebView` detects DSM has navigated past the login page
-    /// and harvested cookies + the session id from the `id` cookie.
-    /// The cookies argument is stored in `HTTPCookieStorage.shared`
-    /// for later API calls (DSM's CGI endpoints accept the SID either
-    /// as `_sid` URL parameter or as the matching cookie — we keep
-    /// both available); persisting them across launches is Stage 4's
-    /// problem. For now we just install the SID, save the config, and
-    /// transition straight to `.loggedIn`.
+    /// Finish a Secure SignIn web login.
+    ///
+    /// The `id` cookie SID returned by the WKWebView is DSM-wide — not
+    /// scoped to Download Station. Using it against
+    /// `SYNO.DownloadStation.*` endpoints triggers Synology error 105
+    /// ("session does not have permission"). To bridge this we POST
+    /// `SYNO.API.Auth.Login` with `session=DownloadStation` *and no
+    /// credentials*; DSM authenticates that call via the cookies
+    /// URLSession just inherited from the web view, and returns a
+    /// fresh SID scoped to Download Station.
+    ///
+    /// We then validate the upgraded session with a cheap `listTasks`
+    /// probe before declaring `.loggedIn`. If anything along the way
+    /// goes sideways we surface `.sessionUnauthorized` with a recovery
+    /// menu instead of leaving the user staring at a perpetually
+    /// 105-erroring task list.
     func completeWebSignIn(
         config: ServerConfig,
         sid: String,
@@ -275,26 +288,92 @@ final class SessionStore: ObservableObject {
             state = .error("Invalid server URL.")
             return
         }
+        DSLog.session("completeWebSignIn host=\(config.host) initialSid=\(redact(sid)) cookies=\(cookies.count)")
+        for c in cookies {
+            DSLog.session("  cookie name=\(c.name) domain=\(c.domain) path=\(c.path) secure=\(c.isSecure)")
+        }
+
         await client.configure(baseURL: url)
         // Push the WKWebView's cookies into the shared jar so URLSession
-        // requests can send them alongside the `_sid` parameter. DSM
-        // tolerates the redundancy; some endpoints (the DS2 entry.cgi
-        // ones) also key off the cookie when the URL param is missing.
+        // requests can send them alongside any `_sid` parameter.
         let storage = HTTPCookieStorage.shared
         for cookie in cookies {
             storage.setCookie(cookie)
         }
-        await client.restoreSession(sid: sid)
-        try? KeychainStorage.setSID(sid, for: accountAtHost)
+
+        // Diagnostic: log which APIs DSM exposes. Best-effort — if
+        // query.cgi itself is broken or unreachable we don't want to
+        // block the sign-in over that.
+        if let info = try? await client.apiInfo() {
+            for (api, entry) in info {
+                DSLog.auth("apiInfo \(api) path=\(entry.path) versions=\(entry.minVersion)..\(entry.maxVersion)")
+            }
+        } else {
+            DSLog.auth("apiInfo unavailable (continuing without it)")
+        }
+
+        // Try to upgrade the cookie-auth'd DSM session into a real
+        // DownloadStation-scoped SID. If this works, replace the SID
+        // we picked off the `id` cookie with the new one.
+        var effectiveSID = sid
+        do {
+            let upgraded = try await client.loginUsingCookies(sessionName: "DownloadStation")
+            effectiveSID = upgraded.sid
+            DSLog.session("session upgrade succeeded: ds sid=\(redact(upgraded.sid))")
+        } catch {
+            // Upgrade failed — fall back to the raw cookie SID and
+            // let the listTasks probe determine if we're stuck. Some
+            // DSM builds may not require the upgrade.
+            DSLog.session("session upgrade failed: \(error.localizedDescription) — falling back to cookie SID")
+            await client.restoreSession(sid: sid)
+        }
+        await client.restoreSession(sid: effectiveSID)
+
+        // Validate: list tasks. On 105 we're authenticated DSM-wide
+        // but not for Download Station; surface a dedicated recovery
+        // state rather than a generic .error so the user sees actionable
+        // options.
+        do {
+            _ = try await client.listTasks()
+        } catch let error as APIError where error.isUnauthorized {
+            DSLog.session("post-upgrade probe got \(error.localizedDescription) — surfacing recovery UI")
+            pendingCredentials = nil
+            state = .sessionUnauthorized(reason: "Web sign-in succeeded but Download Station rejected the session (\(error.localizedDescription)).")
+            return
+        } catch {
+            DSLog.session("post-upgrade probe failed (\(error.localizedDescription)) — proceeding anyway, refresh will retry")
+            // Other errors are likely transient — let auto-refresh
+            // handle them in the task list.
+        }
+
+        try? KeychainStorage.setSID(effectiveSID, for: accountAtHost)
         // Persist the cookies too so the next launch can rehydrate the
-        // jar before probing the API. Without these the web flow's
-        // session would survive at the SID level but lose whatever
-        // Synology-side state the cookies carry.
+        // jar before probing the API.
         let stored = cookies.map(StoredCookie.init(cookie:))
         try? KeychainStorage.setCookies(stored, for: accountAtHost)
         ServerConfigStore.save(config)
         pendingCredentials = nil
         state = .loggedIn
+        DSLog.session("completeWebSignIn → loggedIn (effectiveSid=\(redact(effectiveSID)))")
+    }
+
+    /// Called by `TaskListViewModel` when an API call comes back with
+    /// "session does not have permission" or related auth-loss codes
+    /// after we believed we were logged in. Drops the current session
+    /// state and surfaces the recovery card with three options:
+    /// re-authenticate, switch to OTP, or full sign out.
+    func handleUnauthorized(reason: String) {
+        DSLog.session("handleUnauthorized: \(reason)")
+        state = .sessionUnauthorized(reason: reason)
+    }
+
+    /// Recovery action — switch the auth method preference back to OTP
+    /// and drop the session so the user lands on the standard login
+    /// form. Useful when the Secure SignIn web flow consistently fails
+    /// the DownloadStation upgrade for this NAS.
+    func switchToOTPAndSignOut() async {
+        UserDefaults.standard.set(AuthMethod.otp.rawValue, forKey: AuthMethodSettings.storageKey)
+        await logout()
     }
 
     /// Hydrate `HTTPCookieStorage.shared` from any cookies we previously

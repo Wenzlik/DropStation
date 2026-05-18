@@ -13,7 +13,7 @@ struct RootView: View {
                 }
             case .loggedIn:
                 TaskListView(session: session)
-            case .loggedOut, .authenticating, .twoFactorRequired, .error:
+            case .loggedOut, .authenticating, .twoFactorRequired, .sessionUnauthorized, .error:
                 LoginView()
             }
         }

@@ -41,10 +41,16 @@ final class TaskListViewModel: ObservableObject {
     }
 
     private let client: SynologyAPIClient
+    /// Invoked when the API surfaces a "session does not have permission"
+    /// response (Synology error 105). The TaskListView wires this to
+    /// `SessionStore.handleUnauthorized` so the recovery card replaces
+    /// the task list cleanly instead of just showing an error banner.
+    private let onUnauthorized: (String) -> Void
     private var refreshTimer: Timer?
 
-    init(client: SynologyAPIClient) {
+    init(client: SynologyAPIClient, onUnauthorized: @escaping (String) -> Void = { _ in }) {
         self.client = client
+        self.onUnauthorized = onUnauthorized
         // Restore sort preferences. didSet observers don't fire from init,
         // so the writes happen only on user changes — not on every launch.
         if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.sortKey),
@@ -64,6 +70,13 @@ final class TaskListViewModel: ObservableObject {
             tasks = try await client.listTasks()
             // Drop any stale error banner once a fresh poll succeeds.
             errorMessage = nil
+        } catch let error as APIError where error.isUnauthorized {
+            // 105 — the session DSM gave us isn't valid for Download
+            // Station. Bail out of the list to the recovery card; the
+            // user can re-authenticate or switch auth methods from
+            // there. Don't keep retrying on the 5 s tick.
+            stopAutoRefresh()
+            onUnauthorized(error.localizedDescription)
         } catch let error as APIError where error.isTransient {
             // Transient (network / timeout / 5xx) errors during the
             // background poll are intentionally swallowed — the next 5 s
