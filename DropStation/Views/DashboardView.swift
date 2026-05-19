@@ -280,13 +280,13 @@ struct DashboardView: View {
                 // these grey.
                 VStack(spacing: DSSpacing.sm) {
                     ForEach(0..<3, id: \.self) { _ in
-                        DSCard {
+                        DSCard(.primary) {
                             ActivityFeedRow(task: .skeletonPlaceholder)
                         }
                     }
                 }
             } else if viewModel.recentlyCompleted.isEmpty {
-                DSCard {
+                DSCard(.primary) {
                     DSEmptyState(
                         title: "Nothing finished yet",
                         message: "Completed downloads will show up here.",
@@ -296,7 +296,7 @@ struct DashboardView: View {
             } else {
                 VStack(spacing: DSSpacing.sm) {
                     ForEach(viewModel.recentlyCompleted) { task in
-                        DSCard {
+                        DSCard(.primary) {
                             ActivityFeedRow(task: task)
                         }
                     }
