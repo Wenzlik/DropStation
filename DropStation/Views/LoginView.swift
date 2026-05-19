@@ -169,13 +169,21 @@ struct LoginView: View {
 
     @ViewBuilder
     private var credentialsContent: some View {
-        authMethodPicker
-
-        switch authMethod.wrappedValue {
-        case .otp:
+        // Picker only renders when the experimental Secure SignIn flag
+        // is on (see AuthMethodSettings.experimentalEnabled). Default
+        // user-facing build hides the picker and shows the OTP form
+        // unconditionally — Secure SignIn via WKWebView too often hits
+        // Synology error 105 to expose to regular users yet.
+        if AuthMethodSettings.experimentalEnabled {
+            authMethodPicker
+            switch AuthMethodSettings.effective {
+            case .otp:
+                otpCredentialsContent
+            case .secureSignInWeb:
+                secureSignInCredentialsContent
+            }
+        } else {
             otpCredentialsContent
-        case .secureSignInWeb:
-            secureSignInCredentialsContent
         }
     }
 
@@ -430,13 +438,18 @@ struct LoginView: View {
             Task { await session.switchToOTPAndSignOut() }
         }
 
-        Button {
-            Task { await session.retryWebSignIn() }
-        } label: {
-            Label("Try Secure SignIn", systemImage: "arrow.clockwise")
-                .font(.body.weight(.medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
+        // Secure SignIn retry is only exposed when the experimental
+        // picker is on — otherwise we'd be offering the user a flow
+        // they can't see anywhere else in the login UI.
+        if AuthMethodSettings.experimentalEnabled {
+            Button {
+                Task { await session.retryWebSignIn() }
+            } label: {
+                Label("Try Secure SignIn", systemImage: "arrow.clockwise")
+                    .font(.body.weight(.medium))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            }
         }
 
         Button(role: .destructive) {

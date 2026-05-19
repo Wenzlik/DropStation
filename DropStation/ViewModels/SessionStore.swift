@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import SwiftUI
 @preconcurrency import WebKit
 
@@ -28,12 +29,42 @@ final class SessionStore: ObservableObject {
         /// is verified; API identity is not. The recovery card offers
         /// "Continue with OTP" and "Retry web login".
         case sessionUnauthorized(reason: String)
+        /// The saved SID is still considered valid (we did not get a
+        /// DSM-confirmed expiry code), but the NAS is unreachable —
+        /// offline, DNS, TLS handshake, Wi-Fi/cellular handoff,
+        /// connection lost mid-request, 5xx, etc. UX surface is a
+        /// "Connection lost / Your session is saved / We'll reconnect
+        /// when the NAS is reachable" card with a Retry affordance.
+        /// Auto-retries when `NWPathMonitor` reports network back.
+        case connectionLost
         case error(String)
     }
 
-    @Published private(set) var state: State = .restoring
+    /// Convenience predicate — `if case .connectionLost = self`-style
+    /// pattern matching gets tedious in didSet observers.
+    private static func isConnectionLost(_ state: State) -> Bool {
+        if case .connectionLost = state { return true }
+        return false
+    }
+
+    @Published private(set) var state: State = .restoring {
+        didSet {
+            let wasOffline = Self.isConnectionLost(oldValue)
+            let isOffline = Self.isConnectionLost(state)
+            if isOffline && !wasOffline { startNetworkMonitor() }
+            if wasOffline && !isOffline { stopNetworkMonitor() }
+        }
+    }
     @Published private(set) var config: ServerConfig = ServerConfigStore.load() ?? .default
     @Published var pendingMagnetLink: String?
+
+    /// Active NWPathMonitor while we're in `.connectionLost`. Comes up
+    /// when we transition into the state and tears down when we leave
+    /// it, so we're not burning radio polling outside of an offline
+    /// window. The handler kicks a retry probe as soon as the path
+    /// reports `.satisfied`.
+    private var pathMonitor: NWPathMonitor?
+    private let monitorQueue = DispatchQueue(label: "com.wenzlik.DropStation.network-monitor")
 
     let client = SynologyAPIClient()
 
@@ -68,29 +99,47 @@ final class SessionStore: ObservableObject {
         await restoreSession()
     }
 
-    /// Try to restore a session on app launch:
-    ///   1. If we have a saved SID, probe Download Station with it.
-    ///      Success → already logged in, no OTP prompt.
-    ///   2. SID rejected by DSM (105/106/107/119) → drop SID +
-    ///      metadata + cookies, land on the login screen so the user
-    ///      can re-authenticate. We **do not** silently retry with a
-    ///      stored password — password persistence is gated behind a
-    ///      separate opt-in we haven't shipped yet.
-    ///   3. Transient failure (offline, DNS, 5xx) → keep the SID
-    ///      untouched so the next launch can try again, but land on
-    ///      the login screen for this launch.
-    ///   4. No saved SID → quiet `.loggedOut`.
-    ///
-    /// We don't ever surface an `.error` from this path: launch-time
-    /// housekeeping shouldn't pop a "session expired" alert at the user
-    /// the moment they open the app — they just want to sign in.
+    /// Try to restore a session on app launch. Delegates to the shared
+    /// `probeStoredSession` so a manual Retry tap from the offline
+    /// card takes exactly the same code path.
     private func restoreSession() async {
         // One-shot migration: clear any password an earlier build left
         // in the Keychain. 0.4.0 stops persisting passwords entirely,
         // and we don't want a stale credential lingering on disk on
         // users who upgraded.
         purgeLegacyPasswordIfPresent()
+        await probeStoredSession()
+    }
 
+    /// User-driven retry from the `.connectionLost` card. Re-probes
+    /// the saved SID against Download Station; success → `.loggedIn`,
+    /// auth-expired → `.loggedOut`, still-offline → stay in
+    /// `.connectionLost`. No-op if we're somehow not in the offline
+    /// state any more (e.g. NWPathMonitor's auto-retry beat the user
+    /// to it).
+    func retryConnection() async {
+        guard case .connectionLost = state else { return }
+        DSLog.session("retryConnection: user-initiated retry")
+        state = .restoring
+        await probeStoredSession()
+    }
+
+    /// Core "is the saved session still alive?" probe. Wired from:
+    ///
+    ///   - launch via `restoreSession` (first run after process start)
+    ///   - manual retry via `retryConnection` (user tapped Retry on
+    ///     the offline card)
+    ///   - automatic retry via `NWPathMonitor.pathUpdateHandler`
+    ///     (network came back while we were in `.connectionLost`)
+    ///
+    /// Branching on the result is the only place where we decide
+    /// whether to drop the saved SID. Per the auth contract: **only
+    /// DSM-confirmed session-expiry codes (105/106/107/119) delete the
+    /// SID**. Transport-layer failures (timeout, DNS, network lost,
+    /// TLS, 5xx) leave the SID in place and put us into
+    /// `.connectionLost` so the user sees "session is saved, we'll
+    /// reconnect" instead of a fresh login form.
+    private func probeStoredSession() async {
         guard !config.host.isEmpty, !config.account.isEmpty,
               let url = config.baseURL else {
             state = .loggedOut
@@ -98,16 +147,14 @@ final class SessionStore: ObservableObject {
         }
         await client.configure(baseURL: url)
 
-        // If we also have Secure SignIn web cookies on file, rehydrate
-        // them into HTTPCookieStorage.shared *before* probing the API.
-        // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
-        // in addition to the `_sid` URL parameter, and the cookies are
-        // what the web sign-in actually produced — without them an
-        // expired SID lookup would be more aggressive than necessary.
         guard let savedSID = KeychainStorage.sid(for: accountAtHost) else {
             state = .loggedOut
             return
         }
+        // If we also have Secure SignIn web cookies on file, rehydrate
+        // them into HTTPCookieStorage.shared *before* probing the API.
+        // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
+        // in addition to the `_sid` URL parameter.
         restoreCookiesFromKeychain()
         await client.restoreSession(sid: savedSID)
         do {
@@ -115,25 +162,26 @@ final class SessionStore: ObservableObject {
             touchSessionMetadata()
             state = .loggedIn
         } catch let error as APIError where error.isSessionExpired {
-            // DSM actively rejected the SID — wipe it so the next
-            // launch doesn't keep retrying a dead session, and land
-            // on the login screen so the user can sign in fresh.
-            DSLog.session("restoreSession: SID rejected (\(error.localizedDescription)); dropping")
+            // DSM actively rejected the SID (105/106/107/119). This is
+            // the *only* failure mode that wipes the persisted
+            // session. Land on a fresh login form.
+            DSLog.session("probeStoredSession: SID rejected (\(error.localizedDescription)); dropping")
             await clearStoredSession()
             state = .loggedOut
         } catch let error as APIError where error.isTransient {
-            // Offline / Wi-Fi handoff / server 5xx. Don't punish the
-            // user by deleting a SID that's probably still good —
-            // they'll get a normal sign-in form for this launch and
-            // we'll try again next time.
-            DSLog.session("restoreSession: transient (\(error.localizedDescription)); keeping SID")
-            state = .loggedOut
+            // Offline / Wi-Fi handoff / server 5xx / TLS / DNS. Keep
+            // the SID — it's almost certainly still valid; we just
+            // can't talk to the NAS right now. Surface the offline
+            // card and let NWPathMonitor / the user trigger a retry.
+            DSLog.session("probeStoredSession: transient (\(error.localizedDescription)); preserving SID, going offline")
+            state = .connectionLost
         } catch {
-            // Anything else (decoding, unexpected HTTP code). Treat
-            // like transient: don't drop the SID, just show the
-            // login screen.
-            DSLog.session("restoreSession: unexpected probe error (\(error.localizedDescription)); keeping SID")
-            state = .loggedOut
+            // Decoding glitch, unexpected HTTP code, generic transport
+            // error not caught above. We treat these like transient:
+            // they shouldn't kick the user back to a login form,
+            // because the SID hasn't been confirmed dead.
+            DSLog.session("probeStoredSession: unexpected (\(error.localizedDescription)); preserving SID, going offline")
+            state = .connectionLost
         }
     }
 
@@ -467,6 +515,42 @@ final class SessionStore: ObservableObject {
         state = .sessionUnauthorized(reason: reason)
     }
 
+    // MARK: - Network monitor (auto-reconnect from .connectionLost)
+
+    /// Spin up an NWPathMonitor that watches for the network coming
+    /// back. Called from the state `didSet` observer when we transition
+    /// into `.connectionLost`. Cheap to leave running for the duration
+    /// of the offline state; we tear it down again when we leave the
+    /// state.
+    ///
+    /// The handler executes on a background queue (Network framework's
+    /// requirement); we bounce back to the main actor before touching
+    /// any session state.
+    private func startNetworkMonitor() {
+        guard pathMonitor == nil else { return }
+        DSLog.session("startNetworkMonitor: watching for connectivity")
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard case .connectionLost = self.state else { return }
+                DSLog.session("network back — auto-retrying probe")
+                self.state = .restoring
+                await self.probeStoredSession()
+            }
+        }
+        monitor.start(queue: monitorQueue)
+        pathMonitor = monitor
+    }
+
+    private func stopNetworkMonitor() {
+        guard pathMonitor != nil else { return }
+        DSLog.session("stopNetworkMonitor")
+        pathMonitor?.cancel()
+        pathMonitor = nil
+    }
+
     // MARK: - Foreground probe
 
     /// Throttled silent revalidation. Designed to run from
@@ -492,15 +576,21 @@ final class SessionStore: ObservableObject {
         } catch let error as APIError where error.isSessionExpired {
             DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
             await clearStoredSession()
-            state = .sessionUnauthorized(reason: "Session expired. Please re-authenticate.")
+            state = .sessionUnauthorized(reason: "Session expired. Please re-authenticate with verification code.")
         } catch let error as APIError where error.isTransient {
-            // Offline / handoff / 5xx — leave the session alone, the
-            // next probe will retry.
-            DSLog.session("probeIfStale: transient (\(error.localizedDescription))")
+            // Offline / handoff / 5xx. Saved SID is preserved; surface
+            // the offline card so the user knows we're reconnecting
+            // (rather than silently sitting on a stale task list).
+            // NWPathMonitor will auto-retry the probe when the network
+            // comes back.
+            DSLog.session("probeIfStale: transient (\(error.localizedDescription)); preserving SID, going offline")
+            state = .connectionLost
         } catch {
             // Decoding or unexpected HTTP — also leave the session
             // alone. We'd rather mis-classify than kick the user out
-            // for a parser glitch.
+            // for a parser glitch. Stay in `.loggedIn`; if the next
+            // ad-hoc API call fails the same way, the user gets a
+            // refresh error banner but their session is untouched.
             DSLog.session("probeIfStale: ignored (\(error.localizedDescription))")
         }
     }

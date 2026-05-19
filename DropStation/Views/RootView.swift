@@ -10,6 +10,8 @@ struct RootView: View {
                 DSLoadingView("Restoring session…")
             case .loggedIn:
                 LoggedInShell(session: session)
+            case .connectionLost:
+                ConnectionLostView()
             case .loggedOut, .authenticating, .twoFactorRequired, .validatingApiAccess, .sessionUnauthorized, .error:
                 LoginView()
             }
