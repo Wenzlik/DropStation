@@ -11,9 +11,10 @@ the discontinued **DS get** app.
 ## What it does
 
 DropStation connects to your Synology NAS and lets you manage Download
-Station from your iPhone. Sign in with your DSM credentials — either by
-typing a TOTP code into the app or by approving a push notification in
-Synology Secure SignIn ([sign-in methods](#sign-in-methods) below) — then:
+Station from your iPhone. Sign in with your DSM username + password —
+when DSM challenges for a second factor, enter the 6-digit verification
+code from a TOTP app ([sign-in methods](#sign-in-methods) below) —
+then:
 
 - See every download in one list — progress, speed, size, status — with
   iOS 26 Liquid Glass cards and live, smoothly-ticking counters.
@@ -38,31 +39,37 @@ cellular switches and runs on iOS 26 or newer.
 
 ## Sign-in methods
 
-DropStation supports two paths through DSM's 2-factor authentication:
+DropStation supports one user-facing sign-in flow today:
 
-- **Verification code (TOTP)** — Default. Type your username and
-  password into the app; when DSM challenges for a second factor, enter
-  the 6-digit code from a TOTP app (Synology Secure SignIn Codes tab,
-  Google Authenticator, 1Password, …). Uses
-  `SYNO.API.Auth` over `auth.cgi`.
-- **Secure SignIn app** — DSM's "Approve sign-in" push notification.
-  The app opens the real DSM web login inside a `WKWebView`; you sign
-  in there (username + password) and tap Approve on the notification
-  that pops up in Synology Secure SignIn. DropStation harvests the
-  resulting session cookies and probes Download Station to confirm
-  the session is usable. **Best-effort:** Synology binds API
-  permissions to the session name passed at login time, and on
-  strict DSM configurations the cookie-derived session doesn't
-  grant Download Station access (Synology error 105). When that
-  happens, the app shows a recovery card pointing you at the
-  verification-code path, which always works.
+- **Verification code (TOTP)** — Type your username and password
+  into the app; when DSM challenges for a second factor, enter the
+  6-digit code from a TOTP app (Synology Secure SignIn Codes tab,
+  Google Authenticator, 1Password, …). Uses `SYNO.API.Auth` over
+  `auth.cgi`. This is the only path the app exposes by default and
+  the only one that reliably gets a Download Station-scoped session.
+
+> **Experimental / hidden:** DropStation also contains a WKWebView
+> Secure SignIn flow (the DSM web login with "Approve sign-in" push
+> notification). It's gated behind the `auth.method.experimental`
+> UserDefaults flag because DSM's web session frequently fails to
+> extend auth to the Download Station API (Synology error 105),
+> which leaves the user staring at a recovery card. The code stays
+> in the binary for development — `defaults write
+> com.wenzlik.DropStation auth.method.experimental -bool YES` to
+> bring the picker back. Don't expose this to end users until the
+> session handoff is solved.
 
 After the first successful sign-in, the session is restored
-automatically on every relaunch (SID + cookies kept in the iOS
-Keychain). "Sign out" clears the SID, cookies, session metadata,
-any legacy password an older build may have left behind, and the
-WKWebsiteDataStore — so the next launch starts from a fresh
-sign-in screen.
+automatically on every relaunch — the SID is kept in the iOS
+Keychain. The saved SID survives Wi-Fi ↔ cellular switches,
+offline windows, and other transport-layer hiccups; it is only
+discarded when DSM explicitly tells us the session has expired
+(Synology error codes 105/106/107/119). When the NAS is
+unreachable, the app shows a "Connection lost / session is saved"
+card and auto-reconnects via `NWPathMonitor` the moment the
+network comes back. "Sign out" clears the SID, cookies, session
+metadata, any legacy password an older build may have left
+behind, and the WKWebsiteDataStore.
 
 ## Installing
 
@@ -100,10 +107,11 @@ release once a TestFlight pipeline is set up (tracked in
   ticks only while the app is in the foreground.
 - **Single NAS only.** Multi-server switching is on the 0.5 roadmap.
 - **iOS 26 required.** The app leans heavily on iOS 26 Liquid Glass.
-- **Secure SignIn web flow needs a working DSM web UI.** If the user
-  has disabled the DSM web login (or it's behind a reverse proxy with
-  Path rewriting that doesn't preserve `/webman/`), use the verification
-  code method instead.
+- **Secure SignIn web flow is hidden.** The WKWebView Secure SignIn
+  path is disabled in the default build (see Sign-in methods above)
+  because DSM frequently refuses to extend the web session to the
+  Download Station API. Verification code is the only user-facing
+  flow until we have a more robust session handoff.
 
 ## Stack
 

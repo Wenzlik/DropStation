@@ -4,6 +4,30 @@ All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Dedicated **"Connection lost"** screen with auto-reconnect. When DSM
+  is unreachable (offline, Wi-Fi/cellular handoff, DNS / TLS / 5xx)
+  the app shows "Your session is saved. We'll reconnect automatically
+  when the NAS is reachable." with a Retry button. `NWPathMonitor`
+  triggers a silent re-probe the moment the network comes back.
+- Dashboard tab (Phase 1 + 2) with hero card, NAS context, action
+  grid, activity feed, haptics, skeletons, transitions.
+
+### Changed
+- **Verification code is now the only user-facing sign-in path.** The
+  WKWebView Secure SignIn flow is gated behind an experimental
+  UserDefaults flag (`auth.method.experimental`, default off) until
+  DSM's session handoff to the Download Station API is solved. Stored
+  `.secureSignInWeb` preferences silently resolve back to `.otp` on
+  launch. The flow's code stays compiled in for development.
+- **Saved SID survives network changes.** The launch-time and
+  foreground probes now distinguish transport-layer failures
+  (timeout, DNS, network lost, TLS, 5xx) from DSM-confirmed
+  session-expiry codes (105/106/107/119). Only the latter delete the
+  SID; transient failures preserve it and route to the offline state.
+
 ## [0.4.0] — 2026-05-18
 
 ### Added
