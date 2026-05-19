@@ -26,6 +26,7 @@ import SwiftUI
 /// store across tabs is on the 0.5 roadmap.
 struct DashboardView: View {
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var navigation: NavigationStore
     @StateObject private var viewModel: DashboardViewModel
     @State private var showingAddTask = false
     @State private var showingSettings = false
@@ -297,7 +298,7 @@ struct DashboardView: View {
     // MARK: - Quick actions
 
     private var quickActions: some View {
-        DSSection("Quick actions", systemImage: "bolt") {
+        DSSection("Quick actions", style: .eyebrow) {
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: DSSpacing.md), count: 4),
                 spacing: DSSpacing.md
@@ -330,8 +331,40 @@ struct DashboardView: View {
     // MARK: - Recently completed
 
     private var recentSection: some View {
-        DSSection("Recently completed", systemImage: "checkmark.circle") {
-            if !viewModel.hasLoadedOnce {
+        DSSection("Recently completed", style: .eyebrow) {
+            recentSectionContent
+        } accessory: {
+            seeAllAccessory
+        }
+    }
+
+    /// Trailing accessory on the Recently-completed eyebrow. Tap
+    /// flips to the Downloads tab and stages a `.finished` filter
+    /// via `NavigationStore`, which `TaskListView` consumes and
+    /// clears in its `.onChange` handler. Hidden during first
+    /// load — the slot reads as "scroll to nothing" otherwise.
+    @ViewBuilder
+    private var seeAllAccessory: some View {
+        if viewModel.hasLoadedOnce, !viewModel.recentlyCompleted.isEmpty {
+            Button {
+                navigation.showDownloads(filter: .finished)
+            } label: {
+                HStack(spacing: 2) {
+                    Text("See all")
+                        .font(.caption.weight(.medium))
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("See all completed downloads")
+        }
+    }
+
+    @ViewBuilder
+    private var recentSectionContent: some View {
+        if !viewModel.hasLoadedOnce {
                 // First load — show skeleton rows instead of the empty
                 // state so the section reads as "loading" rather than
                 // "we checked and there's nothing". The `.redacted`
@@ -352,12 +385,11 @@ struct DashboardView: View {
                         systemImage: "tray"
                     )
                 }
-            } else {
-                VStack(spacing: DSSpacing.sm) {
-                    ForEach(viewModel.recentlyCompleted) { task in
-                        DSCard(.primary) {
-                            activityRow(for: task)
-                        }
+        } else {
+            VStack(spacing: DSSpacing.sm) {
+                ForEach(viewModel.recentlyCompleted) { task in
+                    DSCard(.primary) {
+                        activityRow(for: task)
                     }
                 }
             }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TaskListView: View {
     @EnvironmentObject private var session: SessionStore
+    @EnvironmentObject private var navigation: NavigationStore
     @StateObject private var viewModel: TaskListViewModel
     @State private var showingAddTask = false
     @State private var showingSettings = false
@@ -139,6 +140,16 @@ struct TaskListView: View {
             .onChange(of: session.pendingMagnetLink) { _, newValue in
                 if newValue != nil {
                     showingAddTask = true
+                }
+            }
+            .onChange(of: navigation.downloadsFilterRequest) { _, request in
+                // One-shot hint from a sibling tab (e.g. the
+                // dashboard's "See all →" link landing on Finished).
+                // Apply, then clear so the next user-driven filter
+                // change isn't overwritten on a re-render.
+                if let request {
+                    viewModel.filter = request
+                    navigation.downloadsFilterRequest = nil
                 }
             }
             .alert("Error", isPresented: .init(
