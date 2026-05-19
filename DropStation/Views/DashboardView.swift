@@ -365,35 +365,42 @@ struct DashboardView: View {
     @ViewBuilder
     private var recentSectionContent: some View {
         if !viewModel.hasLoadedOnce {
-                // First load — show skeleton rows instead of the empty
-                // state so the section reads as "loading" rather than
-                // "we checked and there's nothing". The `.redacted`
-                // modifier on the outer recentSection then paints
-                // these grey.
-                VStack(spacing: DSSpacing.sm) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        DSCard(.primary) {
-                            activityRow(for: .skeletonPlaceholder)
-                        }
-                    }
-                }
-            } else if viewModel.recentlyCompleted.isEmpty {
-                DSCard(.primary) {
-                    DSEmptyState(
-                        title: "Nothing finished yet",
-                        message: "Completed downloads will show up here.",
-                        systemImage: "tray"
-                    )
-                }
+            // First load — three skeleton rows inside the grouped
+            // container so the section reads as "loading" rather
+            // than "we checked and there's nothing". The .redacted
+            // modifier on the outer recentSection then paints
+            // these grey.
+            DSGroupedRows(
+                Array(repeating: DownloadTask.skeletonPlaceholder, count: 3),
+                dividerInset: activityRowDividerInset
+            ) { task in
+                activityRow(for: task)
+            }
+        } else if viewModel.recentlyCompleted.isEmpty {
+            DSCard(.secondary) {
+                DSEmptyState(
+                    title: "Nothing finished yet",
+                    message: "Completed downloads will show up here.",
+                    systemImage: "tray"
+                )
+            }
         } else {
-            VStack(spacing: DSSpacing.sm) {
-                ForEach(viewModel.recentlyCompleted) { task in
-                    DSCard(.primary) {
-                        activityRow(for: task)
-                    }
-                }
+            DSGroupedRows(
+                viewModel.recentlyCompleted,
+                dividerInset: activityRowDividerInset
+            ) { task in
+                activityRow(for: task)
             }
         }
+    }
+
+    /// Aligns the hairline divider inside `DSGroupedRows` past the
+    /// 36-pt icon disc that `DSActivityRow` draws — so each row's
+    /// divider starts under its title text, not under its icon.
+    /// Sum: disc width + DSActivityRow's internal disc-to-text gap
+    /// + DSGroupedRows' container leading padding.
+    private var activityRowDividerInset: CGFloat {
+        36 + DSSpacing.md + DSSpacing.lg
     }
 
     // MARK: - Helpers
