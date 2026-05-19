@@ -281,7 +281,7 @@ struct DashboardView: View {
                 VStack(spacing: DSSpacing.sm) {
                     ForEach(0..<3, id: \.self) { _ in
                         DSCard(.primary) {
-                            ActivityFeedRow(task: .skeletonPlaceholder)
+                            activityRow(for: .skeletonPlaceholder)
                         }
                     }
                 }
@@ -297,7 +297,7 @@ struct DashboardView: View {
                 VStack(spacing: DSSpacing.sm) {
                     ForEach(viewModel.recentlyCompleted) { task in
                         DSCard(.primary) {
-                            ActivityFeedRow(task: task)
+                            activityRow(for: task)
                         }
                     }
                 }
@@ -351,67 +351,35 @@ struct DashboardView: View {
             viewModel.errorMessage = error.localizedDescription
         }
     }
-}
 
-/// Single row in the "Recently completed" activity feed. Visual
-/// hierarchy:
-///
-///   - Big tinted icon disc on the left, emphasising the task
-///     type (BT / HTTP / FTP / NZB).
-///   - Title on top, monospaced size + relative completion time
-///     on a secondary metadata line below ("Completed 5m ago •
-///     18.7 GB").
-///
-/// Kept private to DashboardView for now — generalising it into
-/// a reusable DSActivityRow can come once a second screen needs
-/// the same shape.
-private struct ActivityFeedRow: View {
-    let task: DownloadTask
+    // MARK: - Activity row composition
 
-    var body: some View {
-        HStack(spacing: DSSpacing.md) {
-            iconDisc
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                Text(metadataLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// Tinted-glass disc with the task-type SF Symbol centred.
-    /// Picks up the type accent from existing extensions so the
-    /// dashboard agrees with the list's icon vocabulary.
-    private var iconDisc: some View {
-        Image(systemName: task.type.systemImage)
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.tint)
-            .frame(width: 36, height: 36)
-            .glassEffect(
-                .regular.tint(Color.accentColor.opacity(0.18)),
-                in: .circle
-            )
+    /// Maps a `DownloadTask` onto the domain-free `DSActivityRow`.
+    /// Keeps DesignSystem/ free of app-model dependencies while
+    /// centralising the dashboard's row formatting in one place
+    /// (so Phase 3.2's visual pass can tune metadata wording
+    /// without touching DSActivityRow).
+    private func activityRow(for task: DownloadTask) -> some View {
+        DSActivityRow(
+            title: task.title,
+            metadata: metadataLine(for: task),
+            iconSystemName: task.type.systemImage,
+            iconTint: .accentColor
+        )
     }
 
     /// "Completed 5m ago • 18.7 GB" when a completion timestamp is
     /// available; falls back to just the size string otherwise
     /// (older DSM builds occasionally omit `completed_time` for
     /// paused-at-100 % rows).
-    private var metadataLine: String {
+    private func metadataLine(for task: DownloadTask) -> String {
         let size = ByteCountFormatter.string(fromByteCount: task.size.value, countStyle: .file)
-        guard let completed = completedDate else { return size }
+        guard let completed = completedDate(for: task) else { return size }
         let relative = Self.relativeFormatter.localizedString(for: completed, relativeTo: Date())
         return "Completed \(relative) • \(size)"
     }
 
-    private var completedDate: Date? {
+    private func completedDate(for task: DownloadTask) -> Date? {
         guard let raw = task.additional?.detail?.completedTime?.value, raw > 0 else { return nil }
         return Date(timeIntervalSince1970: TimeInterval(raw))
     }
