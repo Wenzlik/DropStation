@@ -127,18 +127,7 @@ struct DashboardView: View {
 
     private var heroCard: some View {
         DSHeroCard {
-            HStack(spacing: DSSpacing.sm) {
-                Image(systemName: "externaldrive.connected.to.line.below")
-                    .foregroundStyle(.tint)
-                Text(viewModel.hostname)
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                if viewModel.isOnline {
-                    DSStatusBadge("Online", tint: .green, systemImage: "circle.fill")
-                } else {
-                    DSStatusBadge("Offline", tint: .orange, systemImage: "circle.fill")
-                }
-            }
+            heroHeader
         } primary: {
             if viewModel.isIdle {
                 idlePrimary
@@ -148,91 +137,161 @@ struct DashboardView: View {
         }
     }
 
-    private var idlePrimary: some View {
-        HStack(alignment: .center, spacing: DSSpacing.lg) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 38, weight: .regular))
-                .foregroundStyle(.green)
-                .symbolRenderingMode(.hierarchical)
-            VStack(alignment: .leading, spacing: DSSpacing.xs) {
-                Text("All downloads completed")
-                    .font(.title3.weight(.semibold))
-                Text("NAS is idle")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let bytes = viewModel.freeDiskBytes {
-                    Text("\(formattedSize(bytes)) free")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-                }
-            }
+    /// Hero header: drive glyph + hostname on the left, ambient
+    /// status indicator on the right. Per the Phase-3 status
+    /// hierarchy, Online is the ambient default (`DSStatusDot` +
+    /// label) and only the exceptional Offline path bumps up to
+    /// `DSStatusBadge`.
+    private var heroHeader: some View {
+        HStack(spacing: DSSpacing.sm) {
+            Image(systemName: "externaldrive.connected.to.line.below")
+                .foregroundStyle(.secondary)
+            Text(viewModel.hostname)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
             Spacer()
-        }
-    }
-
-    private var activePrimary: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.md) {
-            HStack(alignment: .firstTextBaseline, spacing: DSSpacing.lg) {
-                rateColumn(
-                    label: "Download",
-                    systemImage: "arrow.down",
-                    tint: .blue,
-                    bytes: viewModel.totalDownloadSpeed
-                )
-                rateColumn(
-                    label: "Upload",
-                    systemImage: "arrow.up",
-                    tint: .orange,
-                    bytes: viewModel.totalUploadSpeed
-                )
-            }
-            HStack(spacing: DSSpacing.sm) {
-                DSStatusBadge(
-                    "\(viewModel.activeCount) active",
-                    tint: .green,
-                    systemImage: "bolt.fill"
-                )
-                if viewModel.failedCount > 0 {
-                    DSStatusBadge(
-                        "\(viewModel.failedCount) failed",
-                        tint: .red,
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                }
-                Spacer()
-                if let bytes = viewModel.freeDiskBytes {
-                    Text("\(formattedSize(bytes)) free")
-                        .font(.footnote)
+            if viewModel.isOnline {
+                HStack(spacing: 4) {
+                    DSStatusDot(tint: .green)
+                    Text("Online")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+            } else {
+                DSStatusBadge("Offline", tint: .orange, systemImage: "circle.fill")
             }
         }
     }
 
-    private func rateColumn(
-        label: LocalizedStringKey,
-        systemImage: String,
-        tint: Color,
-        bytes: Int64
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(tint)
-                Text(label)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+    /// Idle hero: pure T2 + T3 typography, no T1 focal number — a
+    /// row of zeros would scream "broken", and the idle moment is
+    /// supposed to feel calm. Three lines max; free-disk row stays
+    /// conditional on the view-model placeholder.
+    private var idlePrimary: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            Text("All caught up")
+                .font(.headline.weight(.medium))
+            Text("NAS is idle")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            if !idleMetricValues.isEmpty {
+                DSMetricRow(values: idleMetricValues)
+                    .padding(.top, DSSpacing.xs)
             }
-            Text(formattedRate(bytes))
-                .font(.title.weight(.semibold))
+        }
+    }
+
+    /// Active hero: T1 focal speed number with optional live-pulse
+    /// dot, T2 state title, T3 metric row. Failed count escalates
+    /// to a `DSStatusBadge` (exceptional state) on its own row
+    /// below.
+    private var activePrimary: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            heroFocalRow
+            Text(heroStateLabel)
+                .font(.headline.weight(.medium))
+                .foregroundStyle(.primary)
+            if !activeMetricValues.isEmpty {
+                DSMetricRow(values: activeMetricValues)
+            }
+            if viewModel.failedCount > 0 {
+                DSStatusBadge(
+                    "\(viewModel.failedCount) failed",
+                    tint: .red,
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .padding(.top, DSSpacing.xs)
+            }
+        }
+    }
+
+    /// T1 focal: large rounded monospaced rate + direction arrow,
+    /// with a pulsing status dot when bytes are actively moving.
+    /// `.contentTransition(.numericText())` ticks the digits as the
+    /// poll updates so the number reads as live without bouncing.
+    private var heroFocalRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: DSSpacing.sm) {
+            Image(systemName: heroFocalDirectionSymbol)
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .foregroundStyle(heroFocalTint)
+            Text(formattedRate(heroFocalBytesPerSecond))
+                .font(.system(size: 44, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .contentTransition(.numericText())
+                .foregroundStyle(.primary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(0.5)
+            if heroIsActivelyTransferring {
+                DSStatusDot(tint: heroFocalTint, pulsing: true)
+                    .padding(.bottom, 6)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Hero derived state
+
+    /// Whether the NAS is currently moving bytes in either
+    /// direction. Drives the pulsing focal dot.
+    private var heroIsActivelyTransferring: Bool {
+        viewModel.totalDownloadSpeed > 0 || viewModel.totalUploadSpeed > 0
+    }
+
+    /// Which direction "owns" the hero focal number. Download wins
+    /// when present (it's the headline activity for a Download
+    /// Station client); upload-only is the seeding-only case.
+    /// Falls back to download (= 0) for the brief "1 active task
+    /// hash-checking" window — viewModel.isIdle has already shunted
+    /// the zero-everything case to idlePrimary.
+    private var heroFocalBytesPerSecond: Int64 {
+        if viewModel.totalDownloadSpeed > 0 { return viewModel.totalDownloadSpeed }
+        if viewModel.totalUploadSpeed > 0 { return viewModel.totalUploadSpeed }
+        return viewModel.totalDownloadSpeed
+    }
+
+    private var heroFocalDirectionSymbol: String {
+        viewModel.totalDownloadSpeed == 0 && viewModel.totalUploadSpeed > 0
+            ? "arrow.up"
+            : "arrow.down"
+    }
+
+    private var heroFocalTint: Color {
+        viewModel.totalDownloadSpeed == 0 && viewModel.totalUploadSpeed > 0
+            ? .accentColor
+            : .blue
+    }
+
+    private var heroStateLabel: LocalizedStringKey {
+        if viewModel.totalDownloadSpeed > 0 { return "Downloading" }
+        if viewModel.totalUploadSpeed > 0 { return "Seeding" }
+        return "Working…"
+    }
+
+    /// Tertiary metric line for the active hero. Pre-formats each
+    /// fragment (count, opposite-direction rate, free disk) and
+    /// hands it to `DSMetricRow` which renders them with the
+    /// shared subtle-dot separators.
+    private var activeMetricValues: [String] {
+        var values: [String] = []
+        if viewModel.activeCount > 0 {
+            values.append("\(viewModel.activeCount) active")
+        }
+        // Show the opposite-direction rate inline when it's also
+        // moving (download focal + upload trickle, or vice versa).
+        if viewModel.totalDownloadSpeed > 0, viewModel.totalUploadSpeed > 0 {
+            values.append("↑ \(formattedRate(viewModel.totalUploadSpeed))")
+        }
+        if let bytes = viewModel.freeDiskBytes {
+            values.append("\(formattedSize(bytes)) free")
+        }
+        return values
+    }
+
+    private var idleMetricValues: [String] {
+        var values: [String] = []
+        if let bytes = viewModel.freeDiskBytes {
+            values.append("\(formattedSize(bytes)) free")
+        }
+        return values
     }
 
     // MARK: - Quick actions
