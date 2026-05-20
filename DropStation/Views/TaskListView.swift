@@ -290,8 +290,17 @@ private struct TaskRow: View {
                     .lineLimit(2)
                     .truncationMode(.middle)
             }
-            ProgressView(value: task.progress)
-                .tint(task.displayStatusTintRaw.tintColor)
+            // Ambient progress signal — 2pt sliver tinted to status.
+            // Hidden once the task has reached its terminal completion
+            // state (true `.finished` *or* paused-at-100 %, which the
+            // task's `isAtCompletion` collapses into one): a 100 %
+            // filled bar on a completed row is redundant noise.
+            if !task.isAtCompletion {
+                DSProgressSliver(
+                    value: task.progress,
+                    tint: task.displayStatusTintRaw.tintColor
+                )
+            }
             HStack(spacing: DSSpacing.sm) {
                 DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
                 Text(task.displayStatusLabel)
