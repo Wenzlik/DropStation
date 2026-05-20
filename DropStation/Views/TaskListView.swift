@@ -30,55 +30,56 @@ struct TaskListView: View {
             ZStack {
                 backgroundGradient.ignoresSafeArea()
                 List {
-                    ForEach(viewModel.filteredTasks) { task in
-                        NavigationLink(value: task) {
-                            TaskRow(task: task)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .glassEffect(.regular, in: .rect(cornerRadius: 18, style: .continuous))
-                                .contentShape(.rect(cornerRadius: 18, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                taskPendingDelete = task
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                    // Single grouped section — one rounded card on the screen,
+                    // hairline dividers between rows (the DSGroupedRows visual
+                    // pattern). `.swipeActions` and `.refreshable` aren't
+                    // available outside List, so we keep List but drop the
+                    // per-row glass and let `.insetGrouped` provide the
+                    // chrome.
+                    Section {
+                        ForEach(viewModel.filteredTasks) { task in
+                            NavigationLink(value: task) {
+                                TaskRow(task: task)
                             }
-                        }
-                        .swipeActions(edge: .leading) {
-                            if task.canPause {
-                                Button {
-                                    Task { await viewModel.pause(task) }
+                            .listRowSeparatorTint(Color(.separator).opacity(0.6))
+                            .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    taskPendingDelete = task
                                 } label: {
-                                    Label("Pause", systemImage: "pause.fill")
+                                    Label("Delete", systemImage: "trash")
                                 }
-                                .tint(.orange)
                             }
-                            if task.canStop {
-                                Button {
-                                    Task { await viewModel.stop(task) }
-                                } label: {
-                                    Label("Stop", systemImage: "stop.fill")
+                            .swipeActions(edge: .leading) {
+                                if task.canPause {
+                                    Button {
+                                        Task { await viewModel.pause(task) }
+                                    } label: {
+                                        Label("Pause", systemImage: "pause.fill")
+                                    }
+                                    .tint(.orange)
                                 }
-                                .tint(.gray)
-                            }
-                            if task.canResume {
-                                Button {
-                                    Task { await viewModel.resume(task) }
-                                } label: {
-                                    Label("Resume", systemImage: "play.fill")
+                                if task.canStop {
+                                    Button {
+                                        Task { await viewModel.stop(task) }
+                                    } label: {
+                                        Label("Stop", systemImage: "stop.fill")
+                                    }
+                                    .tint(.gray)
                                 }
-                                .tint(.green)
+                                if task.canResume {
+                                    Button {
+                                        Task { await viewModel.resume(task) }
+                                    } label: {
+                                        Label("Resume", systemImage: "play.fill")
+                                    }
+                                    .tint(.green)
+                                }
                             }
                         }
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
                 .refreshable { await viewModel.refresh() }
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
@@ -263,22 +264,43 @@ struct TaskListView: View {
     }
 }
 
+/// Single row in the Downloads list. Visual hierarchy now matches the
+/// Phase-3 design-system patterns:
+///
+///   - Title row: type glyph + the torrent / file name, two lines max
+///     with middle truncation so "Movie.2026.2160p.HDR.x265-GROUP"
+///     keeps both prefix and codec suffix visible when constrained.
+///   - Metadata row: inline `DSStatusDot` + status label, optional
+///     live ↓ speed, total size on the trailing edge. No more tinted
+///     glass capsule — the dot reads as ambient signal next to its
+///     label, sitting flush against the surrounding row content.
+///   - Progress bar stays at full width here; 4.1.2 swaps it for
+///     `DSProgressSliver` and hides it for completed tasks.
 private struct TaskRow: View {
     let task: DownloadTask
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: DSSpacing.sm) {
                 Image(systemName: task.type.systemImage)
                     .foregroundStyle(.tint)
                     .frame(width: 18)
-                Text(task.title).font(.body).lineLimit(2)
+                Text(task.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .truncationMode(.middle)
             }
             ProgressView(value: task.progress)
                 .tint(task.displayStatusTintRaw.tintColor)
-            HStack(spacing: 8) {
-                StatusPill(task: task)
+            HStack(spacing: DSSpacing.sm) {
+                DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
+                Text(task.displayStatusLabel)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
                 if let speed = liveSpeed, speed > 0 {
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                        .font(.caption)
                     Label(formattedSpeed(speed), systemImage: "arrow.down")
                         .labelStyle(.titleAndIcon)
                         .font(.caption.weight(.medium))
@@ -286,19 +308,26 @@ private struct TaskRow: View {
                         .monospacedDigit()
                         .contentTransition(.numericText())
                 }
-                Spacer()
+                Spacer(minLength: DSSpacing.sm)
                 Text(formattedSize(task.size.value))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
         }
-        .padding(.vertical, 4)
     }
 
-    /// Show ↓ speed inline only for tasks that are actively transferring; otherwise it's noise.
+    /// True for actively-transferring tasks — drives the inline ↓ speed
+    /// readout and the pulsing dot. `canPause` excludes finished and
+    /// errored states; `.paused` is explicitly filtered so paused
+    /// transfers don't pulse just because they're pause-capable.
+    private var isLive: Bool {
+        task.canPause && task.status != .paused
+    }
+
+    /// Show ↓ speed inline only when the task is actively transferring; otherwise it's noise.
     private var liveSpeed: Int64? {
-        guard task.canPause, task.status != .paused else { return nil }
+        guard isLive else { return nil }
         return task.additional?.transfer?.speedDownload.value
     }
 
@@ -308,21 +337,5 @@ private struct TaskRow: View {
 
     private func formattedSpeed(_ bytes: Int64) -> String {
         "\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))/s"
-    }
-}
-
-/// Compact status indicator rendered as a tinted Liquid Glass capsule.
-/// Takes the whole `DownloadTask` rather than just the raw status so it can
-/// fold paused-at-100 % into the same "Ended" label/colour as `.finished`.
-private struct StatusPill: View {
-    let task: DownloadTask
-
-    var body: some View {
-        Text(task.displayStatusLabel)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .glassEffect(.regular.tint(task.displayStatusTintRaw.tintColor.opacity(0.45)), in: .capsule)
-            .foregroundStyle(.primary)
     }
 }
