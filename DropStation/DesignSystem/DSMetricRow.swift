@@ -12,10 +12,12 @@ import SwiftUI
 struct DSMetricRow: View {
     private let values: [String]
     private let separator: String
+    private let font: Font
 
-    init(values: [String], separator: String = "·") {
+    init(values: [String], separator: String = "·", font: Font = .subheadline) {
         self.values = values
         self.separator = separator
+        self.font = font
     }
 
     var body: some View {
@@ -28,7 +30,7 @@ struct DSMetricRow: View {
                 Text(value)
             }
         }
-        .font(.subheadline)
+        .font(font)
         .foregroundStyle(.secondary)
         .monospacedDigit()
         .lineLimit(1)

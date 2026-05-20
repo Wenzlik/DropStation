@@ -41,6 +41,7 @@ struct TaskListView: View {
                             NavigationLink(value: task) {
                                 TaskRow(task: task)
                             }
+                            .buttonStyle(DSRowButtonStyle())
                             .listRowSeparatorTint(Color(.separator).opacity(0.6))
                             .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
                             .swipeActions(edge: .trailing) {
@@ -303,20 +304,8 @@ private struct TaskRow: View {
             }
             HStack(spacing: DSSpacing.sm) {
                 DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
-                Text(task.displayStatusLabel)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.primary)
-                if let speed = liveSpeed, speed > 0 {
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
-                    Label(formattedSpeed(speed), systemImage: "arrow.down")
-                        .labelStyle(.titleAndIcon)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.green)
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                }
+                DSMetricRow(values: metrics, font: .caption)
+                    .contentTransition(.numericText())
                 Spacer(minLength: DSSpacing.sm)
                 Text(formattedSize(task.size.value))
                     .font(.caption)
@@ -338,6 +327,46 @@ private struct TaskRow: View {
     private var liveSpeed: Int64? {
         guard isLive else { return nil }
         return task.additional?.transfer?.speedDownload.value
+    }
+
+    /// Composed `status · speed · ETA · %` line for `DSMetricRow`. Each
+    /// element is conditional so a finished or paused row collapses
+    /// cleanly (`"Paused"`), an actively-transferring one expands to
+    /// the full four (`"Downloading · ↓ 3.2 MB/s · 12 min · 73%"`),
+    /// and intermediates fall somewhere between. Status is always
+    /// first — it's the anchor a user reads to confirm what the row
+    /// is doing right now.
+    private var metrics: [String] {
+        var values: [String] = [task.displayStatusLabel]
+        if let speed = liveSpeed, speed > 0 {
+            values.append("↓ \(formattedSpeed(speed))")
+            if let eta = formattedETA(speed: speed) {
+                values.append(eta)
+            }
+        }
+        if !task.isAtCompletion {
+            values.append("\(Int(task.progress * 100))%")
+        }
+        return values
+    }
+
+    /// Time until the remaining bytes finish at the current download
+    /// speed. Returns nil for the cases where ETA is meaningless
+    /// (no remaining bytes, no speed, non-finite math). Mirrors the
+    /// shape of `TaskDetailView.duration(_:)` without sharing the
+    /// helper — the row only needs an abbreviated "12 min" / "1 h"
+    /// flavour, not the full detail-screen formatter setup.
+    private func formattedETA(speed: Int64) -> String? {
+        let downloaded = task.additional?.transfer?.sizeDownloaded.value ?? 0
+        let remaining = max(0, task.size.value - downloaded)
+        guard remaining > 0, speed > 0 else { return nil }
+        let secs = Double(remaining) / Double(speed)
+        guard secs.isFinite, secs > 0 else { return nil }
+        let f = DateComponentsFormatter()
+        f.unitsStyle = .abbreviated
+        f.allowedUnits = [.day, .hour, .minute, .second]
+        f.maximumUnitCount = 2
+        return f.string(from: secs)
     }
 
     private func formattedSize(_ bytes: Int64) -> String {
