@@ -1,5 +1,15 @@
 import SwiftUI
 
+/// Settings rewritten to the Phase-3 design system. SwiftUI `Form`
+/// dropped in favour of `ScrollView` + `DSSectionCard` so the
+/// surface treatment matches the dashboard and Downloads list
+/// (uppercase tracked eyebrow headers, `.regularMaterial` rounded
+/// cards with a hairline border, helper text outside the card).
+///
+/// Phase 4.2.2 scope: section migration only — appearance,
+/// privacy, account, feedback, about. The account section keeps
+/// its existing list-row shape via `DSSettingsRow`; Phase 4.2.3
+/// promotes it to an identity hero card with `DSAvatarCircle`.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: SessionStore
@@ -23,12 +33,20 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                appearanceSection
-                if isSignedIn { accountSection }
-                privacySection
-                feedbackSection
-                aboutSection
+            ZStack {
+                backgroundGradient.ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DSSpacing.xl) {
+                        if isSignedIn { accountSection }
+                        appearanceSection
+                        privacySection
+                        feedbackSection
+                        aboutSection
+                    }
+                    .padding(.horizontal, DSSpacing.lg)
+                    .padding(.vertical, DSSpacing.lg)
+                }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -53,41 +71,48 @@ struct SettingsView: View {
 
     // MARK: - Sections
 
-    private var appearanceSection: some View {
-        Section("Appearance") {
-            Picker(selection: appearance) {
-                ForEach(AppearanceMode.allCases) { mode in
-                    Label(mode.label, systemImage: mode.systemImage).tag(mode)
-                }
-            } label: {
-                Label("Theme", systemImage: "paintpalette")
-            }
-            .pickerStyle(.inline)
-        }
-    }
-
     private var accountSection: some View {
-        Section {
+        DSSectionCard(
+            "Account",
+            helperText: "Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored."
+        ) {
             if !session.config.account.isEmpty, !session.config.host.isEmpty {
-                LabeledContent("Signed in as", value: "\(session.config.account)@\(session.config.host)")
+                DSSettingsRow.value(
+                    systemImage: "person.crop.circle",
+                    label: "Signed in as",
+                    value: "\(session.config.account)@\(session.config.host)"
+                )
+                rowDivider
             }
-            Button {
+            DSSettingsRow.button(
+                systemImage: "rectangle.portrait.and.arrow.right",
+                label: "Sign out"
+            ) {
                 Task {
                     await session.logout()
                     dismiss()
                 }
-            } label: {
-                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
             }
-            Button(role: .destructive) {
+            rowDivider
+            DSSettingsRow.button(
+                systemImage: "trash",
+                label: "Forget this device",
+                role: .destructive
+            ) {
                 confirmForget = true
-            } label: {
-                Label("Forget this device", systemImage: "trash")
             }
-        } header: {
-            Text("Account")
-        } footer: {
-            Text("Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored.")
+        }
+    }
+
+    private var appearanceSection: some View {
+        DSSectionCard("Appearance") {
+            DSSettingsRow.picker(
+                systemImage: "paintpalette",
+                label: "Theme",
+                selection: appearance,
+                options: AppearanceMode.allCases,
+                optionLabel: \.label
+            )
         }
     }
 
@@ -97,22 +122,23 @@ struct SettingsView: View {
     /// for the current account (SID, cookies, metadata, password). The
     /// active in-memory session keeps working until the next launch.
     private var privacySection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { rememberSession },
-                set: { newValue in
-                    rememberSession = newValue
-                    session.setRememberSession(newValue)
-                }
-            )) {
-                Label("Remember session", systemImage: "lock.rotation")
-            }
-        } header: {
-            Text("Privacy")
-        } footer: {
-            Text(rememberSession
+        DSSectionCard(
+            "Privacy",
+            helperText: rememberSession
                 ? "Your SID is stored in the iOS Keychain so the app stays signed in across launches."
-                : "Saved credentials are removed. You'll need to sign in every time you open the app.")
+                : "Saved credentials are removed. You'll need to sign in every time you open the app."
+        ) {
+            DSSettingsRow.toggle(
+                systemImage: "lock.rotation",
+                label: "Remember session",
+                isOn: Binding(
+                    get: { rememberSession },
+                    set: { newValue in
+                        rememberSession = newValue
+                        session.setRememberSession(newValue)
+                    }
+                )
+            )
         }
     }
 
@@ -120,45 +146,78 @@ struct SettingsView: View {
         // Opens GitHub's "New issue" page with the matching template pre-
         // selected. The user needs a GitHub account to actually post — that's
         // handled by github.com, we just deep-link the right form.
-        Section {
-            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!) {
-                Label("Suggest a feature", systemImage: "lightbulb")
-            }
-            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=bug_report.md")!) {
-                Label("Report a bug", systemImage: "ladybug")
-            }
-        } header: {
-            Text("Feedback")
-        } footer: {
-            Text("Opens GitHub in Safari. A GitHub account is required to post.")
+        DSSectionCard(
+            "Feedback",
+            helperText: "Opens GitHub in Safari. A GitHub account is required to post."
+        ) {
+            DSSettingsRow.link(
+                systemImage: "lightbulb",
+                label: "Suggest a feature",
+                destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!
+            )
+            rowDivider
+            DSSettingsRow.link(
+                systemImage: "ladybug",
+                label: "Report a bug",
+                destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=bug_report.md")!
+            )
         }
     }
 
     private var aboutSection: some View {
-        Section {
-            LabeledContent("App", value: "DropStation")
-            // Tappable Version row: the value reads as plain text but the
-            // whole row pushes the in-app changelog. A chevron makes the
-            // affordance discoverable without an extra "What's new" entry.
-            NavigationLink {
+        DSSectionCard(
+            "About",
+            helperText: "© 2026 Vasek Zmrhal · MIT License"
+        ) {
+            DSSettingsRow.value(
+                systemImage: "app.gift",
+                label: "App",
+                value: "DropStation"
+            )
+            rowDivider
+            // Tappable Version row: pushes the in-app changelog.
+            DSSettingsRow.navigation(
+                systemImage: "number",
+                label: "Version",
+                value: Self.versionString
+            ) {
                 ChangelogView()
-            } label: {
-                LabeledContent("Version", value: Self.versionString)
             }
-            Link(destination: URL(string: "https://github.com/Wenzlik")!) {
-                Label("Made by @Wenzlik", systemImage: "person.circle")
-            }
-            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation")!) {
-                Label("Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-        } header: {
-            Text("About")
-        } footer: {
-            Text("© 2026 Vasek Zmrhal · MIT License")
+            rowDivider
+            DSSettingsRow.link(
+                systemImage: "person.circle",
+                label: "Made by @Wenzlik",
+                destination: URL(string: "https://github.com/Wenzlik")!
+            )
+            rowDivider
+            DSSettingsRow.link(
+                systemImage: "chevron.left.forwardslash.chevron.right",
+                label: "Source on GitHub",
+                destination: URL(string: "https://github.com/Wenzlik/DropStation")!
+            )
         }
     }
 
     // MARK: - Helpers
+
+    /// Hairline between rows, indented to align past the leading
+    /// SF Symbol (lg padding + 22 pt icon frame + md gap). Every
+    /// row in this view has a leading icon, so a single inset
+    /// value reads as consistent.
+    private var rowDivider: some View {
+        Divider()
+            .padding(.leading, DSSpacing.lg + 22 + DSSpacing.md)
+    }
+
+    /// Same subtle background gradient as Dashboard / Downloads so
+    /// the three primary surfaces share a single visual ground.
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
 
     private static var versionString: String {
         let info = Bundle.main.infoDictionary
