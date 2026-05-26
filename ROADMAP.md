@@ -3,33 +3,28 @@
 Living planning document for upcoming **DropStation** releases. Items move
 into [CHANGELOG.md](CHANGELOG.md) once shipped.
 
-After the auth/session rewrite stabilised in 0.4.0, the roadmap pivots
-away from filling out features in a utility-style list and toward a
-dashboard-first product with a real design system underneath it. The
-shift is **incremental**, not a rewrite — each version adds a layer that
-can ship on its own.
+The 0.4.0 auth/session rewrite and the 0.5.0 dashboard + design-system
+pivot are both shipped (see [CHANGELOG.md](CHANGELOG.md)). From here
+the focus shifts to stabilization on top of the new visual layer and
+filling in the deferred 0.5.0 commitments, before opening up new
+feature surfaces (Share Extension, multi-server, RSS) in 0.6+.
+
+Each version still adds a layer that can ship on its own.
 
 ---
 
-## 0.4.1 — Stabilization & polish
+## 0.5.1 — Stabilization & deferred work
 
-**Goal:** Shake out the new auth/session system under real use. Small,
-boring, defensive work — no UI redesign yet.
+**Goal:** Shake out the modernized 0.5.0 surface under real use and
+land the two items the dashboard-pivot release promised but didn't
+deliver (localization foundation, shared task store). Small,
+defensive work — no UI redesign.
 
-### Focus
-- Auth UX polish
-- Recovery flows
-- Loading / error states
-- Self-signed certificate handling
-- Secure SignIn fallback polish
-- Debug logging cleanup
-- Edge-case fixes
+### Auth / session stabilization
 
-### Tasks
-
-Three items from this section shipped as part of 0.5.0 (transient
-vs. expiry distinction, ConnectionLost screen, retry handling) —
-remaining work below.
+Carry-over from the original 0.4.1 plan; three items already shipped
+as part of 0.5.0 (transient-vs-expiry distinction, ConnectionLost
+screen, retry handling). Remainder:
 
 - [ ] Certificate-warning UX cleanup for NAS with a self-signed cert
       (clear "trust this server" choice instead of a generic URLSession
@@ -43,9 +38,54 @@ remaining work below.
 - [ ] Additional unit-test coverage for restore / logout / "Remember
       session" off paths.
 
+### Localization foundation
+
+Promised for 0.5.0; not delivered. New DS components were built with
+`LocalizedStringKey` discipline from day one (DSEyebrow, DSSettingsRow,
+DSStatusBadge, dashboard copy, Settings copy, …) so the actual
+extraction + Czech localization is purely paperwork.
+
+- [ ] Extract existing user-facing strings into `Localizable.strings`
+      (en).
+- [ ] Add Czech localization (`cs`).
+- [ ] Audit older views (LoginView state copy, error messages,
+      ConnectionLostView) for stray `String` literals that should be
+      `LocalizedStringKey` / `String(localized:)`.
+- [ ] Keep English as the default development language.
+
+### DownloadTaskStore
+
+Promised in the 0.5.0 architecture section as a "potential future
+module"; not delivered. Currently Dashboard and Downloads tabs both
+poll `client.listTasks()` independently every 5 s — duplicate
+network calls + duplicate timer logic.
+
+- [ ] Introduce a `DownloadTaskStore` `@MainActor ObservableObject`
+      holding the shared `[DownloadTask]` and a single auto-refresh
+      timer.
+- [ ] `DashboardViewModel` and `TaskListViewModel` become thin
+      derivers over the store rather than owning their own polling
+      loops.
+- [ ] Single source of truth for `isOnline` / `hasLoadedOnce` flags
+      so the dashboard hero badge and Downloads-tab background
+      refresh agree.
+
+### Hero NAS context — real free-disk
+
+`DashboardViewModel.freeDiskBytes` is currently an architectural
+placeholder (always `nil`); the hero card renders the free-disk
+metric conditionally so wiring is a drop-in.
+
+- [ ] Wire `SYNO.FileStation.Info` (or `SYNO.Core.Storage.Volume`)
+      to populate `freeDiskBytes` and the device model name (so the
+      hero header can show "DS920+" instead of just the host).
+- [ ] Refresh on the same 5 s tick the task store uses; cache for
+      the session.
+
 ### Non-goals
 - No large UI redesign.
-- No architecture rewrite.
+- No architecture rewrite beyond the DownloadTaskStore extraction.
+- No new feature surfaces (Share Extension, RSS, etc. stay in 0.6+).
 
 ---
 
