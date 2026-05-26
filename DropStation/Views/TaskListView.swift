@@ -42,7 +42,7 @@ struct TaskListView: View {
                                 TaskRow(task: task)
                             }
                             .buttonStyle(DSRowButtonStyle())
-                            .listRowSeparatorTint(Color(.separator).opacity(0.6))
+                            .listRowSeparatorTint(Color(.separator).opacity(0.4))
                             .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
@@ -284,7 +284,7 @@ private struct TaskRow: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DSSpacing.sm) {
                 Image(systemName: task.type.systemImage)
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.tertiary)
                     .frame(width: 18)
                 Text(task.title)
                     .font(.subheadline.weight(.medium))
@@ -302,16 +302,38 @@ private struct TaskRow: View {
                     tint: task.displayStatusTintRaw.tintColor
                 )
             }
-            HStack(spacing: DSSpacing.sm) {
-                DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
-                DSMetricRow(values: metrics, font: .caption)
-                    .contentTransition(.numericText())
-                Spacer(minLength: DSSpacing.sm)
-                Text(formattedSize(task.size.value))
+            metadataRow
+        }
+    }
+
+    /// Three-tier metadata: anchored status on the left
+    /// (DSStatusDot + label at `.secondary`), middle metrics
+    /// (speed / ETA / %) at the more subtle `.tertiary`, and
+    /// total size right-aligned at `.secondary` so it balances
+    /// the status anchor across the row. The eye reads status →
+    /// size first (the row's identity), then drops into the
+    /// middle line for "what's it doing right now" detail.
+    private var metadataRow: some View {
+        HStack(spacing: DSSpacing.sm) {
+            DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
+            Text(task.displayStatusLabel)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            ForEach(Array(middleMetrics.enumerated()), id: \.offset) { _, value in
+                Text("·")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
+                Text(value)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                     .monospacedDigit()
+                    .contentTransition(.numericText())
             }
+            Spacer(minLength: DSSpacing.sm)
+            Text(formattedSize(task.size.value))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
     }
 
@@ -329,15 +351,15 @@ private struct TaskRow: View {
         return task.additional?.transfer?.speedDownload.value
     }
 
-    /// Composed `status · speed · ETA · %` line for `DSMetricRow`. Each
-    /// element is conditional so a finished or paused row collapses
-    /// cleanly (`"Paused"`), an actively-transferring one expands to
-    /// the full four (`"Downloading · ↓ 3.2 MB/s · 12 min · 73%"`),
-    /// and intermediates fall somewhere between. Status is always
-    /// first — it's the anchor a user reads to confirm what the row
-    /// is doing right now.
-    private var metrics: [String] {
-        var values: [String] = [task.displayStatusLabel]
+    /// Speed / ETA / percent fragments for the metadata row's
+    /// tertiary middle zone. Each is conditional so a finished
+    /// or paused row drops every fragment and the row reads as
+    /// just "status · size"; an actively-transferring one shows
+    /// the full three. Status itself is anchored separately at
+    /// `.secondary` (see `metadataRow`) so it doesn't fade with
+    /// the tertiary middle copy.
+    private var middleMetrics: [String] {
+        var values: [String] = []
         if let speed = liveSpeed, speed > 0 {
             values.append("↓ \(formattedSpeed(speed))")
             if let eta = formattedETA(speed: speed) {
