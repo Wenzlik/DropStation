@@ -2,10 +2,33 @@ import SwiftUI
 
 @main
 struct DropStationApp: App {
-    @StateObject private var session = SessionStore()
-    @StateObject private var navigation = NavigationStore()
+    @StateObject private var session: SessionStore
+    @StateObject private var navigation: NavigationStore
+    @StateObject private var taskStore: DownloadTaskStore
     @AppStorage(AppearanceSettings.storageKey) private var appearanceRaw: String = AppearanceMode.system.rawValue
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        // Explicit init so DownloadTaskStore can capture the
+        // session's client + a weak-session handleUnauthorized
+        // hook. StateObject's autoclosure-default form can't
+        // reference a sibling property's value during property
+        // initialization, but the explicit wrappedValue form lets
+        // us build the dependency graph deterministically.
+        let session = SessionStore()
+        let navigation = NavigationStore()
+        let store = DownloadTaskStore(
+            client: session.client,
+            onUnauthorized: { [weak session] reason in
+                Task { @MainActor in
+                    session?.handleUnauthorized(reason: reason)
+                }
+            }
+        )
+        _session = StateObject(wrappedValue: session)
+        _navigation = StateObject(wrappedValue: navigation)
+        _taskStore = StateObject(wrappedValue: store)
+    }
 
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .system
@@ -16,6 +39,7 @@ struct DropStationApp: App {
             RootView()
                 .environmentObject(session)
                 .environmentObject(navigation)
+                .environmentObject(taskStore)
                 .preferredColorScheme(appearance.preferredColorScheme)
                 .onOpenURL { url in
                     session.handleIncomingURL(url)

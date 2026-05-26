@@ -10,19 +10,13 @@ struct TaskListView: View {
     /// keep-partial-files confirmation dialog.
     @State private var taskPendingDelete: DownloadTask?
 
-    init(session: SessionStore) {
-        // Forward 105s to the SessionStore so the host swaps in the
-        // recovery card instead of just flashing an error banner.
-        _viewModel = StateObject(
-            wrappedValue: TaskListViewModel(
-                client: session.client,
-                onUnauthorized: { [weak session] reason in
-                    Task { @MainActor in
-                        session?.handleUnauthorized(reason: reason)
-                    }
-                }
-            )
-        )
+    init(session: SessionStore, store: DownloadTaskStore) {
+        // 105 forwarding now lives on DownloadTaskStore — wired
+        // once at app init — so this view model only carries the
+        // view-local filter/sort/search state. `session` is kept
+        // for the pendingMagnetLink observation downstream.
+        _ = session
+        _viewModel = StateObject(wrappedValue: TaskListViewModel(store: store))
     }
 
     var body: some View {
@@ -134,11 +128,6 @@ struct TaskListView: View {
             .navigationDestination(for: DownloadTask.self) { task in
                 TaskDetailView(task: task, client: session.client)
             }
-            .task {
-                viewModel.startAutoRefresh()
-                await viewModel.refresh()
-            }
-            .onDisappear { viewModel.stopAutoRefresh() }
             .onChange(of: session.pendingMagnetLink) { _, newValue in
                 if newValue != nil {
                     showingAddTask = true

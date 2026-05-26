@@ -43,16 +43,11 @@ struct DashboardView: View {
     /// poll so background refreshes don't fire haptics.
     @State private var pullRefreshCount = 0
 
-    init(session: SessionStore) {
+    init(session: SessionStore, store: DownloadTaskStore) {
         _viewModel = StateObject(
             wrappedValue: DashboardViewModel(
-                client: session.client,
-                hostname: Self.displayHostname(from: session.config),
-                onUnauthorized: { [weak session] reason in
-                    Task { @MainActor in
-                        session?.handleUnauthorized(reason: reason)
-                    }
-                }
+                store: store,
+                hostname: Self.displayHostname(from: session.config)
             )
         )
     }
@@ -117,11 +112,6 @@ struct DashboardView: View {
             } message: {
                 Text(viewModel.errorMessage ?? "")
             }
-            .task {
-                viewModel.startAutoRefresh()
-                await viewModel.refresh()
-            }
-            .onDisappear { viewModel.stopAutoRefresh() }
             .onChange(of: session.pendingMagnetLink) { _, newValue in
                 if newValue != nil {
                     showingAddTask = true
@@ -467,21 +457,11 @@ struct DashboardView: View {
     }
 
     private func createTask(uri: String, destination: String?) async {
-        do {
-            try await session.client.createTask(uri: uri, destination: destination)
-            await viewModel.refresh()
-        } catch {
-            viewModel.errorMessage = error.localizedDescription
-        }
+        await viewModel.createTask(uri: uri, destination: destination)
     }
 
     private func createTask(fileData: Data, filename: String, destination: String?) async {
-        do {
-            try await session.client.createTask(fileData: fileData, filename: filename, destination: destination)
-            await viewModel.refresh()
-        } catch {
-            viewModel.errorMessage = error.localizedDescription
-        }
+        await viewModel.createTask(fileData: fileData, filename: filename, destination: destination)
     }
 
     // MARK: - Activity row composition

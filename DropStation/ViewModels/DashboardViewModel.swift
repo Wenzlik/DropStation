@@ -1,29 +1,25 @@
 import Foundation
 import SwiftUI
+import Combine
 
-/// Drives the post-login Dashboard. Phase 2 extends Phase 1 with
-/// NAS context (hostname / online state / free-disk placeholder)
-/// and an idle/active derivation so the hero card can show a
-/// friendly "All downloads completed · NAS is idle" message instead
-/// of a row of zeros when nothing is transferring.
+/// View-local state for the Dashboard tab. After the 0.5.1
+/// `DownloadTaskStore` extraction, this viewmodel no longer owns
+/// the `tasks` array or the polling timer — it derives everything
+/// from the shared store and only keeps the dashboard-specific
+/// presentation state (hostname label, free-disk placeholder).
 ///
-/// Polls independently of `TaskListViewModel` for now. Sharing a
-/// single task store is on the 0.5 roadmap (DownloadTaskStore).
+/// Conceptually:
+///
+///   - `DownloadTaskStore` = data layer (one instance per app).
+///   - `DashboardViewModel` = "how does the dashboard read the
+///     data" — the hero state classifier, the recently-completed
+///     slice, the count derivations.
+///
+/// The view forwards changes from the store via the manual
+/// `objectWillChange` republish below, so observing the viewmodel
+/// is enough; views don't have to subscribe to both.
 @MainActor
 final class DashboardViewModel: ObservableObject {
-    @Published private(set) var tasks: [DownloadTask] = []
-    @Published private(set) var isLoading = false
-    /// True once the first refresh has come back (success or handled
-    /// failure). Drives the first-load skeleton state — distinct
-    /// from `isLoading`, which flips on every poll.
-    @Published private(set) var hasLoadedOnce = false
-    /// True when the most recent refresh succeeded. Drives the
-    /// Online / Offline badge in the hero card. Transient failures
-    /// (the kind the polling loop intentionally swallows) flip this
-    /// to false; the next successful tick flips it back.
-    @Published private(set) var isOnline = true
-    @Published var errorMessage: String?
-
     /// Free disk space on the configured volume, in bytes. Phase 2
     /// keeps this as architectural placeholder (always `nil` for
     /// now) — wiring `SYNO.FileStation.Info` or `SYNO.Core.Storage`
@@ -38,22 +34,43 @@ final class DashboardViewModel: ObservableObject {
     /// upgraded to the real device name ("DS920+").
     let hostname: String
 
-    private let client: SynologyAPIClient
-    /// Invoked when a `listTasks` call returns Synology error 105.
-    /// Wired to `SessionStore.handleUnauthorized` so the recovery
-    /// card replaces the tab-bar shell cleanly — mirrors how
-    /// `TaskListViewModel` propagates the same condition.
-    private let onUnauthorized: (String) -> Void
-    private var refreshTimer: Timer?
+    private let store: DownloadTaskStore
+    private var cancellables: Set<AnyCancellable> = []
 
-    init(
-        client: SynologyAPIClient,
-        hostname: String,
-        onUnauthorized: @escaping (String) -> Void = { _ in }
-    ) {
-        self.client = client
+    init(store: DownloadTaskStore, hostname: String) {
+        self.store = store
         self.hostname = hostname
-        self.onUnauthorized = onUnauthorized
+        // Republish the store's change signal through this view
+        // model so views observing only DashboardViewModel still
+        // re-render on store updates. Cheaper for callers than
+        // pulling DownloadTaskStore in as a second @EnvironmentObject
+        // everywhere.
+        store.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Store passthrough
+
+    var tasks: [DownloadTask] { store.tasks }
+    var hasLoadedOnce: Bool { store.hasLoadedOnce }
+    var isOnline: Bool { store.isOnline }
+    var isLoading: Bool { store.isLoading }
+    var errorMessage: String? {
+        get { store.errorMessage }
+        set { store.errorMessage = newValue }
+    }
+
+    func refresh() async {
+        await store.refresh()
+    }
+
+    func createTask(uri: String, destination: String? = nil) async {
+        await store.createTask(uri: uri, destination: destination)
+    }
+
+    func createTask(fileData: Data, filename: String, destination: String? = nil) async {
+        await store.createTask(fileData: fileData, filename: filename, destination: destination)
     }
 
     // MARK: - Derived stats
@@ -77,8 +94,7 @@ final class DashboardViewModel: ObservableObject {
         tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedUpload.value ?? 0) }
     }
 
-    /// Three-way classifier for the dashboard hero. Replaces the
-    /// previous boolean `isIdle` so the view can distinguish
+    /// Three-way classifier for the dashboard hero. Distinguishes
     /// "tasks exist but nothing is transferring right now" from
     /// "the queue is empty" — the former is queue-paused / waiting
     /// / hash-checking, the latter is genuine done-for-now.
@@ -113,47 +129,5 @@ final class DashboardViewModel: ObservableObject {
             .sorted(by: .dateCompleted, direction: .descending)
             .prefix(5)
             .map { $0 }
-    }
-
-    // MARK: - Refresh
-
-    func refresh() async {
-        isLoading = true
-        defer {
-            isLoading = false
-            hasLoadedOnce = true
-        }
-        do {
-            tasks = try await client.listTasks()
-            errorMessage = nil
-            isOnline = true
-        } catch let error as APIError where error.isUnauthorized {
-            stopAutoRefresh()
-            onUnauthorized(error.localizedDescription)
-        } catch let error as APIError where error.isTransient {
-            // Same swallow-and-retry pattern as TaskListViewModel.
-            // The badge flips to Offline so the user knows we're
-            // currently out of contact; the next successful tick
-            // flips it back.
-            isOnline = false
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func startAutoRefresh() {
-        stopAutoRefresh()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { await self?.refresh() }
-        }
-    }
-
-    func stopAutoRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-
-    deinit {
-        refreshTimer?.invalidate()
     }
 }

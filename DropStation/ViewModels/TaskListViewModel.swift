@@ -1,11 +1,20 @@
 import Foundation
 import SwiftUI
+import Combine
 
+/// View-local state for the Downloads tab. After the 0.5.1
+/// `DownloadTaskStore` extraction, this viewmodel no longer owns
+/// the `tasks` array or the polling timer — it derives the
+/// `filteredTasks` slice from the shared store using its own
+/// filter / sort / search state, which is intrinsically per-view
+/// and survives across store refreshes.
+///
+/// Filter / sort / search live here; tasks / loading / mutations
+/// live on the store. Mutation methods kept as passthroughs so
+/// the view's swipe-action call sites read the same as before
+/// the refactor (`viewModel.pause(task)` etc.).
 @MainActor
 final class TaskListViewModel: ObservableObject {
-    @Published private(set) var tasks: [DownloadTask] = []
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
     @Published var filter: TaskFilter = .all
     @Published var searchText: String = ""
     @Published var sort: TaskSort = .dateAdded {
@@ -14,6 +23,44 @@ final class TaskListViewModel: ObservableObject {
     @Published var sortDirection: TaskSortDirection = .descending {
         didSet { UserDefaults.standard.set(sortDirection.rawValue, forKey: TaskSortSettings.directionKey) }
     }
+
+    private let store: DownloadTaskStore
+    private var cancellables: Set<AnyCancellable> = []
+
+    init(store: DownloadTaskStore) {
+        self.store = store
+        // Restore sort preferences. didSet observers don't fire from init,
+        // so the writes happen only on user changes — not on every launch.
+        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.sortKey),
+           let restored = TaskSort(rawValue: raw) {
+            self.sort = restored
+        }
+        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.directionKey),
+           let restored = TaskSortDirection(rawValue: raw) {
+            self.sortDirection = restored
+        }
+        // Republish the store's change signal — the filtered list
+        // depends on store.tasks, so view observers of this view
+        // model need to recompute when the store ticks.
+        store.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Store passthrough
+
+    var tasks: [DownloadTask] { store.tasks }
+    var isLoading: Bool { store.isLoading }
+    var errorMessage: String? {
+        get { store.errorMessage }
+        set { store.errorMessage = newValue }
+    }
+
+    func refresh() async {
+        await store.refresh()
+    }
+
+    // MARK: - Filter / sort / search derivation
 
     /// Tasks matching the current filter and (optionally) the search query,
     /// ordered by the chosen sort. Search uses `localizedStandardContains`
@@ -40,120 +87,29 @@ final class TaskListViewModel: ObservableObject {
         tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedUpload.value ?? 0) }
     }
 
-    private let client: SynologyAPIClient
-    /// Invoked when the API surfaces a "session does not have permission"
-    /// response (Synology error 105). The TaskListView wires this to
-    /// `SessionStore.handleUnauthorized` so the recovery card replaces
-    /// the task list cleanly instead of just showing an error banner.
-    private let onUnauthorized: (String) -> Void
-    private var refreshTimer: Timer?
-
-    init(client: SynologyAPIClient, onUnauthorized: @escaping (String) -> Void = { _ in }) {
-        self.client = client
-        self.onUnauthorized = onUnauthorized
-        // Restore sort preferences. didSet observers don't fire from init,
-        // so the writes happen only on user changes — not on every launch.
-        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.sortKey),
-           let restored = TaskSort(rawValue: raw) {
-            self.sort = restored
-        }
-        if let raw = UserDefaults.standard.string(forKey: TaskSortSettings.directionKey),
-           let restored = TaskSortDirection(rawValue: raw) {
-            self.sortDirection = restored
-        }
-    }
-
-    func refresh() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            tasks = try await client.listTasks()
-            // Drop any stale error banner once a fresh poll succeeds.
-            errorMessage = nil
-        } catch let error as APIError where error.isUnauthorized {
-            // 105 — the session DSM gave us isn't valid for Download
-            // Station. Bail out of the list to the recovery card; the
-            // user can re-authenticate or switch auth methods from
-            // there. Don't keep retrying on the 5 s tick.
-            stopAutoRefresh()
-            onUnauthorized(error.localizedDescription)
-        } catch let error as APIError where error.isTransient {
-            // Transient (network / timeout / 5xx) errors during the
-            // background poll are intentionally swallowed — the next 5 s
-            // tick will almost certainly recover. `error` is referenced by
-            // the `where` clause above, so the binding isn't unused.
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
+    // MARK: - Mutations (passthrough to the shared store)
 
     func createTask(uri: String, destination: String? = nil) async {
-        do {
-            try await client.createTask(uri: uri, destination: destination)
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await store.createTask(uri: uri, destination: destination)
     }
 
     func createTask(fileData: Data, filename: String, destination: String? = nil) async {
-        do {
-            try await client.createTask(fileData: fileData, filename: filename, destination: destination)
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await store.createTask(fileData: fileData, filename: filename, destination: destination)
     }
 
     func pause(_ task: DownloadTask) async {
-        do {
-            try await client.pauseTasks(ids: [task.id])
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await store.pause(task)
     }
 
     func stop(_ task: DownloadTask) async {
-        do {
-            try await client.stopTasks(ids: [task.id])
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await store.stop(task)
     }
 
     func resume(_ task: DownloadTask) async {
-        do {
-            try await client.resumeTasks(ids: [task.id])
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await store.resume(task)
     }
 
     func delete(_ task: DownloadTask, keepPartialFiles: Bool = false) async {
-        do {
-            try await client.deleteTask(id: task.id, keepPartialFiles: keepPartialFiles)
-            await refresh()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func startAutoRefresh() {
-        stopAutoRefresh()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { await self?.refresh() }
-        }
-    }
-
-    func stopAutoRefresh() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-
-    deinit {
-        refreshTimer?.invalidate()
+        await store.delete(task, keepPartialFiles: keepPartialFiles)
     }
 }
