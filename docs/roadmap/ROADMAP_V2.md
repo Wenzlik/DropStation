@@ -24,16 +24,48 @@ Not:
 
 ## Completed
 
+### Authentication & session
 - OTP authentication
 - Persistent SID sessions
-- Automatic reconnect behavior
-- Dashboard-first UX
-- DesignSystem foundation
-- Downloads redesign
-- Settings redesign
-- Modernized login flow
-- Session persistence controls
-- Better offline handling
+- Automatic reconnect behavior with `NWPathMonitor` driving the
+  Connection lost / auto-reconnect surface
+- Session persistence controls (Settings → Privacy → Remember
+  session)
+- Better offline handling — transient transport-layer failures
+  preserve the cached SID, only DSM-confirmed expiry codes
+  (105 / 106 / 107 / 119) wipe it
+
+### Visual layer
+- Dashboard-first UX (post-login landing screen with focal
+  speed / state / metric hierarchy)
+- DesignSystem foundation (~20 reusable components: DSCard,
+  DSSectionCard, DSHeroCard, DSEyebrow, DSStatusDot, DSStatusBadge,
+  DSAvatarCircle, DSQuickAction, DSActivityRow, DSMetricRow,
+  DSGroupedRows, DSStatTile, DSProgressSliver, DSRowButtonStyle,
+  DSEmptyState, DSErrorState, DSLoadingView + design tokens)
+- Downloads redesign (single grouped surface, status dot inline,
+  progress sliver, metadata hierarchy)
+- Settings redesign (ScrollView + DSSectionCard, account
+  identity hero with DSAvatarCircle)
+- Modernized login flow (Phase-3 surface treatment, eyebrow
+  state headers)
+- Polish pass — hero three-way state classifier (no more
+  "0 KB/s Working…" frozen-bug look), tiered Downloads metadata,
+  light-mode hairline contrast, quieter destructive actions,
+  placeholder Quick Actions removed
+
+### Shared infrastructure
+- **`DownloadTaskStore`** — single `@MainActor ObservableObject`
+  owning the shared `[DownloadTask]` array + 5 s polling timer +
+  mutation wrappers (create / pause / stop / resume / delete).
+  Dashboard and Downloads tabs read from one source of truth
+  instead of running two independent polls.
+- Polling lifecycle driven from `RootView.onChange(of: session.state)` —
+  starts on `.loggedIn`, stops on every other state. Eliminates
+  the cross-tab race the per-view-model timers had.
+- 105 forwarding centralised in the store so the recovery card
+  receives one signal regardless of which call discovered the
+  expired session.
 
 ---
 
