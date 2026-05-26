@@ -112,25 +112,32 @@ struct LoginView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "arrow.down.to.line.compact")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 56, height: 56)
-                .foregroundStyle(.white)
-                .padding(20)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 1.0, green: 0.69, blue: 0.24),
-                                 Color(red: 0.94, green: 0.54, blue: 0.11)],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+        VStack(spacing: DSSpacing.md) {
+            brandDisc
             Text("DropStation").font(.largeTitle.weight(.semibold))
             Text(welcomeSubtitle).font(.subheadline).foregroundStyle(.secondary)
         }
+    }
+
+    /// Brand mark for the login screen — the same accent-tinted
+    /// Liquid Glass disc pattern the dashboard uses for activity
+    /// icons, scaled up to act as a screen-level brand element.
+    /// Replaces the previous orange linear gradient + heavy shadow
+    /// (the only orange-gradient surface in the app — visually off
+    /// from the Phase-3 restrained palette).
+    private var brandDisc: some View {
+        Image(systemName: "arrow.down.to.line.compact")
+            .font(.system(size: 36, weight: .semibold, design: .rounded))
+            .foregroundStyle(.tint)
+            .frame(width: 72, height: 72)
+            .glassEffect(
+                .regular.tint(Color.accentColor.opacity(0.18)),
+                in: .circle
+            )
+            .overlay(
+                Circle().strokeBorder(Color.accentColor.opacity(0.22), lineWidth: 0.5)
+            )
+            .accessibilityHidden(true)
     }
 
     private var welcomeSubtitle: String {
@@ -144,25 +151,20 @@ struct LoginView: View {
 
     @ViewBuilder
     private var card: some View {
-        VStack(spacing: 16) {
-            if case .twoFactorRequired = session.state {
-                twoFactorContent
-            } else if case .validatingApiAccess = session.state {
-                validatingApiAccessContent
-            } else if case .sessionUnauthorized(let reason) = session.state {
-                sessionUnauthorizedContent(reason: reason)
-            } else {
-                credentialsContent
+        DSCard(.primary) {
+            VStack(spacing: DSSpacing.lg) {
+                if case .twoFactorRequired = session.state {
+                    twoFactorContent
+                } else if case .validatingApiAccess = session.state {
+                    validatingApiAccessContent
+                } else if case .sessionUnauthorized(let reason) = session.state {
+                    sessionUnauthorizedContent(reason: reason)
+                } else {
+                    credentialsContent
+                }
             }
         }
-        .padding(24)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.06))
-        )
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 6)
-        .animation(.easeInOut(duration: 0.25), value: session.state)
+        .animation(.snappy(duration: 0.25), value: session.state)
     }
 
     // MARK: - Credentials sub-view
@@ -319,18 +321,13 @@ struct LoginView: View {
 
     @ViewBuilder
     private var twoFactorContent: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 36))
-                .foregroundStyle(.tint)
-                .padding(.bottom, 4)
-            Text("Two-step verification").font(.title3.weight(.semibold))
-            Text("Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.bottom, 8)
+        stateHeader(
+            systemImage: "lock.shield",
+            tint: .accentColor,
+            eyebrow: "Verification",
+            title: "Enter your 6-digit code",
+            body: "Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code."
+        )
 
         IconField(systemImage: "number.square", placeholder: "6-digit code", text: $otpCode)
             .keyboardType(.numberPad)
@@ -368,21 +365,15 @@ struct LoginView: View {
     /// and final state.
     @ViewBuilder
     private var validatingApiAccessContent: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.shield")
-                .font(.system(size: 36))
-                .foregroundStyle(.tint)
-            Text("Secure SignIn verified")
-                .font(.title3.weight(.semibold))
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Checking Download Station access…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.top, 4)
+        VStack(spacing: DSSpacing.md) {
+            stateDisc(systemImage: "checkmark.shield", tint: .accentColor)
+            DSEyebrow("Secure SignIn verified")
+            Text("Checking Download Station access…")
+                .font(.headline.weight(.medium))
+                .multilineTextAlignment(.center)
+            ProgressView()
+                .padding(.top, DSSpacing.xs)
         }
-        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
     }
 
@@ -410,21 +401,21 @@ struct LoginView: View {
         let isExpiry = reason.localizedCaseInsensitiveContains("expired")
         let title = isExpiry ? "Session expired" : "Re-authentication required"
         let symbol = isExpiry ? "clock.badge.exclamationmark" : "exclamationmark.shield"
+        let eyebrow: LocalizedStringKey = isExpiry ? "Session" : "Recovery"
 
-        VStack(spacing: 8) {
-            Image(systemName: symbol)
-                .font(.system(size: 36))
-                .foregroundStyle(.orange)
-                .padding(.bottom, 4)
-            Text(title)
-                .font(.title3.weight(.semibold))
-                .multilineTextAlignment(.center)
-            Text(reason)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.bottom, 8)
+        stateHeader(
+            systemImage: symbol,
+            tint: .orange,
+            eyebrow: eyebrow,
+            title: LocalizedStringKey(title),
+            body: nil,
+            customBody: AnyView(
+                Text(reason)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            )
+        )
 
         // Primary recovery — switch to OTP. This is the only path
         // that reliably mints a session DSM accepts for Download
@@ -462,6 +453,63 @@ struct LoginView: View {
         .padding(.top, 4)
     }
 
+    // MARK: - State header helpers
+
+    /// Shared visual shell for the card's state-specific sub-
+    /// views (`twoFactorContent`, `validatingApiAccessContent`,
+    /// `sessionUnauthorizedContent`). Phase-3 hierarchy: 56 pt
+    /// tinted Liquid Glass disc on top, uppercase tracked
+    /// DSEyebrow eyebrow, `.headline.weight(.medium)` title,
+    /// optional body copy.
+    ///
+    /// `body` covers the common case (plain copy paragraph) and
+    /// `customBody` the rare one (the sessionUnauthorized state
+    /// renders the dynamic `reason` string with slightly
+    /// different styling). Callers pass one or the other.
+    @ViewBuilder
+    private func stateHeader(
+        systemImage: String,
+        tint: Color,
+        eyebrow: LocalizedStringKey,
+        title: LocalizedStringKey,
+        body: LocalizedStringKey?,
+        customBody: AnyView? = nil
+    ) -> some View {
+        VStack(spacing: DSSpacing.sm) {
+            stateDisc(systemImage: systemImage, tint: tint)
+            DSEyebrow(eyebrow)
+            Text(title)
+                .font(.headline.weight(.medium))
+                .multilineTextAlignment(.center)
+            if let body {
+                Text(body)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            if let customBody {
+                customBody
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 56 pt tinted Liquid Glass disc — the icon treatment that
+    /// the dashboard activity row uses for type icons, scaled up
+    /// for screen-level state communication. Disc fill, glyph
+    /// foreground, and stroke border all share the caller's
+    /// status colour so the disc reads as a single visual tone
+    /// rather than two competing accents.
+    private func stateDisc(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 24, weight: .semibold, design: .rounded))
+            .foregroundStyle(tint)
+            .frame(width: 56, height: 56)
+            .glassEffect(.regular.tint(tint.opacity(0.18)), in: .circle)
+            .overlay(Circle().strokeBorder(tint.opacity(0.22), lineWidth: 0.5))
+            .accessibilityHidden(true)
+    }
+
     // MARK: - Common buttons
 
     @ViewBuilder
@@ -483,11 +531,21 @@ struct LoginView: View {
     }
 
     private func inlineErrorLabel(_ message: String) -> some View {
-        Label(message, systemImage: "exclamationmark.triangle")
-            .font(.footnote)
-            .foregroundStyle(.red)
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        // DSStatusBadge is the Phase-3 channel for exceptional
+        // state (Offline / Error / Reconnecting / Beta). An auth
+        // failure is exactly that, so the badge fits — caption
+        // capsule tinted red with the warning glyph leading.
+        // Wrapped in an HStack so the badge stays leading-aligned
+        // inside the card rather than centred.
+        HStack {
+            DSStatusBadge(
+                LocalizedStringKey(message),
+                tint: .red,
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, DSSpacing.xs)
     }
 
     // MARK: - Actions
@@ -521,21 +579,35 @@ private struct IdentifiableURL: Identifiable {
 
 // MARK: - Field components
 
+/// Background treatment shared by both form fields — Phase-3
+/// `.regularMaterial` + half-point separator hairline, the same
+/// surface tier the rest of the app's secondary surfaces use.
+/// Replaces the previous `.background(.background.tertiary, ...)`
+/// look from Phase 1.
+private extension View {
+    func loginFieldSurface() -> some View {
+        let shape = RoundedRectangle(cornerRadius: DSRadius.tile, style: .continuous)
+        return self
+            .padding(.horizontal, DSSpacing.md)
+            .padding(.vertical, DSSpacing.md)
+            .background(.regularMaterial, in: shape)
+            .overlay(shape.strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
+    }
+}
+
 private struct IconField: View {
     let systemImage: String
     let placeholder: String
     @Binding var text: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpacing.sm) {
             Image(systemName: systemImage)
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
             TextField(placeholder, text: $text)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.background.tertiary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .loginFieldSurface()
     }
 }
 
@@ -546,7 +618,7 @@ private struct IconSecureField: View {
     @State private var revealed: Bool = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: DSSpacing.sm) {
             Image(systemName: systemImage)
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
@@ -565,8 +637,6 @@ private struct IconSecureField: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(.background.tertiary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .loginFieldSurface()
     }
 }
