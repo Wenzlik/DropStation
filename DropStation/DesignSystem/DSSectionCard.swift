@@ -82,6 +82,6 @@ struct DSSectionCard<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: shape)
-        .overlay(shape.strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5))
     }
 }

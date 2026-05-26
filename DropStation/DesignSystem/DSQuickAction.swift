@@ -78,7 +78,7 @@ struct DSQuickAction: View {
         .padding(.vertical, DSSpacing.md)
         .padding(.horizontal, DSSpacing.sm)
         .background(.regularMaterial, in: shape)
-        .overlay(shape.strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5))
         .overlay(alignment: .topTrailing) {
             if isComingSoon {
                 soonBadge

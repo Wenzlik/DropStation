@@ -63,7 +63,7 @@ private struct SurfaceModifier: ViewModifier {
         case .secondary:
             content
                 .background(.regularMaterial, in: shape)
-                .overlay(shape.strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
+                .overlay(shape.strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5))
         case .flush:
             content
         }

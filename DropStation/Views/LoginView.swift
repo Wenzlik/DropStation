@@ -591,7 +591,7 @@ private extension View {
             .padding(.horizontal, DSSpacing.md)
             .padding(.vertical, DSSpacing.md)
             .background(.regularMaterial, in: shape)
-            .overlay(shape.strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
+            .overlay(shape.strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5))
     }
 }
 
