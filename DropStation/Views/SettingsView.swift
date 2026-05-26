@@ -37,7 +37,7 @@ struct SettingsView: View {
                 backgroundGradient.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: DSSpacing.xl) {
-                        if isSignedIn { accountSection }
+                        if isSignedIn { accountHero }
                         appearanceSection
                         privacySection
                         feedbackSection
@@ -71,36 +71,99 @@ struct SettingsView: View {
 
     // MARK: - Sections
 
-    private var accountSection: some View {
-        DSSectionCard(
-            "Account",
-            helperText: "Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored."
-        ) {
-            if !session.config.account.isEmpty, !session.config.host.isEmpty {
-                DSSettingsRow.value(
-                    systemImage: "person.crop.circle",
-                    label: "Signed in as",
-                    value: "\(session.config.account)@\(session.config.host)"
-                )
-                rowDivider
+    // MARK: Account hero
+
+    /// Identity card at the top of Settings — the one `.primary`
+    /// glass surface on this screen. Mirrors the dashboard's hero
+    /// pattern: avatar + name + ambient status line + actions
+    /// inline inside the card rather than as separate list rows.
+    /// Helper text sits below the card per the Phase-3 section
+    /// shape.
+    private var accountHero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            DSCard(.primary) {
+                VStack(alignment: .leading, spacing: DSSpacing.md) {
+                    accountHeroIdentity
+                    Divider()
+                    accountHeroActions
+                }
             }
-            DSSettingsRow.button(
-                systemImage: "rectangle.portrait.and.arrow.right",
-                label: "Sign out"
-            ) {
+            Text("Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, DSSpacing.lg)
+                .padding(.top, DSSpacing.sm)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Avatar + account label + ambient status line. The status
+    /// line composes through DSMetricRow so the dot/text rhythm
+    /// matches the dashboard hero header pixel-for-pixel.
+    private var accountHeroIdentity: some View {
+        HStack(spacing: DSSpacing.md) {
+            DSAvatarCircle(
+                account: session.config.account.isEmpty
+                    ? "DS"
+                    : session.config.account,
+                size: 52
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.config.account.isEmpty
+                     ? "DropStation"
+                     : session.config.account)
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                HStack(spacing: 4) {
+                    DSStatusDot(tint: .green)
+                    DSMetricRow(values: accountHeroMetrics, font: .caption)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// "Online · nas.local · 0.4.0 (8)" — host is dropped if the
+    /// config is empty (defensive; shouldn't happen post-login
+    /// but matches the earlier defence). Version is always
+    /// surfaced for at-a-glance debug context.
+    private var accountHeroMetrics: [String] {
+        var values: [String] = ["Online"]
+        if !session.config.host.isEmpty {
+            values.append(session.config.host)
+        }
+        values.append(Self.versionString)
+        return values
+    }
+
+    /// Sign out + Forget rendered as side-by-side bordered
+    /// buttons inside the hero. Equal weight — no primary CTA
+    /// dominance — with the destructive role flagging Forget for
+    /// the system red tint.
+    private var accountHeroActions: some View {
+        HStack(spacing: DSSpacing.sm) {
+            Button {
                 Task {
                     await session.logout()
                     dismiss()
                 }
+            } label: {
+                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                    .labelStyle(.titleAndIcon)
             }
-            rowDivider
-            DSSettingsRow.button(
-                systemImage: "trash",
-                label: "Forget this device",
-                role: .destructive
-            ) {
+            .buttonStyle(.bordered)
+
+            Button(role: .destructive) {
                 confirmForget = true
+            } label: {
+                Label("Forget this device", systemImage: "trash")
+                    .labelStyle(.titleAndIcon)
             }
+            .buttonStyle(.bordered)
+
+            Spacer(minLength: 0)
         }
     }
 
