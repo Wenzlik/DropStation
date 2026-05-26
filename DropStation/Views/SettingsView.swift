@@ -138,12 +138,14 @@ struct SettingsView: View {
         return values
     }
 
-    /// Sign out + Forget rendered as side-by-side bordered
-    /// buttons inside the hero. Equal weight — no primary CTA
-    /// dominance — with the destructive role flagging Forget for
-    /// the system red tint.
+    /// Sign out as the visible bordered action; Forget this
+    /// device kept inline but rendered as a quiet text-only
+    /// destructive button at `.caption.weight(.medium)`. Both
+    /// stay reachable in a single tap — no overflow menu — but
+    /// the destructive variant no longer competes visually with
+    /// Sign out's bordered chrome.
     private var accountHeroActions: some View {
-        HStack(spacing: DSSpacing.sm) {
+        HStack(spacing: DSSpacing.md) {
             Button {
                 Task {
                     await session.logout()
@@ -155,15 +157,16 @@ struct SettingsView: View {
             }
             .buttonStyle(.bordered)
 
+            Spacer(minLength: 0)
+
             Button(role: .destructive) {
                 confirmForget = true
             } label: {
-                Label("Forget this device", systemImage: "trash")
-                    .labelStyle(.titleAndIcon)
+                Text("Forget this device")
+                    .font(.caption.weight(.medium))
             }
-            .buttonStyle(.bordered)
-
-            Spacer(minLength: 0)
+            .buttonStyle(.plain)
+            .foregroundStyle(.red)
         }
     }
 
