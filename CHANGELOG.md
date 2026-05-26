@@ -4,29 +4,86 @@ All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] — 2026-05-26
+
+UI modernization release. Auth, session, and networking layers are
+unchanged — every behavioural surface that worked in 0.4.0 still
+works the same way. This release is purely a visual + structural
+pass that brings the entire app onto a single design language
+("premium native utility", Flighty / Linear / Tailscale family) and
+introduces a reusable DesignSystem layer for future surfaces.
 
 ### Added
-- Dedicated **"Connection lost"** screen with auto-reconnect. When DSM
-  is unreachable (offline, Wi-Fi/cellular handoff, DNS / TLS / 5xx)
-  the app shows "Your session is saved. We'll reconnect automatically
-  when the NAS is reachable." with a Retry button. `NWPathMonitor`
-  triggers a silent re-probe the moment the network comes back.
-- Dashboard tab (Phase 1 + 2) with hero card, NAS context, action
-  grid, activity feed, haptics, skeletons, transitions.
+- **Dashboard tab** as the post-login landing screen — hero card
+  with 44 pt rounded-monospaced focal speed, live-pulse status
+  dot, idle / active / "working…" state hierarchy, NAS hostname
+  + Online indicator. Quick actions grid, recently completed
+  activity feed.
+- **DesignSystem layer** — 20+ reusable components: DSCard,
+  DSSectionCard, DSHeroCard, DSEyebrow, DSStatusDot,
+  DSStatusBadge, DSAvatarCircle, DSQuickAction, DSActivityRow,
+  DSMetricRow, DSGroupedRows, DSStatTile, DSProgressSliver,
+  DSRowButtonStyle, DSEmptyState, DSErrorState, DSLoadingView,
+  plus design tokens (DSSpacing, DSRadius). Available for
+  future surfaces and the 0.6+ roadmap.
+- **"See all →"** cross-tab navigation from the dashboard's
+  Recently completed section into the Downloads tab with
+  `.finished` filter pre-applied via a small NavigationStore.
+- **Dedicated "Connection lost" screen with auto-reconnect.**
+  When DSM is unreachable (offline, Wi-Fi/cellular handoff,
+  DNS / TLS / 5xx) the app shows "Your session is saved. We'll
+  reconnect automatically when the NAS is reachable." with a
+  Retry button. `NWPathMonitor` triggers a silent re-probe the
+  moment the network comes back.
+- **Account identity hero** in Settings — avatar disc generated
+  from the account name, Online status, hostname, and version
+  inline; Sign out / Forget this device as inline actions
+  inside the hero card.
 
 ### Changed
-- **Verification code is now the only user-facing sign-in path.** The
-  WKWebView Secure SignIn flow is gated behind an experimental
-  UserDefaults flag (`auth.method.experimental`, default off) until
-  DSM's session handoff to the Download Station API is solved. Stored
-  `.secureSignInWeb` preferences silently resolve back to `.otp` on
-  launch. The flow's code stays compiled in for development.
+- **Cohesive visual language across every screen.** One primary
+  Liquid Glass surface per screen (hero); everything else uses
+  `.regularMaterial` + half-point hairline border. No more
+  glass-everywhere overload.
+- **Status hierarchy unified.** `DSStatusDot` for ambient
+  state (Online, Downloading, Seeding, Paused, Completed) —
+  small filled dot tinted by status colour. `DSStatusBadge`
+  reserved for exceptional state (Offline, Error,
+  Reconnecting, Beta, Experimental). The previous
+  glass-capsule status pills are gone app-wide.
+- **Downloads list modernized.** Per-row glass cards
+  collapsed into a single grouped surface with hairline
+  dividers; metadata via a unified `status · ↓ speed · ETA
+  · % · size` line; full-width tinted progress bar replaced
+  by a 2 pt status-tinted sliver that hides at completion.
+- **Settings rewritten** from SwiftUI `Form` to a custom
+  `ScrollView + DSSectionCard` layout — uppercase tracked
+  eyebrow headers, `.regularMaterial` rounded section cards
+  with a hairline border, helper copy rendered outside the
+  card as small secondary caption text.
+- **LoginView polished** to the same language — brand disc
+  loses its orange linear-gradient for an accent-tinted Liquid
+  Glass disc; card surface unified with the dashboard hero;
+  form fields move to `.regularMaterial` + hairline; state
+  sub-views (2FA / Validating / Session-unauthorized) gain
+  eyebrow + tinted-disc headers.
+- **TaskDetailView** loses its last glass-capsule status pill
+  (now `DSStatusDot` + label inline); overview and per-file
+  progress bars become `DSProgressSliver`s that hide at
+  completion — meaningful on torrents with dozens of files.
+- **Verification code is now the only user-facing sign-in path.**
+  The WKWebView Secure SignIn flow is gated behind an
+  experimental UserDefaults flag (`auth.method.experimental`,
+  default off) until DSM's session handoff to the Download
+  Station API is solved. Stored `.secureSignInWeb` preferences
+  silently resolve back to `.otp` on launch. The flow's code
+  stays compiled in for development.
 - **Saved SID survives network changes.** The launch-time and
   foreground probes now distinguish transport-layer failures
   (timeout, DNS, network lost, TLS, 5xx) from DSM-confirmed
-  session-expiry codes (105/106/107/119). Only the latter delete the
-  SID; transient failures preserve it and route to the offline state.
+  session-expiry codes (105/106/107/119). Only the latter
+  delete the SID; transient failures preserve it and route to
+  the offline state.
 
 ## [0.4.0] — 2026-05-18
 
@@ -126,6 +183,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Initial release.
 
+[0.5.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.4.0
 [0.3.1]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.0

@@ -3,7 +3,7 @@
 A modern iPhone client for **Synology Download Station** — the replacement for
 the discontinued **DS get** app.
 
-> Current version: **0.4.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
+> Current version: **0.5.0** — see [CHANGELOG.md](CHANGELOG.md) for what's
 > shipping and [ROADMAP.md](ROADMAP.md) for what's planned.
 > Picking up the repo as a contributor (or AI assistant)? Start with
 > [AGENTS.md](AGENTS.md).
@@ -16,16 +16,29 @@ when DSM challenges for a second factor, enter the 6-digit verification
 code from a TOTP app ([sign-in methods](#sign-in-methods) below) —
 then:
 
-- See every download in one list — progress, speed, size, status — with
-  iOS 26 Liquid Glass cards and live, smoothly-ticking counters.
+- **Dashboard tab** as the post-login landing — large rounded
+  monospaced transfer speed, NAS hostname + Online indicator,
+  recent activity feed, quick actions. Glance-and-go control
+  center rather than a stats wall.
+- **Downloads tab** — every active and recent task in one list,
+  status dot + title + monospaced `↓ speed · ETA · size`
+  metadata, thin status-tinted progress sliver that hides on
+  completion. Swipe to pause / resume / stop / delete.
 - Tap a task to drill into peers / seeders / leechers, file list,
   tracker URLs, ratio, and ETA.
 - Add a new download by pasting a magnet/URL or picking a `.torrent`
   from the Files app. The destination folder is a tap away — browse
   your NAS shared folders directly.
-- Pause, resume, or delete with a swipe. Filter the list by
-  Downloading / Seeding / Paused / Finished / Error.
+- Filter the list by Downloading / Seeding / Paused / Finished / Error.
+  Sort by name / size / date added / date completed.
 - Open magnet links from Safari straight into the app.
+
+The 0.5 visual language is a single design system across every
+screen — one primary Liquid Glass surface per screen (the
+dashboard hero, the Settings account card, the login card),
+material-and-hairline secondary cards everywhere else, status
+conveyed by small filled dots rather than tinted backgrounds.
+Premium native utility feel; no decorative chrome.
 
 The app stays signed in across launches — the Download Station SID
 and Secure SignIn cookies live in the iOS Keychain so a cold start
@@ -102,7 +115,7 @@ release once a TestFlight pipeline is set up (tracked in
 ## Known limitations
 
 - **No installable iOS build.** As above — TestFlight / App Store
-  distribution is on the roadmap, not in 0.4.
+  distribution is on the roadmap, not in 0.5.
 - **No background refresh / completion notifications yet.** Refresh
   ticks only while the app is in the foreground.
 - **Single NAS only.** Multi-server switching is on the 0.5 roadmap.
