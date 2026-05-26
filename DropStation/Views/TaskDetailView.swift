@@ -117,37 +117,47 @@ struct TaskDetailView: View {
 
     private var overviewSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: DSSpacing.md) {
+                HStack(spacing: DSSpacing.sm) {
                     Image(systemName: viewModel.task.type.systemImage)
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(.secondary)
                     Text(viewModel.task.title).font(.headline)
                 }
                 HStack {
-                    statusPill
+                    statusInline
                     Spacer()
-                    Text("\(Int(viewModel.task.progress * 100))%")
-                        .font(.caption.weight(.medium))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
+                    if !viewModel.task.isAtCompletion {
+                        Text("\(Int(viewModel.task.progress * 100))%")
+                            .font(.caption.weight(.medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.numericText())
+                    }
                 }
-                ProgressView(value: viewModel.task.progress)
-                    .tint(viewModel.task.displayStatusTintRaw.tintColor)
+                if !viewModel.task.isAtCompletion {
+                    DSProgressSliver(
+                        value: viewModel.task.progress,
+                        tint: viewModel.task.displayStatusTintRaw.tintColor
+                    )
+                }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, DSSpacing.xs)
         }
     }
 
-    private var statusPill: some View {
-        // Uses the task-aware display label + tint so paused-at-100 % shows as
-        // "Ended" (grey) just like a true `.finished` status — see
-        // DownloadTask.displayStatusLabel.
-        Text(viewModel.task.displayStatusLabel)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .glassEffect(.regular.tint(viewModel.task.displayStatusTintRaw.tintColor.opacity(0.45)), in: .capsule)
+    /// Phase-3 ambient status pattern — same DSStatusDot + label
+    /// the Downloads list now uses for every row. Replaces the
+    /// previous glass-capsule statusPill so the detail screen
+    /// speaks the app-wide visual language. `displayStatusLabel`
+    /// still folds paused-at-100 % into "Ended" for parity with
+    /// the list.
+    private var statusInline: some View {
+        HStack(spacing: 4) {
+            DSStatusDot(tint: viewModel.task.displayStatusTintRaw.tintColor)
+            Text(viewModel.task.displayStatusLabel)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var transferSection: some View {
@@ -188,22 +198,26 @@ struct TaskDetailView: View {
                 Button {
                     filePriorityFileIndex = idx
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: DSSpacing.xs) {
                         Text(file.filename ?? "(unnamed)")
                             .lineLimit(2)
+                            .truncationMode(.middle)
                             .font(.subheadline)
                             .foregroundStyle(.primary)
                         HStack {
                             let down = file.sizeDownloaded?.value ?? 0
                             let total = file.size?.value ?? 0
                             Text("\(Self.bytes(down)) / \(Self.bytes(total))")
+                                .monospacedDigit()
                             Spacer()
                             if let p = file.priority { Text(p.capitalized) }
                             Image(systemName: "chevron.right")
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        ProgressView(value: file.progress)
+                        if file.progress < 1.0 {
+                            DSProgressSliver(value: file.progress, tint: .accentColor)
+                        }
                     }
                     .padding(.vertical, 2)
                 }
