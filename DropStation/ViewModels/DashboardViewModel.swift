@@ -77,13 +77,31 @@ final class DashboardViewModel: ObservableObject {
         tasks.reduce(0) { $0 + ($1.additional?.transfer?.speedUpload.value ?? 0) }
     }
 
-    /// True when neither direction is currently transferring bytes
-    /// and there's nothing waiting in the active bucket. Drives
-    /// the hero card's friendly "All downloads completed · NAS is
-    /// idle" copy instead of a 0 KB/s row.
-    var isIdle: Bool {
-        totalDownloadSpeed == 0 && totalUploadSpeed == 0 && activeCount == 0
+    /// Three-way classifier for the dashboard hero. Replaces the
+    /// previous boolean `isIdle` so the view can distinguish
+    /// "tasks exist but nothing is transferring right now" from
+    /// "the queue is empty" — the former is queue-paused / waiting
+    /// / hash-checking, the latter is genuine done-for-now.
+    enum HeroState {
+        /// Bytes are moving in at least one direction.
+        case transferring
+        /// Tasks exist on the NAS but neither direction is moving
+        /// (everything paused, finishing, waiting, or finished).
+        case taskIdle
+        /// No tasks at all on the NAS.
+        case empty
     }
+
+    var heroState: HeroState {
+        if totalDownloadSpeed > 0 || totalUploadSpeed > 0 { return .transferring }
+        if tasks.isEmpty { return .empty }
+        return .taskIdle
+    }
+
+    /// Total number of tasks on the NAS, regardless of status.
+    /// Drives the focal "X Tasks" headline in the `.taskIdle`
+    /// hero state.
+    var totalTaskCount: Int { tasks.count }
 
     /// Up to five most-recently-completed tasks, newest first. Tasks
     /// without a `completed_time` (e.g. paused-at-100 % rows from

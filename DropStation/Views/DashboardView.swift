@@ -58,7 +58,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: DSSpacing.xl) {
                         heroCard
                             .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
-                            .animation(.easeInOut(duration: 0.25), value: viewModel.isIdle)
+                            .animation(.easeInOut(duration: 0.25), value: viewModel.heroState)
                             .animation(.easeInOut(duration: 0.2), value: viewModel.isOnline)
                         quickActions
                         recentSection
@@ -130,10 +130,13 @@ struct DashboardView: View {
         DSHeroCard {
             heroHeader
         } primary: {
-            if viewModel.isIdle {
-                idlePrimary
-            } else {
+            switch viewModel.heroState {
+            case .transferring:
                 activePrimary
+            case .taskIdle:
+                taskIdlePrimary
+            case .empty:
+                emptyPrimary
             }
         }
     }
@@ -164,20 +167,56 @@ struct DashboardView: View {
         }
     }
 
-    /// Idle hero: pure T2 + T3 typography, no T1 focal number — a
-    /// row of zeros would scream "broken", and the idle moment is
-    /// supposed to feel calm. Three lines max; free-disk row stays
-    /// conditional on the view-model placeholder.
-    private var idlePrimary: some View {
+    /// Empty hero (no tasks on the NAS at all). Pure T2 + T3
+    /// typography, no T1 focal — a row of zeros would scream
+    /// "broken", and an empty queue is supposed to feel calm.
+    private var emptyPrimary: some View {
         VStack(alignment: .leading, spacing: DSSpacing.xs) {
             Text("All caught up")
                 .font(.headline.weight(.medium))
-            Text("NAS is idle")
+            Text("No active downloads")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if !idleMetricValues.isEmpty {
                 DSMetricRow(values: idleMetricValues)
                     .padding(.top, DSSpacing.xs)
+            }
+        }
+    }
+
+    /// Task-idle hero: queue exists but nothing is moving right
+    /// now (paused, hash-checking, waiting, finished). Shows the
+    /// total task count as the T1 focal so the dashboard still
+    /// has a glanceable number rather than a 0 KB/s that would
+    /// read as a frozen-bug state. Subtitle communicates the
+    /// idleness explicitly.
+    private var taskIdlePrimary: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: DSSpacing.sm) {
+                Text("\(viewModel.totalTaskCount)")
+                    .font(.system(size: 44, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                Text(viewModel.totalTaskCount == 1 ? "Task" : "Tasks")
+                    .font(.headline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            Text("Currently idle")
+                .font(.headline.weight(.medium))
+                .foregroundStyle(.primary)
+            if !taskIdleMetricValues.isEmpty {
+                DSMetricRow(values: taskIdleMetricValues)
+            }
+            if viewModel.failedCount > 0 {
+                DSStatusBadge(
+                    "\(viewModel.failedCount) failed",
+                    tint: .red,
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .padding(.top, DSSpacing.xs)
             }
         }
     }
@@ -241,8 +280,10 @@ struct DashboardView: View {
     /// when present (it's the headline activity for a Download
     /// Station client); upload-only is the seeding-only case.
     /// Falls back to download (= 0) for the brief "1 active task
-    /// hash-checking" window — viewModel.isIdle has already shunted
-    /// the zero-everything case to idlePrimary.
+    /// hash-checking" window — viewModel.heroState has already
+    /// shunted the everything-zero case to taskIdlePrimary or
+    /// emptyPrimary, so this branch only runs when at least one
+    /// direction is moving.
     private var heroFocalBytesPerSecond: Int64 {
         if viewModel.totalDownloadSpeed > 0 { return viewModel.totalDownloadSpeed }
         if viewModel.totalUploadSpeed > 0 { return viewModel.totalUploadSpeed }
@@ -289,6 +330,26 @@ struct DashboardView: View {
 
     private var idleMetricValues: [String] {
         var values: [String] = []
+        if let bytes = viewModel.freeDiskBytes {
+            values.append("\(formattedSize(bytes)) free")
+        }
+        return values
+    }
+
+    /// Tertiary metric line for the `.taskIdle` hero: how many of
+    /// the tasks are paused vs. finished, plus free-disk when
+    /// wired. Helps the user mental-model "what's the queue doing
+    /// right now" beyond the single "X Tasks" focal number.
+    private var taskIdleMetricValues: [String] {
+        var values: [String] = []
+        let pausedCount = viewModel.tasks.filter { TaskFilter.paused.matches($0) }.count
+        let finishedCount = viewModel.tasks.filter { TaskFilter.finished.matches($0) }.count
+        if pausedCount > 0 {
+            values.append("\(pausedCount) paused")
+        }
+        if finishedCount > 0 {
+            values.append("\(finishedCount) finished")
+        }
         if let bytes = viewModel.freeDiskBytes {
             values.append("\(formattedSize(bytes)) free")
         }
