@@ -1,29 +1,36 @@
 import SwiftUI
 
-/// Phase-2 Dashboard. Composed of three stacked surfaces:
+/// Post-login dashboard. Two stacked surfaces:
 ///
-///   1. Hero card — NAS hostname + Online/Offline badge in the
-///      header, primary content slot below it shows either current
-///      transfer rates + active count, or a friendly idle message
-///      when nothing is transferring. Free-disk row is conditional;
-///      Phase 2 leaves it dormant (the view model returns `nil`)
-///      until a follow-up wires `SYNO.FileStation.Info`.
+///   1. Hero card — NAS hostname + ambient status indicator in
+///      the header. Primary slot dispatches on `heroState`:
+///      `.transferring` shows the 44 pt focal speed + direction
+///      arrow + live-pulse dot; `.taskIdle` shows the total task
+///      count as the focal with a "Currently idle" subtitle;
+///      `.empty` shows the calm "All caught up / No active
+///      downloads" copy. Free-disk row is conditional on the
+///      view-model placeholder (still nil pending the 0.5.1
+///      SYNO.FileStation.Info wire-up).
 ///
-///   2. Quick actions — compact 4-up grid (Add / Pause all /
-///      Resume all / Search). Pause/Resume/Search are presented as
-///      disabled chips for now; the brief asks for a redesigned
-///      action row that no longer leads with a single dominant
-///      CTA, but the underlying bulk endpoints aren't part of
-///      Phase 2.
+///   2. Recently completed — up to five rows in an activity-feed
+///      shape (icon disc, title, secondary metadata) inside a
+///      single grouped material surface with hairline dividers
+///      between rows. "See all →" accessory on the eyebrow header
+///      drops the user into the Downloads tab with the `.finished`
+///      filter pre-applied.
 ///
-///   3. Recently completed — up to five rows in an activity-feed
-///      shape (icon, title, secondary metadata). Visual hierarchy
-///      polish lands in commit 2 of Phase 2.
+/// Add / Settings reachable via the toolbar `+` and gear. A
+/// "Quick actions" section was prototyped in Phase 2 but
+/// removed in 0.5.1 polish — three of the four planned actions
+/// (Pause all / Resume all / Search) didn't have real backends
+/// yet and disabled placeholders read as "coming soon" against
+/// the rest of the modernised app. They return as the
+/// DownloadTaskStore + bulk-action work lands.
 ///
 /// Sits inside its own `NavigationStack` so sheets (Settings, Add
-/// task) and any future pushed destinations stay scoped to this
-/// tab. Polls its own `DashboardViewModel`; sharing a single task
-/// store across tabs is on the 0.5 roadmap.
+/// task) and pushed destinations stay scoped to this tab. Polls
+/// its own `DashboardViewModel` for now; a shared
+/// `DownloadTaskStore` is the next item up in 0.5.1.
 struct DashboardView: View {
     @EnvironmentObject private var session: SessionStore
     @EnvironmentObject private var navigation: NavigationStore
@@ -60,7 +67,6 @@ struct DashboardView: View {
                             .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
                             .animation(.easeInOut(duration: 0.25), value: viewModel.heroState)
                             .animation(.easeInOut(duration: 0.2), value: viewModel.isOnline)
-                        quickActions
                         recentSection
                             .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
                             .animation(.easeInOut(duration: 0.2), value: viewModel.recentlyCompleted.map(\.id))
@@ -354,39 +360,6 @@ struct DashboardView: View {
             values.append("\(formattedSize(bytes)) free")
         }
         return values
-    }
-
-    // MARK: - Quick actions
-
-    private var quickActions: some View {
-        DSSection("Quick actions", style: .eyebrow) {
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: DSSpacing.md), count: 4),
-                spacing: DSSpacing.md
-            ) {
-                DSQuickAction("Add", systemImage: "plus", tint: .accentColor) {
-                    showingAddTask = true
-                }
-                DSQuickAction(
-                    "Pause all",
-                    systemImage: "pause.fill",
-                    tint: .orange,
-                    isEnabled: false
-                ) { /* wired in a later iteration */ }
-                DSQuickAction(
-                    "Resume all",
-                    systemImage: "play.fill",
-                    tint: .green,
-                    isEnabled: false
-                ) { /* wired in a later iteration */ }
-                DSQuickAction(
-                    "Search",
-                    systemImage: "magnifyingglass",
-                    tint: .accentColor,
-                    isEnabled: false
-                ) { /* placeholder for 0.5 BT search */ }
-            }
-        }
     }
 
     // MARK: - Recently completed
