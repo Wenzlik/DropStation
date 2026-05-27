@@ -194,3 +194,19 @@ final class DownloadTaskStore: ObservableObject {
         }
     }
 }
+
+#if DEBUG
+extension DownloadTaskStore {
+    /// Test-only factory that pre-populates `tasks` without going
+    /// through the API client. Used by the view-model derivation
+    /// tests so `DashboardViewModel.activeTransfers` etc. can be
+    /// asserted against a known input without spinning up a real
+    /// Synology session. Never call this from app code.
+    static func makeForTesting(tasks: [DownloadTask]) -> DownloadTaskStore {
+        let store = DownloadTaskStore(client: SynologyAPIClient())
+        store.tasks = tasks
+        store.hasLoadedOnce = true
+        return store
+    }
+}
+#endif

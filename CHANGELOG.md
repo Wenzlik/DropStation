@@ -4,6 +4,21 @@ All notable changes to **DropStation** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### New
+- Dashboard now leads with an **Active now** section when transfers are in flight — top 3 byte-moving tasks with live throughput, ETA, and a progress sliver. Idle NAS falls back to the calm Recently completed feed.
+- Seeding torrents count as completed content. Idle seeders show up in Recently completed (the file is locally available); seeders currently uploading appear in Active.
+- Hero card surfaces upload throughput alongside download as a dedicated `↓ X · ↑ Y` line, not buried in the metric row.
+- New in-app **Bug Report** form in Settings → Report a bug. Composes via your mail app (no embedded credentials, no SMTP); attaches optional diagnostics (app/iOS version, device, hostname, auth method, session state) — never passwords, SID, cookies, OTP, or torrent names.
+
+### Improved
+- Per-file rows in the torrent detail view distinguish three states visually: **Skipped** (faded, ⊘ Skipped), **Completed** (muted ✓, no progress bar), **Downloading** (thin progress sliver + subtle priority). No more "Low / Normal / High" rendered identically across states.
+- Skipped files render reliably even on DSM builds that keep the file's pre-skip priority value after `wanted=false`.
+
+### Notes
+- Suggest a feature still opens GitHub — public discussion fits there; bug reports moved in-app where structure and low friction matter more.
+
 ## [0.5.0] — 2026-05-26 — UI modernization
 
 ### New

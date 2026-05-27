@@ -62,11 +62,24 @@ struct DashboardView: View {
                             .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
                             .animation(.easeInOut(duration: 0.25), value: viewModel.heroState)
                             .animation(.easeInOut(duration: 0.2), value: viewModel.isOnline)
+                        // State-aware section ordering: when bytes are
+                        // moving, the "Active now" feed leads and pushes the
+                        // historical "Recently completed" section below it.
+                        // When the NAS is idle, the active section drops out
+                        // and Recently completed takes the top slot — the
+                        // dashboard reads as a live activity overview while
+                        // anything is in flight, and a calm historical feed
+                        // otherwise.
+                        if viewModel.hasActiveTransfers {
+                            activeSection
+                                .animation(.easeInOut(duration: 0.2), value: viewModel.activeTransfers.map(\.id))
+                        }
                         recentSection
                             .redacted(reason: viewModel.hasLoadedOnce ? [] : .placeholder)
                             .animation(.easeInOut(duration: 0.2), value: viewModel.recentlyCompleted.map(\.id))
                     }
                     .padding(DSSpacing.lg)
+                    .animation(.easeInOut(duration: 0.2), value: viewModel.hasActiveTransfers)
                 }
                 .refreshable {
                     await viewModel.refresh()
@@ -218,12 +231,24 @@ struct DashboardView: View {
     }
 
     /// Active hero: T1 focal speed number with optional live-pulse
-    /// dot, T2 state title, T3 metric row. Failed count escalates
-    /// to a `DSStatusBadge` (exceptional state) on its own row
-    /// below.
+    /// dot, optional dual-throughput line (when both directions are
+    /// flowing), T2 state title, T3 metric row. Failed count
+    /// escalates to a `DSStatusBadge` (exceptional state) on its own
+    /// row below.
     private var activePrimary: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
             heroFocalRow
+            // Dedicated dual-throughput line — only rendered when both
+            // directions are moving. Single-direction case is already
+            // covered by the T1 focal (arrow + rate), so showing the
+            // zero side here would be visual noise. Torrent-heavy
+            // users care about the upload side equally with download,
+            // and burying it inside the metric row makes the upload
+            // read as just another count fragment instead of a real
+            // throughput.
+            if heroShowsDualThroughput {
+                heroDualThroughputRow
+            }
             Text(heroStateLabel)
                 .font(.headline.weight(.medium))
                 .foregroundStyle(.primary)
@@ -239,6 +264,27 @@ struct DashboardView: View {
                 .padding(.top, DSSpacing.xs)
             }
         }
+    }
+
+    /// Dual-throughput line: `↓ X · ↑ Y`. Sits between the T1 focal
+    /// and the T2 state label, slightly smaller than the metric row
+    /// so it reads as throughput detail attached to the focal
+    /// rather than a third independent metric.
+    private var heroDualThroughputRow: some View {
+        HStack(spacing: DSSpacing.sm) {
+            Label(formattedRate(viewModel.totalDownloadSpeed), systemImage: "arrow.down")
+                .labelStyle(.titleAndIcon)
+            Text("·").foregroundStyle(.tertiary)
+            Label(formattedRate(viewModel.totalUploadSpeed), systemImage: "arrow.up")
+                .labelStyle(.titleAndIcon)
+        }
+        .font(.subheadline.weight(.medium))
+        .foregroundStyle(.secondary)
+        .monospacedDigit()
+    }
+
+    private var heroShowsDualThroughput: Bool {
+        viewModel.totalDownloadSpeed > 0 && viewModel.totalUploadSpeed > 0
     }
 
     /// T1 focal: large rounded monospaced rate + direction arrow,
@@ -305,18 +351,15 @@ struct DashboardView: View {
     }
 
     /// Tertiary metric line for the active hero. Pre-formats each
-    /// fragment (count, opposite-direction rate, free disk) and
-    /// hands it to `DSMetricRow` which renders them with the
-    /// shared subtle-dot separators.
+    /// fragment (count, free disk) and hands it to `DSMetricRow`
+    /// which renders them with the shared subtle-dot separators.
+    /// Dual-throughput moved to its own dedicated row above the
+    /// state label — see `heroDualThroughputRow` — so the metric row
+    /// can stay focused on counts/capacity instead of mixing units.
     private var activeMetricValues: [String] {
         var values: [String] = []
         if viewModel.activeCount > 0 {
             values.append("\(viewModel.activeCount) active")
-        }
-        // Show the opposite-direction rate inline when it's also
-        // moving (download focal + upload trickle, or vice versa).
-        if viewModel.totalDownloadSpeed > 0, viewModel.totalUploadSpeed > 0 {
-            values.append("↑ \(formattedRate(viewModel.totalUploadSpeed))")
         }
         if let bytes = viewModel.freeDiskBytes {
             values.append("\(formattedSize(bytes)) free")
@@ -350,6 +393,119 @@ struct DashboardView: View {
             values.append("\(formattedSize(bytes)) free")
         }
         return values
+    }
+
+    // MARK: - Active now
+
+    /// Top section when transfers are in flight. Mirrors the
+    /// Recently-completed surface (eyebrow header, grouped rows,
+    /// "See all →" cross-tab nav) so the dashboard reads as one
+    /// vocabulary regardless of which feed is dominant. Cap of
+    /// three rows comes straight from the viewmodel — the rest of
+    /// the queue lives behind the See-all jump into the Downloads
+    /// tab with `.active` pre-applied.
+    private var activeSection: some View {
+        DSSection("Active now", style: .eyebrow) {
+            DSGroupedRows(
+                viewModel.activeTransfers,
+                dividerInset: activityRowDividerInset
+            ) { task in
+                activeRow(for: task)
+            }
+        } accessory: {
+            activeSeeAllAccessory
+        }
+    }
+
+    /// "See all →" on the Active eyebrow header. Drops the user
+    /// into Downloads with the `.active` filter pre-applied so the
+    /// expanded view shows the same set the dashboard previewed
+    /// (anything in flight) rather than a finished-only or
+    /// downloading-only slice.
+    @ViewBuilder
+    private var activeSeeAllAccessory: some View {
+        if viewModel.activeTransfers.count >= 3 {
+            Button {
+                navigation.showDownloads(filter: .active)
+            } label: {
+                HStack(spacing: 2) {
+                    Text("See all")
+                        .font(.caption.weight(.medium))
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("See all active transfers")
+        }
+    }
+
+    /// One row in the Active feed. Visually matches the activity
+    /// row used by Recently-completed (icon disc + title +
+    /// metadata) but appends a thin progress sliver so the row
+    /// reads as live. Aligned past the 36 pt icon disc + md gap so
+    /// the sliver visually anchors to the title text rather than
+    /// running edge-to-edge.
+    private func activeRow(for task: DownloadTask) -> some View {
+        VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            DSActivityRow(
+                title: task.title,
+                metadata: activeMetadataLine(for: task),
+                iconSystemName: task.type.systemImage,
+                iconTint: task.displayStatusTintRaw.tintColor
+            )
+            // Sliver tucked under the metadata, indented past the
+            // icon disc so it traces the title column.
+            DSProgressSliver(
+                value: task.progress,
+                tint: task.displayStatusTintRaw.tintColor
+            )
+            .padding(.leading, 36 + DSSpacing.md)
+        }
+    }
+
+    /// "↓ 5.2 MB/s · ETA 3m · 42%" style metadata for the Active
+    /// row. Each fragment is conditional so seeding-only tasks
+    /// (download speed 0, no ETA) still render cleanly with just
+    /// "↑ X" and the status label.
+    private func activeMetadataLine(for task: DownloadTask) -> String {
+        var parts: [String] = []
+        let down = task.additional?.transfer?.speedDownload.value ?? 0
+        let up = task.additional?.transfer?.speedUpload.value ?? 0
+        if down > 0 { parts.append("↓ \(formattedRate(down))") }
+        if up > 0 { parts.append("↑ \(formattedRate(up))") }
+        if let eta = etaString(for: task) { parts.append("ETA \(eta)") }
+        // Percentage only useful while the file is still pulling
+        // bytes — for a seeding-with-upload row the 100 % is implied.
+        if task.progress < 1.0 {
+            parts.append("\(Int(task.progress * 100))%")
+        }
+        if parts.isEmpty {
+            // Nothing flowing but the task is in an active-state
+            // bucket (hash_checking, waiting, …). Surface the
+            // status label so the row isn't blank.
+            parts.append(task.displayStatusLabel)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Best-effort ETA for the Active row. Returns nil unless the
+    /// task is actively pulling bytes with a known total size — a
+    /// 0-byte/s ETA would be meaningless and a "—" placeholder
+    /// noisier than no value at all.
+    private func etaString(for task: DownloadTask) -> String? {
+        guard task.status == .downloading,
+              let down = task.additional?.transfer?.speedDownload.value,
+              down > 0
+        else { return nil }
+        let remaining = max(0, task.size.value - (task.additional?.transfer?.sizeDownloaded.value ?? 0))
+        let secs = TimeInterval(remaining) / TimeInterval(down)
+        let f = DateComponentsFormatter()
+        f.unitsStyle = .abbreviated
+        f.allowedUnits = [.day, .hour, .minute, .second]
+        f.maximumUnitCount = 2
+        return f.string(from: secs)
     }
 
     // MARK: - Recently completed

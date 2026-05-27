@@ -209,12 +209,19 @@ struct SettingsView: View {
     }
 
     private var feedbackSection: some View {
-        // Opens GitHub's "New issue" page with the matching template pre-
-        // selected. The user needs a GitHub account to actually post — that's
-        // handled by github.com, we just deep-link the right form.
+        // Suggest a feature stays on GitHub: feature requests are
+        // discussions that benefit from being public — anyone can
+        // upvote, comment, propose alternatives — and a GitHub
+        // account is the right friction filter for that surface.
+        //
+        // Report a bug moves in-app: bug reports want low friction
+        // (the user is already frustrated) and benefit from
+        // structured fields (subject / steps / expected) plus
+        // optional diagnostics, neither of which a free-form
+        // GitHub issue does well.
         DSSectionCard(
             "Feedback",
-            helperText: "Opens GitHub in Safari. A GitHub account is required to post."
+            helperText: "Bug reports send via your mail app. Feature requests open on GitHub."
         ) {
             DSSettingsRow.link(
                 systemImage: "lightbulb",
@@ -222,11 +229,12 @@ struct SettingsView: View {
                 destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!
             )
             rowDivider
-            DSSettingsRow.link(
+            DSSettingsRow.navigation(
                 systemImage: "ladybug",
-                label: "Report a bug",
-                destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=bug_report.md")!
-            )
+                label: "Report a bug"
+            ) {
+                BugReportView()
+            }
         }
     }
 
