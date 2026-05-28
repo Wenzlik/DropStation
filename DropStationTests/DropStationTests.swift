@@ -585,6 +585,103 @@ final class BugReportTests: XCTestCase {
     }
 }
 
+final class MailtoFallbackTests: XCTestCase {
+    func testRecipientEncodedAsPath() {
+        let fb = mailtoFallbackURL(recipient: "dropstation@zmrhal.cz", subject: "x", body: "y")
+        XCTAssertNotNil(fb)
+        XCTAssertTrue(fb!.url.absoluteString.hasPrefix("mailto:dropstation@zmrhal.cz?"))
+        XCTAssertTrue(fb!.carriedBody)
+    }
+
+    func testSubjectAndBodyArePresentInQuery() {
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "[DropStation] crash",
+            body: "Line one\nLine two"
+        )!
+        let urlString = fb.url.absoluteString
+        XCTAssertTrue(urlString.contains("subject="))
+        XCTAssertTrue(urlString.contains("body="))
+        // Brackets and newline must be percent-encoded for the URL
+        // to be unambiguous to Mail / Gmail / Outlook.
+        XCTAssertTrue(urlString.contains("%5BDropStation%5D"))
+        XCTAssertTrue(urlString.contains("%0A"))
+    }
+
+    func testAmpersandInBodyIsEncoded() {
+        // The regression test for the original bug: a literal `&`
+        // in the body would otherwise be parsed as a query
+        // separator and silently truncate the body in the mail
+        // client.
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "s",
+            body: "foo & bar"
+        )!
+        let urlString = fb.url.absoluteString
+        XCTAssertTrue(urlString.contains("foo%20%26%20bar"))
+        // No raw ampersand inside the body= value.
+        // (There is exactly one `&` in the URL — between
+        // subject= and body=.)
+        XCTAssertEqual(urlString.filter { $0 == "&" }.count, 1)
+    }
+
+    func testReservedCharsAreEncoded() {
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "s",
+            body: "= + ? # %"
+        )!
+        let s = fb.url.absoluteString
+        XCTAssertTrue(s.contains("%3D"))   // =
+        XCTAssertTrue(s.contains("%2B"))   // +
+        XCTAssertTrue(s.contains("%3F"))   // ?
+        XCTAssertTrue(s.contains("%23"))   // #
+        XCTAssertTrue(s.contains("%25"))   // %
+    }
+
+    func testCzechDiacriticsSurviveAsUTF8() {
+        // UTF-8 percent-encoding: "č" → %C4%8D, "š" → %C5%A1
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "Aplikace spadla",
+            body: "Pokoušel jsem se přidat torrent — chyba síťování."
+        )!
+        let s = fb.url.absoluteString
+        XCTAssertTrue(s.contains("Pokou%C5%A1el"))
+        XCTAssertTrue(s.contains("p%C5%99idat"))
+        XCTAssertTrue(s.contains("s%C3%AD%C5%A5ov%C3%A1n%C3%AD"))
+    }
+
+    func testBodyDroppedWhenURLExceedsLimit() {
+        // Force a long body well over the limit; the fallback
+        // should return subject-only with carriedBody = false so
+        // the caller can prompt the user to paste from clipboard.
+        let longBody = String(repeating: "x", count: 4000)
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "still here",
+            body: longBody,
+            maxURLLength: 1800
+        )!
+        XCTAssertFalse(fb.carriedBody)
+        XCTAssertTrue(fb.url.absoluteString.contains("subject="))
+        XCTAssertFalse(fb.url.absoluteString.contains("body="))
+        XCTAssertLessThanOrEqual(fb.url.absoluteString.count, 1800 + 64)
+    }
+
+    func testShortReportCarriesBody() {
+        let fb = mailtoFallbackURL(
+            recipient: "a@b.cz",
+            subject: "s",
+            body: "short body",
+            maxURLLength: 1800
+        )!
+        XCTAssertTrue(fb.carriedBody)
+        XCTAssertTrue(fb.url.absoluteString.contains("body=short%20body"))
+    }
+}
+
 final class APIErrorContextTests: XCTestCase {
     func testCommonCodesAreContextIndependent() {
         XCTAssertEqual(SynologyErrorCode.message(for: 106, context: .auth),

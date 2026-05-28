@@ -206,6 +206,13 @@ struct BugReportView: View {
     /// canSendMail() check is per-app — when the in-app composer
     /// is disabled we still try the mailto: URL because the user
     /// may have a third-party mail client set as default.
+    ///
+    /// On the mailto fallback path we unconditionally copy the
+    /// composed report to the clipboard before opening the URL.
+    /// Some mail clients (notably Gmail iOS) silently drop `body=`
+    /// from mailto URLs as anti-spam — there's no way to detect
+    /// that client-side, so we always give the user a paste-able
+    /// backup and tell them in the confirmation alert.
     private func startSend() {
         let report = makeReport()
         preparedSubject = report.emailSubjectLine
@@ -215,31 +222,57 @@ struct BugReportView: View {
             showingComposer = true
             return
         }
-        if let url = mailtoFallbackURL(
+
+        // Fallback transport — copy first, then open the mailto URL.
+        // Order matters: if `open` immediately backgrounds us, the
+        // clipboard write still happened.
+        UIPasteboard.general.string = clipboardPayload(
+            subject: preparedSubject,
+            body: preparedBody
+        )
+
+        guard let fallback = mailtoFallbackURL(
             recipient: BugReport.recipientEmail,
             subject: preparedSubject,
             body: preparedBody
-        ) {
-            UIApplication.shared.open(url) { opened in
-                if opened {
-                    alertContent = AlertContent(
-                        title: "Opened in your mail app",
-                        message: "Finish sending from there.",
-                        dismissesView: true
-                    )
-                } else {
-                    presentNoMailAlert()
-                }
-            }
+        ) else {
+            presentNoMailAlert(clipboardReady: true)
             return
         }
-        presentNoMailAlert()
+
+        UIApplication.shared.open(fallback.url) { opened in
+            if opened {
+                alertContent = AlertContent(
+                    title: "Opened in your mail app",
+                    message: fallback.carriedBody
+                        ? "If the subject or body looks empty, paste from your clipboard — the full report is already copied."
+                        : "Your report was too long to pre-fill. Paste it from your clipboard into the email body.",
+                    dismissesView: true
+                )
+            } else {
+                presentNoMailAlert(clipboardReady: true)
+            }
+        }
     }
 
-    private func presentNoMailAlert() {
+    /// Plain-text dump that the user pastes into their mail client
+    /// when the mailto body is dropped or truncated. Prefixed with
+    /// `Subject:` so the leading line is still useful even if the
+    /// user pastes into an already-populated compose window.
+    private func clipboardPayload(subject: String, body: String) -> String {
+        "Subject: \(subject)\n\n\(body)"
+    }
+
+    private func presentNoMailAlert(clipboardReady: Bool = false) {
+        let message: String
+        if clipboardReady {
+            message = "The report is on your clipboard. Email \(BugReport.recipientEmail) and paste it as the message."
+        } else {
+            message = "Please email \(BugReport.recipientEmail) directly."
+        }
         alertContent = AlertContent(
             title: "No mail app available",
-            message: "Please email \(BugReport.recipientEmail) directly.",
+            message: message,
             dismissesView: false
         )
     }
