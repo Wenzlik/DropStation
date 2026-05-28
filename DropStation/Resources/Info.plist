@@ -48,5 +48,24 @@
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <!--
+        Required on iOS 14+ before iOS will allow connections to RFC 1918
+        / .local addresses. Without this key, iOS silently blocks reaching
+        a Synology NAS on the user's LAN and the login spinner hangs
+        forever with no surfaced error. The string is shown verbatim in
+        the system permission prompt the first time we try to reach the
+        NAS.
+    -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>DropStation connects to your Synology NAS on your home or office network to manage your downloads.</string>
+    <!--
+        Declares that DropStation only uses HTTPS/TLS provided by iOS
+        (URLSession + the system TLS stack) and therefore qualifies for
+        the standard "uses exempt encryption" exemption. With this key
+        set, App Store Connect skips the Export Compliance questionnaire
+        on every TestFlight / App Store upload.
+    -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 </dict>
 </plist>
