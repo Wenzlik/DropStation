@@ -115,24 +115,102 @@ Do:
 
 ## What's not here yet
 
-- **CI** — no GitHub Actions workflow; build verification happens via
-  Xcode locally.
-- **Localization** — every string is English. Czech localization is on
-  the 0.4 roadmap.
+- **Localization** — every string is English. Czech localization +
+  `Localizable.strings` extraction is on the 0.5.1 roadmap.
 - **Accessibility audit** — VoiceOver labels and Dynamic Type
-  sanity-checking are listed as 0.6 (App Store) gating work.
+  sanity-checking are listed as 1.0 (App Store) gating work.
+
+## Repository protection / PR workflow
+
+As of 0.5.1, `main` is **branch-protected** on GitHub. Direct pushes
+are rejected. All work lands via pull request:
+
+```
+git checkout -b work/<short-description>
+# … commits …
+git push -u origin work/<short-description>
+gh pr create --base main --fill         # or open via web
+# Approve + Squash & merge on the web UI.
+git checkout main && git pull --ff-only origin main
+git branch -d work/<short-description>
+```
+
+Active rulesets (`gh api repos/Wenzlik/DropStation/rulesets` to
+inspect):
+
+| Ruleset | Target | Effect |
+|---|---|---|
+| **main: require PR + protect** | `refs/heads/main` | direct push blocked, force-push blocked, deletion blocked, PR required (0 approvals — self-merge OK) |
+| **release branches: no delete / no force-push** | `refs/heads/0.*` | force-push blocked, deletion blocked. Historic release branches are frozen at their tagged commit. |
+| **release tags: immutable** | `refs/tags/v*` | tag rewriting blocked, deletion blocked. Once a `vX.Y.Z` tag exists, it's the permanent record of that release. |
+
+There are **no bypass actors** — emergency override is
+"Settings → Rules → temporarily disable", do the destructive
+operation, re-enable. No accidental force-push or branch deletion
+can happen via normal `git push`.
 
 ## How to make a change
 
-1. Decide which version it fits — open `ROADMAP.md` and find the item.
-   If it's not there, add it with a one-line rationale before coding.
-2. Implement. If you touched `project.yml`, regenerate the Xcode
+1. Decide which version it fits — open
+   [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) and find
+   the item. If it's not there, add it via the doc-update PR
+   workflow before coding. Docs change first, then implementation.
+2. Branch from `main`:
+   `git checkout -b work/<short-description>`.
+3. Implement. If you touched `project.yml`, regenerate the Xcode
    project (`xcodegen generate`).
-3. Run tests in Xcode (⌘U). Add coverage for any new model or API
-   path.
-4. Move the item from `ROADMAP.md` into the `[Unreleased]` (or
-   in-flight version) entry in `CHANGELOG.md`. Keep the public-facing
-   wording short and concrete.
-5. Commit with a multi-line message — subject line under ~70 chars,
+4. Run tests:
+   `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project DropStation.xcodeproj -scheme DropStation -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test`
+   Add coverage for any new model or API path. Required: 33/33
+   passing.
+5. Move the item from `docs/roadmap/ROADMAP_V2.md` /
+   `docs/next-steps/<release>.md` into the in-flight version entry in
+   `CHANGELOG.md`. Keep the in-app CHANGELOG wording **short and
+   user-facing** — technical detail belongs in the commit body and
+   GitHub Release notes, not in the bundled changelog.
+6. Commit with a multi-line message — subject line under ~70 chars,
    body that explains the why and references API quirks if relevant.
-6. Push to `main` (this is a personal project; no PR workflow).
+7. Push the feature branch and open a PR against `main`. Self-merge
+   on the web UI (Squash & merge preferred). The branch protection
+   ruleset enforces the PR step.
+8. After merge: pull `main` locally (FF), delete the merged feature
+   branch.
+
+## Releases
+
+Cut from `main` once a release-shaped batch of PRs has landed:
+
+1. Bump `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in
+   `project.yml` via a release-prep PR.
+2. Promote the in-flight CHANGELOG entry to a dated release entry,
+   add the GitHub Release link reference at the bottom.
+3. Merge the release-prep PR into `main`.
+4. Branch the release from `main`: `git branch 0.X.Y main && git push -u origin 0.X.Y`.
+5. Tag the release commit: `git tag -a v0.X.Y -m "DropStation 0.X.Y" && git push origin v0.X.Y`.
+   The tag push triggers `.github/workflows/release.yml`, which
+   builds a simulator-only smoke `.app` zip and attaches it to a
+   GitHub Release.
+6. The `0.X.Y` branch is then frozen by the
+   `release branches: no delete / no force-push` ruleset. Future
+   work resumes on `main`.
+
+## Docs as source of truth
+
+Product direction, roadmap, UX rules, and release planning live in
+`docs/`. Chat history and commit messages are implementation detail;
+the docs are canonical:
+
+- [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md) — full
+  roadmap (Foundation / Daily usability / Distribution buckets).
+- [`docs/ux/design-principles.md`](docs/ux/design-principles.md) —
+  visual language rules (one primary glass per screen,
+  `DSStatusDot` ambient / `DSStatusBadge` exceptional, calm motion).
+- [`docs/next-steps/`](docs/next-steps/) — work tracking for the
+  next release.
+- [`docs/reviews/`](docs/reviews/) — UI review notes per release.
+- [`docs/releases/`](docs/releases/) — release-level summaries.
+- Root [`ROADMAP.md`](ROADMAP.md) — TL;DR pointer at ROADMAP_V2;
+  don't maintain two parallel roadmaps.
+
+If implementation conflicts with these docs, **update the doc
+first** via its own PR. Don't silently diverge.
