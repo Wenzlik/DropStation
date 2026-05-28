@@ -90,9 +90,18 @@ struct DownloadTask: Codable, Identifiable, Hashable {
             let size: FlexibleInt64?
             let sizeDownloaded: FlexibleInt64?
             let priority: String?
+            /// DSM's "include this file in the torrent" flag. `false` means the
+            /// user picked Skip — DSM stops pulling that file's blocks. Decoded
+            /// because some DSM builds keep emitting the file's previous
+            /// `priority` value after a skip ("normal"/"low"/etc.) instead of
+            /// switching it to "skip", so `priority` alone isn't enough to
+            /// recognise a skipped row. Pair this with `priority` via
+            /// `FilePriority.from(rawPriority:wanted:)` to render a real
+            /// skipped state in UI.
+            let wanted: Bool?
 
             enum CodingKeys: String, CodingKey {
-                case filename, priority
+                case filename, priority, wanted
                 case size
                 case sizeDownloaded = "size_downloaded"
             }

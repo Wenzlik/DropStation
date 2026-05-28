@@ -102,7 +102,12 @@ struct TaskDetailView: View {
               let files = viewModel.task.additional?.file,
               idx < files.count
         else { return nil }
-        return FilePriority.from(rawPriority: files[idx].priority)
+        let file = files[idx]
+        // Use the wanted-aware resolver so a previously-skipped file
+        // re-opens the picker with `.skip` highlighted, even on the
+        // DSM builds that leave the raw `priority` field unchanged
+        // after a skip toggle.
+        return FilePriority.from(rawPriority: file.priority, wanted: file.wanted)
     }
 
     private var currentFileFilename: String? {
@@ -198,30 +203,92 @@ struct TaskDetailView: View {
                 Button {
                     filePriorityFileIndex = idx
                 } label: {
-                    VStack(alignment: .leading, spacing: DSSpacing.xs) {
-                        Text(file.filename ?? "(unnamed)")
-                            .lineLimit(2)
-                            .truncationMode(.middle)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                        HStack {
-                            let down = file.sizeDownloaded?.value ?? 0
-                            let total = file.size?.value ?? 0
-                            Text("\(Self.bytes(down)) / \(Self.bytes(total))")
-                                .monospacedDigit()
-                            Spacer()
-                            if let p = file.priority { Text(p.capitalized) }
-                            Image(systemName: "chevron.right")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        if file.progress < 1.0 {
-                            DSProgressSliver(value: file.progress, tint: .accentColor)
-                        }
-                    }
-                    .padding(.vertical, 2)
+                    fileRow(file: file)
                 }
             }
+        }
+    }
+
+    /// One row in the torrent file list. Renders one of three
+    /// visual treatments so the user can scan state at a glance
+    /// rather than parsing the priority dropdown of every row:
+    ///
+    ///   - **Skipped** — the file's `wanted` flag is off (or DSM
+    ///     echoed `priority="skip"`). Row is faded to ~55 % opacity,
+    ///     a `⊘ Skipped` chip replaces the priority label, no
+    ///     progress sliver. The disabled look matches what the file
+    ///     is actually doing on the server (nothing).
+    ///   - **Completed** — progress hit 1.0 and the file is wanted.
+    ///     Muted `✓` accessory replaces the priority text, no
+    ///     progress sliver (a 100 %-filled bar is redundant
+    ///     chrome). The whole row stays at full opacity so it reads
+    ///     as a present, settled state.
+    ///   - **Downloading** — progress < 1.0 and wanted. Keeps the
+    ///     thin progress sliver and surfaces the priority label as
+    ///     quiet `.caption` / `.tertiary` text so the picker entry
+    ///     point is discoverable without dominating the row.
+    ///
+    /// Priority hierarchy stays subtle even in the downloading
+    /// case: the picker is reached by tapping anywhere in the row,
+    /// so the trailing label is information-density, not a button
+    /// affordance — a big "Low / Normal / High" pill would compete
+    /// with the filename, which is the actual identity of the row.
+    private func fileRow(file: DownloadTask.Additional.TorrentFile) -> some View {
+        let priority = FilePriority.from(rawPriority: file.priority, wanted: file.wanted)
+        let down = file.sizeDownloaded?.value ?? 0
+        let total = file.size?.value ?? 0
+        let isComplete = priority != .skip && total > 0 && file.progress >= 1.0
+        let isSkipped = priority == .skip
+        return VStack(alignment: .leading, spacing: DSSpacing.xs) {
+            Text(file.filename ?? "(unnamed)")
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            HStack {
+                Text("\(Self.bytes(down)) / \(Self.bytes(total))")
+                    .monospacedDigit()
+                Spacer()
+                fileStateAccessory(priority: priority, isComplete: isComplete)
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            // Progress sliver only for files that are still pulling
+            // bytes and aren't skipped — completed and skipped rows
+            // have no progress to communicate.
+            if !isSkipped && !isComplete && total > 0 {
+                DSProgressSliver(value: file.progress, tint: .accentColor)
+            }
+        }
+        .padding(.vertical, 2)
+        // The whole row dims for skipped files so the disabled
+        // intent reads immediately. Opacity instead of a separate
+        // colour palette keeps the row picker-discoverable (the
+        // chevron is still visible, just quieter).
+        .opacity(isSkipped ? 0.55 : 1.0)
+    }
+
+    /// Trailing state chip used by `fileRow`. Skipped/completed
+    /// render a glyph + matching label; downloading falls back to
+    /// the priority text so the picker entry point stays
+    /// discoverable. Kept as `@ViewBuilder` rather than returning a
+    /// `Text` so the icon-bearing variants can use SF Symbols
+    /// directly.
+    @ViewBuilder
+    private func fileStateAccessory(priority: FilePriority, isComplete: Bool) -> some View {
+        if priority == .skip {
+            Label("Skipped", systemImage: "nosign")
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(.secondary)
+        } else if isComplete {
+            Image(systemName: "checkmark")
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Completed")
+        } else {
+            Text(priority.label)
+                .foregroundStyle(.tertiary)
         }
     }
 

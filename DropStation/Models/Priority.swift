@@ -75,4 +75,16 @@ enum FilePriority: String, CaseIterable, Identifiable {
         default:     return .normal
         }
     }
+
+    /// `wanted`-aware resolver. Some DSM builds keep the file's pre-skip
+    /// priority value ("normal", "low", …) in the `priority` field even
+    /// after the user toggles `wanted=false` — so trusting only
+    /// `rawPriority` produces a row that still reads as "Normal" while the
+    /// file is no longer downloading. When `wanted == false` we collapse
+    /// the result to `.skip` regardless of what `rawPriority` says, which
+    /// matches DSM's actual behaviour (the file is not being pulled).
+    static func from(rawPriority: String?, wanted: Bool?) -> FilePriority {
+        if wanted == false { return .skip }
+        return from(rawPriority: rawPriority)
+    }
 }

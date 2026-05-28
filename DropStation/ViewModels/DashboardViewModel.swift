@@ -119,15 +119,101 @@ final class DashboardViewModel: ObservableObject {
     /// hero state.
     var totalTaskCount: Int { tasks.count }
 
-    /// Up to five most-recently-completed tasks, newest first. Tasks
-    /// without a `completed_time` (e.g. paused-at-100 % rows from
-    /// older DSM builds that didn't stamp one) sort to the end of
-    /// the slice.
-    var recentlyCompleted: [DownloadTask] {
+    /// Up to three currently-moving tasks, sorted by combined
+    /// throughput descending. Drives the "Active now" dashboard
+    /// section when at least one task is in flight.
+    ///
+    /// "Active" here is stricter than `TaskFilter.active`: we only
+    /// surface tasks where the NAS is actually moving bytes (either
+    /// direction) or is in a downloading-flow state that genuinely
+    /// belongs in a live-activity overview (hash_checking, waiting,
+    /// finishing, …). Bare `.seeding` with zero upload doesn't make
+    /// the cut — it appears in Recently completed instead so the
+    /// "active" feed reads as live.
+    ///
+    /// Sort key is the combined download+upload byte rate so the
+    /// dashboard surfaces the most-impactful transfer first; ties
+    /// fall back to title for determinism (the 5 s poll re-runs this
+    /// continuously, so a flapping tiebreak would jitter the
+    /// section visually).
+    var activeTransfers: [DownloadTask] {
         tasks
-            .filter { TaskFilter.finished.matches($0) }
+            .filter(Self.isActiveTransfer)
+            .sorted { lhs, rhs in
+                let lt = Self.throughput(of: lhs)
+                let rt = Self.throughput(of: rhs)
+                if lt == rt { return lhs.title < rhs.title }
+                return lt > rt
+            }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    /// True when the active section should take precedence over
+    /// Recently completed. Drives the dashboard's state-aware
+    /// section ordering — when nothing is moving, the historical
+    /// completed feed takes the top slot.
+    var hasActiveTransfers: Bool { !activeTransfers.isEmpty }
+
+    /// Up to five completed tasks, newest first. Treats a seeding
+    /// torrent as completed content — from the user's point of view
+    /// the download is done and the file is locally available; the
+    /// fact that DSM is still sharing it with peers is a bonus, not
+    /// a "still in progress" state. Tasks shown in `activeTransfers`
+    /// are excluded so the same row never appears in both sections
+    /// (a seeding task that is currently uploading lives in Active;
+    /// a seeding task with no upload flow lives here).
+    ///
+    /// Tasks without a `completed_time` sort to the end of the slice.
+    var recentlyCompleted: [DownloadTask] {
+        let activeIds = Set(activeTransfers.map(\.id))
+        return tasks
+            .filter { !activeIds.contains($0.id) && Self.isCompletedContent($0) }
             .sorted(by: .dateCompleted, direction: .descending)
             .prefix(5)
             .map { $0 }
+    }
+
+    // MARK: - Section predicates
+
+    /// Combined down+up bytes-per-second for the given task. Used as
+    /// the sort key for `activeTransfers` and as the "is this thing
+    /// actually moving" probe.
+    private static func throughput(of task: DownloadTask) -> Int64 {
+        (task.additional?.transfer?.speedDownload.value ?? 0)
+        + (task.additional?.transfer?.speedUpload.value ?? 0)
+    }
+
+    /// A task that belongs in the dashboard's "Active now" section:
+    /// either currently moving bytes in some direction, or sitting
+    /// in a state that reads as live work-in-progress to the user
+    /// (hash-checking a freshly-added torrent, waiting in queue, …).
+    /// Paused / finished / error are excluded — they have nothing to
+    /// surface in a live-activity panel.
+    private static func isActiveTransfer(_ task: DownloadTask) -> Bool {
+        if throughput(of: task) > 0 { return true }
+        switch task.status {
+        case .downloading, .hash_checking, .waiting, .finishing,
+             .extracting, .filehosting_waiting:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// "Effectively completed" — the download payload is done and
+    /// the file is locally available. Folds the three representations
+    /// DSM uses for this state together: the API-level `.finished`,
+    /// the BT post-Complete `.paused`-at-100 % shape, and `.seeding`
+    /// (the user already got the file; uploads to peers are extra).
+    private static func isCompletedContent(_ task: DownloadTask) -> Bool {
+        switch task.status {
+        case .finished, .seeding:
+            return true
+        case .paused:
+            return task.isAtCompletion
+        default:
+            return false
+        }
     }
 }
