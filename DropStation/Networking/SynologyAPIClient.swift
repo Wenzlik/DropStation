@@ -7,11 +7,44 @@ import Foundation
 /// DSM Login Web API guides (linked from the project README) for the wire format.
 actor SynologyAPIClient {
     private let session: URLSession
+    /// Handles self-signed-certificate trust (trust-on-first-use +
+    /// pinning). Retained by `session` as its delegate; we keep our
+    /// own reference to drain rejected-certificate records after a
+    /// request fails so we can surface `APIError.serverTrust`.
+    private let trustCoordinator: ServerTrustCoordinator
     private var baseURL: URL?
     private var sid: String?
 
-    init(session: URLSession = .shared) {
+    init() {
+        let coordinator = ServerTrustCoordinator()
+        let configuration = URLSessionConfiguration.default
+        // Share the global cookie jar so the Secure SignIn cookie
+        // flow (clearAuthCookies / cookie restore) keeps working —
+        // it operates on HTTPCookieStorage.shared.
+        configuration.httpCookieStorage = .shared
+        configuration.httpCookieAcceptPolicy = .always
+        self.trustCoordinator = coordinator
+        self.session = URLSession(configuration: configuration, delegate: coordinator, delegateQueue: nil)
+    }
+
+    /// Test seam — inject a session without the trust delegate. Used
+    /// only where no network calls are made (e.g. the view-model
+    /// derivation tests). Production always goes through `init()`.
+    init(session: URLSession) {
         self.session = session
+        self.trustCoordinator = ServerTrustCoordinator()
+    }
+
+    /// Maps a thrown transport error to `APIError`, upgrading it to
+    /// `.serverTrust` when the trust coordinator rejected the host's
+    /// certificate during this request. Centralised so both request
+    /// paths (postForm + multipart create) classify identically.
+    private func mapTransportError(_ error: Error, requestURL: URL?) -> APIError {
+        if let host = requestURL?.host,
+           let fingerprint = trustCoordinator.takeRejectedFingerprint(for: host) {
+            return .serverTrust(host: host, fingerprint: fingerprint)
+        }
+        return .transport(error)
     }
 
     var isLoggedIn: Bool { sid != nil }
@@ -250,7 +283,7 @@ actor SynologyAPIClient {
         } catch let error as DecodingError {
             throw APIError.decoding(error)
         } catch {
-            throw APIError.transport(error)
+            throw mapTransportError(error, requestURL: request.url)
         }
     }
 
@@ -561,7 +594,7 @@ actor SynologyAPIClient {
         } catch let error as APIError {
             throw error
         } catch {
-            throw APIError.transport(error)
+            throw mapTransportError(error, requestURL: request.url)
         }
     }
 

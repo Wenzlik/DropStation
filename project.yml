@@ -18,7 +18,7 @@ settings:
     # Connect rejects duplicate (MARKETING_VERSION, CURRENT_PROJECT_VERSION)
     # pairs.
     MARKETING_VERSION: "0.5.2"
-    CURRENT_PROJECT_VERSION: "12"
+    CURRENT_PROJECT_VERSION: "13"
 
 targets:
   DropStation:

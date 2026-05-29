@@ -59,9 +59,35 @@
             </array>
         </dict>
     </array>
+    <!--
+        App Transport Security. Narrowed from the previous blanket
+        `NSAllowsArbitraryLoads = true` now that self-signed
+        certificates are handled explicitly:
+
+          - Self-signed HTTPS (the DSM default) is accepted by the
+            ServerTrustCoordinator URLSession delegate after the
+            user pins the certificate. The delegate's
+            `.useCredential` overrides ATS's cert-chain requirement,
+            so full ATS can stay on for HTTPS — no blanket
+            arbitrary-loads exception needed.
+          - Cleartext HTTP to a LAN NAS (http:// on a .local /
+            RFC 1918 host — DSM with HTTPS disabled) is still
+            allowed via `NSAllowsLocalNetworking`, which is the
+            App-Review-preferred narrow exception rather than
+            allowing insecure loads to *any* host.
+
+        Net effect vs. the old blanket flag: HTTPS (valid or
+        self-signed-and-pinned) works everywhere; cleartext HTTP
+        works on the local network only. Cleartext HTTP to a
+        remote/public host is no longer allowed — it's insecure and
+        rare (remote access is virtually always HTTPS via DDNS).
+        If an internal tester reports a connection failure on an
+        exotic setup, the fallback is to temporarily re-add
+        `NSAllowsArbitraryLoads`.
+    -->
     <key>NSAppTransportSecurity</key>
     <dict>
-        <key>NSAllowsArbitraryLoads</key>
+        <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
     <!--

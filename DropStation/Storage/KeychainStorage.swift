@@ -1,11 +1,14 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper. Stores four classes of items keyed under one service:
+/// Minimal Keychain wrapper. Stores five classes of items keyed under one service:
 ///   - Password    (account = NAS username)
 ///   - SID         (account = "<username>@<host>")
 ///   - Cookies     (account = "<username>@<host>", JSON-encoded [StoredCookie])
 ///   - SessionMeta (account = "<username>@<host>", JSON-encoded SessionMetadata)
+///   - CertPin     (account = "<host>", SHA-256 fingerprint of a user-trusted
+///                  self-signed certificate — keyed by host, not account, since
+///                  a cert belongs to the server)
 /// Items are tagged by Keychain "label" so the same NAS username can have
 /// distinct entries without colliding.
 enum KeychainStorage {
@@ -16,6 +19,7 @@ enum KeychainStorage {
         case sid = "sid"
         case cookies = "cookies"
         case sessionMeta = "sessionMeta"
+        case certPin = "certPin"
     }
 
     // MARK: - Password
@@ -107,6 +111,26 @@ enum KeychainStorage {
 
     static func deleteSessionMetadata(for accountAtHost: String) {
         remove(kind: .sessionMeta, account: accountAtHost)
+    }
+
+    // MARK: - Certificate pin
+
+    /// Persist a user-trusted self-signed certificate fingerprint,
+    /// keyed by **host** (a certificate is a property of the server,
+    /// not the account — distinct from the SID/cookie/metadata keys
+    /// which use "<username>@<host>"). The trust coordinator accepts
+    /// a self-signed cert only when its leaf fingerprint matches the
+    /// stored value.
+    static func setPinnedCertFingerprint(_ fingerprint: String, for host: String) throws {
+        try store(value: fingerprint, kind: .certPin, account: host)
+    }
+
+    static func pinnedCertFingerprint(for host: String) -> String? {
+        load(kind: .certPin, account: host)
+    }
+
+    static func deletePinnedCertFingerprint(for host: String) {
+        remove(kind: .certPin, account: host)
     }
 
     // MARK: - Common

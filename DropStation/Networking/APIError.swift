@@ -7,6 +7,14 @@ enum APIError: LocalizedError {
     case decoding(Error)
     case synology(code: Int, message: String)
     case transport(Error)
+    /// The NAS presented a certificate that doesn't validate against
+    /// the system trust store and isn't pinned — the signature of a
+    /// self-signed DSM certificate the user hasn't trusted yet.
+    /// Carries the host and the leaf's SHA-256 fingerprint so the UI
+    /// can show it and offer to trust (pin) it. Distinct from a
+    /// transient connectivity blip: retrying won't help until the
+    /// user decides.
+    case serverTrust(host: String, fingerprint: String)
 
     var errorDescription: String? {
         switch self {
@@ -16,7 +24,18 @@ enum APIError: LocalizedError {
         case .decoding(let err): return "Decoding error: \(Self.describe(decodingError: err))"
         case .synology(let code, let message): return "Synology error \(code): \(message)"
         case .transport(let err): return err.localizedDescription
+        case .serverTrust(let host, _): return "Couldn't verify the security certificate for \(host)."
         }
+    }
+
+    /// `(host, fingerprint)` when this is a `.serverTrust` failure,
+    /// else nil. Convenience for the SessionStore / UI to route an
+    /// untrusted-certificate error to the trust prompt.
+    var serverTrustInfo: (host: String, fingerprint: String)? {
+        if case .serverTrust(let host, let fingerprint) = self {
+            return (host, fingerprint)
+        }
+        return nil
     }
 
     /// Produce a human-readable description of a `DecodingError` that includes the

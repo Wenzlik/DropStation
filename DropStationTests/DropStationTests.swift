@@ -704,6 +704,48 @@ final class APIErrorContextTests: XCTestCase {
     }
 }
 
+final class CertificateFingerprintTests: XCTestCase {
+    /// SHA-256 of empty input is a well-known constant; verifies the
+    /// colon-separated uppercase hex formatting end to end.
+    func testEmptyInputFingerprint() {
+        XCTAssertEqual(
+            CertificateFingerprint.sha256Hex(of: Data()),
+            "E3:B0:C4:42:98:FC:1C:14:9A:FB:F4:C8:99:6F:B9:24:27:AE:41:E4:64:9B:93:4C:A4:95:99:1B:78:52:B8:55"
+        )
+    }
+
+    /// SHA-256("abc") is a standard test vector
+    /// (ba7816bf…20015ad). Confirms byte order + grouping.
+    func testKnownVectorFingerprint() {
+        XCTAssertEqual(
+            CertificateFingerprint.sha256Hex(of: Data("abc".utf8)),
+            "BA:78:16:BF:8F:01:CF:EA:41:41:40:DE:5D:AE:22:23:B0:03:61:A3:96:17:7A:9C:B4:10:FF:61:F2:00:15:AD"
+        )
+    }
+
+    /// Format shape: 32 bytes → 32 hex pairs → 31 colons, all
+    /// uppercase, two chars per group.
+    func testFingerprintShape() {
+        let fp = CertificateFingerprint.sha256Hex(of: Data("anything".utf8))
+        let groups = fp.split(separator: ":")
+        XCTAssertEqual(groups.count, 32)
+        XCTAssertTrue(groups.allSatisfy { $0.count == 2 })
+        XCTAssertEqual(fp, fp.uppercased())
+    }
+
+    /// `APIError.serverTrust` carries host + fingerprint, is not
+    /// transient (must not trigger infinite reconnect retries), and
+    /// is not a session-expiry code (must not wipe the SID).
+    func testServerTrustErrorClassification() {
+        let err = APIError.serverTrust(host: "nas.local", fingerprint: "AB:CD")
+        XCTAssertEqual(err.serverTrustInfo?.host, "nas.local")
+        XCTAssertEqual(err.serverTrustInfo?.fingerprint, "AB:CD")
+        XCTAssertFalse(err.isTransient)
+        XCTAssertFalse(err.isSessionExpired)
+        XCTAssertFalse(err.isUnauthorized)
+    }
+}
+
 final class ShareVolumeDecodingTests: XCTestCase {
     /// `SYNO.FileStation.List list_share` with
     /// `additional=["volume_status"]` — freespace arrives as a JSON

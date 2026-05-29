@@ -137,10 +137,20 @@ These were audited and are **not** in the way of TestFlight:
 - **Magnet URL scheme registered.** `magnet:` is wired through
   `CFBundleURLTypes`; Safari hand-off works without further
   Info.plist changes.
-- **App Transport Security.** `NSAllowsArbitraryLoads = true` is
-  needed for self-signed certs and HTTP-only NAS deployments;
-  acceptable for internal TestFlight. App Store review will ask
-  for justification — that's a future-phase concern.
+- **App Transport Security.** Narrowed in 0.5.1: self-signed
+  certificates are now handled by the `ServerTrustCoordinator`
+  URLSession delegate (trust-on-first-use + pinning), whose
+  `.useCredential` overrides ATS's cert-chain requirement — so
+  full ATS stays on for HTTPS without a blanket exception. The
+  only remaining ATS relaxation is `NSAllowsLocalNetworking`
+  (cleartext HTTP to a LAN NAS with HTTPS disabled). Note:
+  `NSAllowsArbitraryLoads` never actually *trusted* self-signed
+  certs — it relaxes ATS cipher/cleartext rules, but a
+  self-signed cert still fails server-trust evaluation until a
+  delegate accepts it. The earlier wording here (and in the
+  checklist) was wrong; the delegate is what makes self-signed
+  work, and the narrowed ATS is much easier to justify at App
+  Store review.
 - **Permission surfaces.** SwiftUI `.fileImporter` (no
   `NSDocumentPickerUsageDescription` needed), `PasteButton` /
   one-way `UIPasteboard.general.string = …` write (no
@@ -160,10 +170,12 @@ These were audited and are **not** in the way of TestFlight:
   until release cadence justifies automation.
 - A dedicated dark-appearance app icon. The light icon is used in
   Dark Mode today; acceptable for a beta.
-- Tightening `NSAllowsArbitraryLoads` into per-domain ATS
-  exceptions. The user's NAS hostname is unknown ahead of time,
-  so a blanket exception is currently the only workable shape;
-  revisit when we have a real App Store review conversation.
+- Per-domain ATS exceptions. Done differently than originally
+  planned: 0.5.1 narrowed the blanket `NSAllowsArbitraryLoads` to
+  `NSAllowsLocalNetworking` (cleartext HTTP on the LAN only) +
+  delegate-based self-signed HTTPS trust, rather than per-domain
+  exceptions (the NAS host is unknown ahead of time, so per-domain
+  was never workable). No further ATS work expected before review.
 - iPad-specific layout review. The target is universal
   (`TARGETED_DEVICE_FAMILY: "1,2"`), but UI was designed
   iPhone-first. Recommend recording the first TF group as
