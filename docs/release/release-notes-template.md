@@ -37,19 +37,19 @@ read past the third bullet on a phone screen and no further.
 
 ## Worked example
 
-For the next 0.5.2 build:
+For the next 0.5.2 build after the current build `13`:
 
 ```
-DropStation 0.5.2 (build 11).
+DropStation 0.5.2 (build 14).
 
 What changed:
-• New "Active now" section on the dashboard — top three byte-moving downloads with live progress.
-• File priorities in task detail show Skipped / Completed / Downloading instead of the old uniform Low / Normal / High label.
-• Bug reports now open directly inside the app (Settings → Report a bug).
+• [one user-visible fix or improvement since build 13]
+• [second tester-visible change]
+• [third tester-visible change, if any]
 
 What to focus on this build:
-• Tapping "Report a bug" — does the mail compose window pre-fill subject and body? If only the recipient is filled, check your clipboard and paste the rest.
-• The dashboard "Active now" section should reorder live as downloads change speed.
+• Regression-check login, certificate trust, Active now, and Settings → Report a bug.
+• [specific risky change from this build]
 
 Known issues:
 • iPad layout not yet reviewed — iPhone only for this beta.

@@ -14,6 +14,11 @@ App Store Connect collects this in two places: the **App
 Information** block (lives forever) and the **TestFlight** block
 (beta-specific). All copy below is a draft — refine before paste.
 
+Current status: internal TestFlight distribution is live for the
+`0.5.2` line. Current repo checkpoint is build `13`. Treat this
+document as the operating plan for widening the beta, not as a
+pre-upload checklist.
+
 ### App Information (App Store Connect → App Information)
 
 | Field | Value | Notes |
@@ -75,6 +80,31 @@ Known limitations:
 Report bugs via Settings → Report a bug. Feature requests via GitHub.
 ```
 
+### Current build notes — 0.5.2 build 13
+
+Use this shape for build `13` if the TestFlight "What to Test"
+field still needs a concise tester-facing summary:
+
+```
+DropStation 0.5.2 (build 13).
+
+What changed:
+• Dashboard shows active transfers first, including live download/upload speed.
+• Free disk space now appears in the dashboard when the NAS reports it.
+• Self-signed NAS certificates can be reviewed and trusted in-app.
+
+What to focus on this build:
+• Login to a NAS with a self-signed HTTPS certificate and confirm the trust prompt feels clear.
+• Start an active download and confirm the dashboard switches from Recently completed to Active now.
+• Open Settings → Report a bug and confirm the mail draft contains useful, non-sensitive diagnostics only if you opt in.
+
+Known issues:
+• iPad layout not yet reviewed — iPhone only for this beta.
+• No background refresh; task list updates only while the app is open.
+
+Report bugs via Settings → Report a bug.
+```
+
 ### Keywords draft (App Store, used later)
 
 Not required for TestFlight. Captured here so the App Store
@@ -90,17 +120,10 @@ indexing is exact-token).
 ### Support / privacy URL placeholders
 
 App Store Connect requires both even for internal TestFlight.
-Stand-in until a proper site exists:
+Use the GitHub URLs until a proper product site exists:
 
 - **Support URL:** <https://github.com/Wenzlik/DropStation/issues>
 - **Privacy Policy URL:** <https://github.com/Wenzlik/DropStation/blob/main/docs/release/privacy.md>
-  *(draft this short doc before first upload — see below)*
-
-The privacy doc only needs to say: "DropStation does not collect,
-transmit, or share personal data. The app communicates only with
-the Synology NAS you configure. Bug reports are opt-in and sent
-by you via your own mail account." That's the truthful statement
-and it satisfies the policy-URL requirement.
 
 ---
 
@@ -115,6 +138,7 @@ has only one maintainer, so triage capacity is the bottleneck.
 **Goal:** prove the build pipeline. One human, one device, no
 support load.
 
+- Current status: active for build `13`.
 - Build uploaded; you receive the TestFlight invite as an internal
   tester.
 - Smoke checklist from [`testflight-checklist.md` Phase 5](testflight-checklist.md#phase-5)
@@ -175,8 +199,9 @@ necessary:
 - App Review submission, including a working test NAS Apple's
   reviewers can reach (the awkward bit — without a public test
   server, this needs careful prep).
-- Tighten ATS — if at all feasible, narrow `NSAllowsArbitraryLoads`
-  to a documented user-configured-host exception.
+- Continue to justify the current ATS posture: local HTTP via
+  `NSAllowsLocalNetworking`, HTTPS everywhere else, and explicit
+  self-signed certificate trust through the URLSession delegate.
 
 ---
 

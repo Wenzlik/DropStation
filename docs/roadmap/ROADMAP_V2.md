@@ -66,6 +66,45 @@ Not:
 - 105 forwarding centralised in the store so the recovery card
   receives one signal regardless of which call discovered the
   expired session.
+- Free-disk probe wired into the shared task layer and surfaced in
+  the dashboard hero when available.
+- Self-signed certificate trust-on-first-use flow: certificate
+  prompt, user confirmation, Keychain-backed fingerprint pinning,
+  certificate-change detection, and retry after trust.
+- In-app bug report form with optional safe diagnostics. Reports
+  compose through the user's mail account and never include
+  passwords, SIDs, cookies, OTPs, tokens, or torrent names.
+
+### Distribution foundation
+- Internal TestFlight distribution is live for the 0.5.2 line.
+  Current repo checkpoint: build `13`.
+- App Store Connect upload path proven with TestFlight processing
+  for the 0.5.2 line.
+- Xcode Cloud bootstrap added via `ci_scripts/ci_post_clone.sh`
+  so fresh cloud clones generate `DropStation.xcodeproj` from
+  `project.yml`.
+- TestFlight blockers fixed: Local Network usage description,
+  export-compliance flag, build numbering discipline, iPad
+  orientation set, narrowed ATS (`NSAllowsLocalNetworking`) plus
+  explicit self-signed HTTPS trust.
+
+---
+
+# Current beta hardening
+
+## High priority
+
+- Run the TestFlight smoke checklist on build `13` and record any
+  failure as a docs-first follow-up.
+- Watch App Store Connect TestFlight crash / hang reports during
+  solo daily use.
+- Keep `CURRENT_PROJECT_VERSION` moving for every new TestFlight
+  archive.
+- Prepare per-build "What to Test" notes before every upload.
+- When solo usage is stable, expand from Phase 1 to 3-5 trusted
+  internal testers.
+- Start localization foundation (`Localizable.strings` + Czech)
+  before App Store submission work.
 
 ---
 
@@ -116,9 +155,9 @@ Goal:
 
 ## App Store readiness
 
-- Privacy policy
+- Privacy policy (`docs/release/privacy.md` exists; publish URL
+  can point at the GitHub copy until a product site exists)
 - App review demo NAS
-- TestFlight workflow
 - Localization
 - Accessibility review
 - Screenshots & previews
