@@ -30,6 +30,22 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+    <!--
+        iPad-specific orientation list. With `TARGETED_DEVICE_FAMILY = "1,2"`
+        the app supports iPad and is therefore subject to iPad multitasking
+        rules: App Store Connect rejects builds (ITMS-90474) unless the iPad
+        orientation set covers all four orientations, including
+        PortraitUpsideDown. The iPhone array above intentionally omits
+        PortraitUpsideDown — Face ID phones don't benefit from it and Apple
+        only requires the four-way set on iPad.
+    -->
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
