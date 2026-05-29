@@ -59,6 +59,20 @@ final class DownloadTaskStore: ObservableObject {
     /// errorMessage; for the store this is the canonical channel.
     @Published var errorMessage: String?
 
+    /// Free space (bytes) on the NAS volume that hosts the user's
+    /// shared folders, or `nil` when unknown. Drives the hero
+    /// card's "X free" metric. Fetched on a slower cadence than
+    /// the task list (free disk barely moves second-to-second) —
+    /// see `refreshStorageIfStale`. Decorative: a fetch failure
+    /// never surfaces a banner or touches the session.
+    @Published private(set) var freeDiskBytes: Int64?
+
+    /// Throttle gate for the free-disk probe. Free space changes
+    /// slowly, so we refresh it at most once per
+    /// `storageRefreshInterval` rather than on every 5 s task tick.
+    private var lastStorageFetch: Date?
+    private let storageRefreshInterval: TimeInterval = 60
+
     private let client: SynologyAPIClient
     /// Forwards Synology error 105 to `SessionStore.handleUnauthorized`.
     /// Wired by the App-level injector with a weak capture of the
@@ -85,6 +99,10 @@ final class DownloadTaskStore: ObservableObject {
             tasks = try await client.listTasks()
             errorMessage = nil
             isOnline = true
+            // Session just confirmed valid by the task fetch — a
+            // good moment to opportunistically refresh free disk,
+            // throttled so it doesn't ride every 5 s tick.
+            await refreshStorageIfStale()
         } catch let error as APIError where error.isUnauthorized {
             // 105 — the SID DSM gave us isn't valid for Download
             // Station any more. Stop the poll loop so we don't
@@ -100,6 +118,29 @@ final class DownloadTaskStore: ObservableObject {
             isOnline = false
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Refresh free-disk space if the throttle window has elapsed.
+    /// Called from `refresh()` right after a successful task fetch.
+    /// Throttled to `storageRefreshInterval` (attempts, not just
+    /// successes, advance the gate) so a persistently-failing probe
+    /// doesn't hammer the endpoint every tick. Fully decorative:
+    /// any error is swallowed, the last known value stays put, and
+    /// the session / task polling are never affected.
+    private func refreshStorageIfStale() async {
+        let now = Date()
+        if let last = lastStorageFetch, now.timeIntervalSince(last) < storageRefreshInterval {
+            return
+        }
+        lastStorageFetch = now
+        do {
+            if let free = try await client.volumeFreeSpace() {
+                freeDiskBytes = free
+            }
+        } catch {
+            // Decorative — never surface, never wipe. The hero just
+            // keeps showing the previous value (or nothing).
         }
     }
 
@@ -127,6 +168,8 @@ final class DownloadTaskStore: ObservableObject {
         hasLoadedOnce = false
         isOnline = true
         errorMessage = nil
+        freeDiskBytes = nil
+        lastStorageFetch = nil
     }
 
     deinit {

@@ -421,6 +421,33 @@ actor SynologyAPIClient {
         return response.data?.shares ?? []
     }
 
+    /// Free space (bytes) on the volume hosting the user's shared
+    /// folders. Reuses the already-permitted `SYNO.FileStation.List`
+    /// `list_share` endpoint with `additional=["volume_status"]` —
+    /// no new permission surface beyond what the destination picker
+    /// already needs. Returns the largest per-share free space (see
+    /// `ShareVolumeList.headlineFreeBytes`); `nil` when DSM reports
+    /// no volume_status. Decorative — the dashboard treats a nil /
+    /// throwing result as "free disk unknown" and shows nothing.
+    func volumeFreeSpace() async throws -> Int64? {
+        guard let baseURL else { throw APIError.invalidURL }
+        guard let sid else { throw APIError.notLoggedIn }
+
+        let url = baseURL.appendingPathComponent("/webapi/entry.cgi")
+        let params: [String: String] = [
+            "api": "SYNO.FileStation.List",
+            "version": "2",
+            "method": "list_share",
+            // FileStation expects `additional` as a JSON-encoded
+            // array (unlike DownloadStation.Task's comma form).
+            "additional": "[\"volume_status\"]",
+            "_sid": sid
+        ]
+        let response: APIResponse<ShareVolumeList> = try await postForm(url: url, params: params)
+        try ensureSuccess(response, context: .task)
+        return response.data?.headlineFreeBytes
+    }
+
     /// List folders inside a path. `path` must start with a shared folder, e.g. "/Downloads".
     /// Only directories are returned (`filetype=dir`).
     func listFolders(in path: String) async throws -> [FileNode] {

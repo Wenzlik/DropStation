@@ -704,3 +704,65 @@ final class APIErrorContextTests: XCTestCase {
     }
 }
 
+final class ShareVolumeDecodingTests: XCTestCase {
+    /// `SYNO.FileStation.List list_share` with
+    /// `additional=["volume_status"]` — freespace arrives as a JSON
+    /// number on some DSM builds, a quoted string on others.
+    /// FlexibleInt64 absorbs both; the decode must survive each.
+    func testDecodeVolumeStatusNumberAndString() throws {
+        let json = Data("""
+        {
+          "shares": [
+            { "name": "Downloads", "path": "/Downloads", "isdir": true,
+              "additional": { "volume_status": { "freespace": 5368709120, "totalspace": 10737418240 } } },
+            { "name": "video", "path": "/video", "isdir": true,
+              "additional": { "volume_status": { "freespace": "9663676416", "totalspace": "10737418240" } } }
+          ]
+        }
+        """.utf8)
+        let decoded = try JSONDecoder().decode(ShareVolumeList.self, from: json)
+        XCTAssertEqual(decoded.shares.count, 2)
+        XCTAssertEqual(decoded.shares[0].additional?.volumeStatus?.freespace.value, 5_368_709_120)
+        XCTAssertEqual(decoded.shares[1].additional?.volumeStatus?.freespace.value, 9_663_676_416)
+    }
+
+    /// Headline free-disk number is the largest per-share freespace
+    /// (proxy for "the volume you'd download to"), never the sum —
+    /// multiple shares on one volume would double-count.
+    func testHeadlineFreeBytesTakesMax() throws {
+        let json = Data("""
+        {
+          "shares": [
+            { "name": "a", "path": "/a", "isdir": true,
+              "additional": { "volume_status": { "freespace": 100, "totalspace": 1000 } } },
+            { "name": "b", "path": "/b", "isdir": true,
+              "additional": { "volume_status": { "freespace": 900, "totalspace": 1000 } } }
+          ]
+        }
+        """.utf8)
+        let decoded = try JSONDecoder().decode(ShareVolumeList.self, from: json)
+        XCTAssertEqual(decoded.headlineFreeBytes, 900)
+    }
+
+    /// Older DSM / restricted accounts omit volume_status entirely.
+    /// Decode still succeeds; headlineFreeBytes is nil so the hero
+    /// simply shows no free-disk metric.
+    func testHeadlineFreeBytesNilWhenNoVolumeStatus() throws {
+        let json = Data("""
+        {
+          "shares": [
+            { "name": "a", "path": "/a", "isdir": true }
+          ]
+        }
+        """.utf8)
+        let decoded = try JSONDecoder().decode(ShareVolumeList.self, from: json)
+        XCTAssertNil(decoded.headlineFreeBytes)
+    }
+
+    /// Empty share list (no accessible shares) → nil, not a crash.
+    func testHeadlineFreeBytesNilWhenNoShares() throws {
+        let decoded = try JSONDecoder().decode(ShareVolumeList.self, from: Data(#"{"shares":[]}"#.utf8))
+        XCTAssertNil(decoded.headlineFreeBytes)
+    }
+}
+
