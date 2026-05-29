@@ -165,3 +165,41 @@ For the next person reading `Info.plist` cold:
 | `UISupportedInterfaceOrientations` | iPhone orientations — portrait + both landscapes. UI is designed portrait-first but tolerates landscape. PortraitUpsideDown intentionally omitted on iPhone (Face ID phones don't benefit). |
 | `UISupportedInterfaceOrientations~ipad` | iPad orientations — all four (portrait, upside-down, both landscapes). App Store Connect rejects builds (ITMS-90474) without all four because of iPad multitasking. Required as long as `TARGETED_DEVICE_FAMILY` includes `2` (iPad). |
 | `UILaunchScreen` | Empty dict = default solid-background launch screen. Intentional; no decorative launch art yet. |
+
+---
+
+## Reference — Xcode Cloud bootstrap
+
+Xcode Cloud workflows (e.g. *Archive - iOS* on the Default
+workflow) expect to find `DropStation.xcodeproj` at the repo root
+immediately after cloning. This project's `.xcodeproj` is
+gitignored — generated from `project.yml` by XcodeGen — so a
+fresh clone has no project file and the cloud build fails with:
+
+```
+Project DropStation.xcodeproj does not exist at the root of the
+repository
+```
+
+Fix: `ci_scripts/ci_post_clone.sh` (checked in at the repo root).
+Xcode Cloud runs `ci_scripts/ci_post_clone.sh` automatically after
+cloning the source. The script installs XcodeGen via Homebrew
+(preinstalled on Xcode Cloud workers) and runs `xcodegen generate`,
+producing the `.xcodeproj` before the Archive action runs.
+
+Touchpoints:
+
+  - `ci_scripts/ci_post_clone.sh` — the bootstrap script. Must be
+    executable (`chmod +x`), shellcheck-clean, and idempotent.
+  - The script uses `$CI_PRIMARY_REPOSITORY_PATH` to navigate to
+    the repo root — Xcode Cloud sets this env var on every build.
+  - Sanity-checks that `DropStation.xcodeproj` exists at the end
+    and exits non-zero otherwise; saves a confusing "project does
+    not exist" later in the workflow.
+
+Local archives don't need this — developers run `xcodegen generate`
+themselves before opening Xcode (the same step `README.md` calls
+out in the Installing section). The script exists specifically
+because the Xcode Cloud sandbox has no convenient hook for a
+developer to run an extra command before the workflow's first
+Xcode invocation; `ci_post_clone.sh` is that hook.
