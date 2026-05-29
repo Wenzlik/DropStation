@@ -313,6 +313,7 @@ struct BugReportView: View {
         case .loggedIn:              return "loggedIn"
         case .sessionUnauthorized:   return "sessionUnauthorized"
         case .connectionLost:        return "connectionLost"
+        case .untrustedCertificate:  return "untrustedCertificate"
         case .error:                 return "error"
         }
     }

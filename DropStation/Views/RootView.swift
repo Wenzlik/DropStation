@@ -13,6 +13,8 @@ struct RootView: View {
                 LoggedInShell(session: session)
             case .connectionLost:
                 ConnectionLostView()
+            case .untrustedCertificate(let host, let fingerprint, let isCertChange):
+                CertificateTrustView(host: host, fingerprint: fingerprint, isCertChange: isCertChange)
             case .loggedOut, .authenticating, .twoFactorRequired, .validatingApiAccess, .sessionUnauthorized, .error:
                 LoginView()
             }
@@ -30,7 +32,7 @@ struct RootView: View {
                 Task { await taskStore.refresh() }
             case .loggedOut, .authenticating, .twoFactorRequired,
                  .validatingApiAccess, .sessionUnauthorized, .error,
-                 .restoring:
+                 .restoring, .untrustedCertificate:
                 taskStore.stopAutoRefresh()
             case .connectionLost:
                 // ConnectionLostView handles its own retry. The

@@ -37,6 +37,16 @@ final class SessionStore: ObservableObject {
         /// when the NAS is reachable" card with a Retry affordance.
         /// Auto-retries when `NWPathMonitor` reports network back.
         case connectionLost
+        /// The NAS presented a self-signed certificate the user
+        /// hasn't trusted (or a previously-pinned cert that changed).
+        /// UX surface is a "trust this server?" prompt showing the
+        /// SHA-256 fingerprint; on confirm we pin it and retry. The
+        /// saved SID (if any) is preserved — this isn't an auth
+        /// failure, it's a trust decision. `isCertChange` is true
+        /// when a pin already existed for the host but didn't match
+        /// (cert rotated, or possible MITM) — the prompt warns more
+        /// strongly in that case.
+        case untrustedCertificate(host: String, fingerprint: String, isCertChange: Bool)
         case error(String)
     }
 
@@ -168,6 +178,12 @@ final class SessionStore: ObservableObject {
             DSLog.session("probeStoredSession: SID rejected (\(error.localizedDescription)); dropping")
             await clearStoredSession()
             state = .loggedOut
+        } catch let error as APIError where error.serverTrustInfo != nil {
+            // Self-signed certificate the user hasn't trusted yet.
+            // Preserve the SID (it hasn't been confirmed dead) and
+            // route to the trust prompt rather than the offline card —
+            // retrying won't help until the user decides.
+            routeToCertificateTrust(error)
         } catch let error as APIError where error.isTransient {
             // Offline / Wi-Fi handoff / server 5xx / TLS / DNS. Keep
             // the SID — it's almost certainly still valid; we just
@@ -284,6 +300,11 @@ final class SessionStore: ObservableObject {
             onOTPNeeded()
         } catch let error as APIError where error.isOTPInvalid {
             state = .error("Incorrect verification code.")
+        } catch let error as APIError where error.serverTrustInfo != nil {
+            // First login to a self-signed NAS. Keep pendingCredentials
+            // intact — trustCertificate() re-runs the login once the
+            // user pins the cert.
+            routeToCertificateTrust(error)
         } catch {
             state = .error(error.localizedDescription)
         }
@@ -515,6 +536,56 @@ final class SessionStore: ObservableObject {
         state = .sessionUnauthorized(reason: reason)
     }
 
+    // MARK: - Self-signed certificate trust
+
+    /// Route an `APIError.serverTrust` to the trust prompt. Reads
+    /// `(host, fingerprint)` off the error, and flags `isCertChange`
+    /// when a pin already exists for the host (it didn't match the
+    /// presented cert — rotated cert or possible MITM). The SID and
+    /// any in-flight `pendingCredentials` are deliberately left
+    /// intact so `trustCertificate()` can resume whatever was
+    /// happening.
+    private func routeToCertificateTrust(_ error: APIError) {
+        guard let info = error.serverTrustInfo else { return }
+        let isCertChange = CertPinStore.pinnedFingerprint(for: info.host) != nil
+        DSLog.session("routeToCertificateTrust: host=\(info.host) changed=\(isCertChange) fp=\(info.fingerprint)")
+        state = .untrustedCertificate(
+            host: info.host,
+            fingerprint: info.fingerprint,
+            isCertChange: isCertChange
+        )
+    }
+
+    /// User confirmed the self-signed certificate. Pin the
+    /// fingerprint, then resume: re-run the in-flight login when we
+    /// were mid-sign-in (`pendingCredentials` set), otherwise
+    /// re-probe the stored SID. The trust coordinator will now
+    /// accept this exact certificate for the host.
+    func trustCertificate(host: String, fingerprint: String) async {
+        CertPinStore.pin(fingerprint, for: host)
+        DSLog.session("trustCertificate: pinned \(fingerprint) for \(host)")
+        state = .restoring
+        if let pending = pendingCredentials {
+            await attemptLogin(
+                password: pending.password,
+                otpCode: nil,
+                onOTPNeeded: { [weak self] in self?.state = .twoFactorRequired }
+            )
+        } else {
+            await probeStoredSession()
+        }
+    }
+
+    /// User declined to trust the certificate. Drop any in-flight
+    /// login credentials and land on the login form so they can
+    /// adjust the server config (e.g. switch scheme to http, fix
+    /// the host) or simply back out.
+    func declineCertificate() {
+        DSLog.session("declineCertificate: returning to login form")
+        pendingCredentials = nil
+        state = .loggedOut
+    }
+
     // MARK: - Network monitor (auto-reconnect from .connectionLost)
 
     /// Spin up an NWPathMonitor that watches for the network coming
@@ -577,6 +648,11 @@ final class SessionStore: ObservableObject {
             DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
             await clearStoredSession()
             state = .sessionUnauthorized(reason: "Session expired. Please re-authenticate with verification code.")
+        } catch let error as APIError where error.serverTrustInfo != nil {
+            // Cert became untrusted between launches (DSM cert rotated,
+            // or a previously-pinned cert changed). Route to the trust
+            // prompt; SID preserved.
+            routeToCertificateTrust(error)
         } catch let error as APIError where error.isTransient {
             // Offline / handoff / 5xx. Saved SID is preserved; surface
             // the offline card so the user knows we're reconnecting
