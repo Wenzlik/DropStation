@@ -61,3 +61,47 @@ struct FileStationShareList: Decodable {
 struct FileStationFileList: Decodable {
     let files: [FileNode]
 }
+
+/// Decode shape for `SYNO.FileStation.List` `list_share` when
+/// requested with `additional=["volume_status"]`. Kept separate
+/// from `FileStationShareList` (which feeds the destination
+/// picker via the lean `FileNode`) so `FileNode` stays focused
+/// on name/path/isdir and the storage probe owns its own shape.
+struct ShareVolumeList: Decodable {
+    let shares: [ShareVolume]
+}
+
+struct ShareVolume: Decodable {
+    let additional: ShareAdditional?
+
+    struct ShareAdditional: Decodable {
+        let volumeStatus: VolumeStatus?
+
+        enum CodingKeys: String, CodingKey {
+            case volumeStatus = "volume_status"
+        }
+    }
+
+    /// Per-volume capacity. DSM is inconsistent about returning
+    /// these as JSON numbers vs. quoted strings (and very large
+    /// volumes overflow Int32), hence `FlexibleInt64`.
+    struct VolumeStatus: Decodable {
+        let freespace: FlexibleInt64
+        let totalspace: FlexibleInt64
+    }
+}
+
+extension ShareVolumeList {
+    /// Headline free-disk number for the hero card: the largest
+    /// per-share free space. Multiple shares can sit on one
+    /// volume, so summing would double-count; the max is a sound
+    /// proxy for "the volume you'd download to" (single-volume
+    /// NAS is the common case, and where there are several the
+    /// emptiest is the most useful glance). `nil` when no share
+    /// reported a volume_status (older DSM / restricted account).
+    var headlineFreeBytes: Int64? {
+        shares
+            .compactMap { $0.additional?.volumeStatus?.freespace.value }
+            .max()
+    }
+}

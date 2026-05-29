@@ -20,14 +20,6 @@ import Combine
 /// is enough; views don't have to subscribe to both.
 @MainActor
 final class DashboardViewModel: ObservableObject {
-    /// Free disk space on the configured volume, in bytes. Phase 2
-    /// keeps this as architectural placeholder (always `nil` for
-    /// now) — wiring `SYNO.FileStation.Info` or `SYNO.Core.Storage`
-    /// will land in a follow-up commit. The hero card already
-    /// renders the row conditionally so the value can drop in
-    /// without further plumbing.
-    @Published private(set) var freeDiskBytes: Int64? = nil
-
     /// Human-readable label for the NAS in the hero card. Phase 2
     /// uses the configured host (e.g. "nas.local" or an IP); when
     /// `SYNO.FileStation.Info` is wired up later, this can be
@@ -56,6 +48,11 @@ final class DashboardViewModel: ObservableObject {
     var hasLoadedOnce: Bool { store.hasLoadedOnce }
     var isOnline: Bool { store.isOnline }
     var isLoading: Bool { store.isLoading }
+    /// Free disk space on the NAS volume, in bytes (nil = unknown).
+    /// Owned by `DownloadTaskStore` now that it's wired to a real
+    /// `SYNO.FileStation.List` volume_status probe; the hero card
+    /// reads it through this passthrough.
+    var freeDiskBytes: Int64? { store.freeDiskBytes }
     var errorMessage: String? {
         get { store.errorMessage }
         set { store.errorMessage = newValue }
