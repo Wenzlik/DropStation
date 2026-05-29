@@ -160,7 +160,7 @@ For the next person reading `Info.plist` cold:
 |-----|-----|
 | `NSLocalNetworkUsageDescription` | iOS 14+ requires this to allow connections to RFC 1918 / `.local` addresses. Without it, NAS connections silently fail. |
 | `ITSAppUsesNonExemptEncryption` | Declares the app qualifies for the standard HTTPS-only encryption export exemption. Skips the per-upload Export Compliance questionnaire. |
-| `NSAllowsArbitraryLoads` | Lets us connect to self-signed-cert NAS deployments and plain-HTTP DSM 6 setups. Will need narrowing or App Review justification eventually. |
+| `NSAllowsLocalNetworking` | Allows cleartext HTTP to a LAN NAS (`.local` / RFC 1918 host with HTTPS disabled). Replaced the blanket `NSAllowsArbitraryLoads` in 0.5.1. **Self-signed HTTPS is NOT handled here** — `NSAllowsArbitraryLoads` never trusted self-signed certs either; that's the `ServerTrustCoordinator` URLSession delegate's job (trust-on-first-use + pinning). The delegate's `.useCredential` overrides ATS cert-chain checks, so HTTPS (valid or pinned-self-signed) works under full ATS. |
 | `CFBundleURLTypes (magnet)` | Lets Safari hand magnet links to us. |
 | `UISupportedInterfaceOrientations` | iPhone orientations — portrait + both landscapes. UI is designed portrait-first but tolerates landscape. PortraitUpsideDown intentionally omitted on iPhone (Face ID phones don't benefit). |
 | `UISupportedInterfaceOrientations~ipad` | iPad orientations — all four (portrait, upside-down, both landscapes). App Store Connect rejects builds (ITMS-90474) without all four because of iPad multitasking. Required as long as `TARGETED_DEVICE_FAMILY` includes `2` (iPad). |
