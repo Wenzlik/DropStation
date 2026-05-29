@@ -12,12 +12,15 @@ Synology Download Station — not a torrent-client kitchen sink.
 
 Priority: clarity, reliability, speed, native feel, calm utility UX.
 
-## Current focus (0.5.1)
+## Current focus (TestFlight beta / 0.5.2)
 
-Stabilization + shared infrastructure after the 0.5.0 dashboard +
-design-system release. No new redesigns, no architecture rewrites.
+DropStation is now in the internal TestFlight beta phase. The repo
+is on `0.5.2`, build `13`, with the first release-engineering
+loop proven: App Store Connect upload, TestFlight distribution,
+Xcode Cloud bootstrap, iPad orientation fix, narrowed ATS, and
+self-signed certificate trust UX.
 
-In flight or shipped on `main`:
+Shipped on `main` since 0.5.0:
 
 - ✅ Dashboard hero three-way state (no more "0 KB/s Working…")
 - ✅ Downloads list readability polish
@@ -25,30 +28,37 @@ In flight or shipped on `main`:
 - ✅ Settings destructive-action toned down
 - ✅ Placeholder Quick Actions removed
 - ✅ `DownloadTaskStore` — shared task layer
-- ⏳ Real free-disk space via `SYNO.FileStation.Info`
-- ⏳ Self-signed certificate UX
-- ⏳ Test coverage + foreground-probe verification
+- ✅ Real free-disk space in the dashboard hero
+- ✅ Self-signed certificate trust prompt + pinning + retry
+- ✅ Active now dashboard section for live transfers
+- ✅ Per-file skipped / completed / downloading hierarchy
+- ✅ In-app bug report form with safe diagnostics
+- ✅ TestFlight readiness fixes (`Info.plist`, build numbering,
+  iPad orientations, Xcode Cloud bootstrap)
+
+Current work is beta hardening, not redesign:
+
+- ⏳ Run the TestFlight smoke checklist on the installed build
+- ⏳ Watch TestFlight crashes / hangs after daily use
+- ⏳ Keep bumping `CURRENT_PROJECT_VERSION` for every upload
+- ⏳ Prepare the next 0.5.2 build notes from
+  [`docs/release/release-notes-template.md`](docs/release/release-notes-template.md)
+- ⏳ Decide when Phase 1 solo internal beta is stable enough for
+  3-5 trusted testers
 - ⏳ Localization foundation (`Localizable.strings` + Czech)
 
-See [`docs/next-steps/0.5.1-polish.md`](docs/next-steps/0.5.1-polish.md)
-for the planning detail.
+See [`docs/next-steps/0.5.2-active-state-bug-report.md`](docs/next-steps/0.5.2-active-state-bug-report.md)
+for the 0.5.2 feature batch and
+[`docs/release/`](docs/release/) for the TestFlight operating
+documents.
 
-## Beyond 0.5.1
+## Beyond Internal Beta
 
-Internal TestFlight distribution comes first — see
-[`docs/release/testflight-readiness.md`](docs/release/testflight-readiness.md)
-for what blocks it today and
-[`docs/release/testflight-checklist.md`](docs/release/testflight-checklist.md)
-for the ordered work list. TestFlight readiness is release
-engineering, not feature work; the codebase changes are minimal
-(signing config + two `Info.plist` keys + version bumps) and most
-of the effort lives in App Store Connect.
-
-After TestFlight is live: daily usability (Share Extension,
-notifications, multi-server, richer task detail), then App Store
-readiness proper (localization, accessibility, screenshots,
-review submission). Power-user features (RSS, widgets,
-automation) stay behind stability + App Store readiness.
+After the solo TestFlight build is stable: daily usability (Share
+Extension, notifications, multi-server, richer task detail), then
+App Store readiness proper (localization, accessibility,
+screenshots, review submission). Power-user features (RSS,
+widgets, automation) stay behind stability + App Store readiness.
 
 Full breakdown: [`docs/roadmap/ROADMAP_V2.md`](docs/roadmap/ROADMAP_V2.md).
 

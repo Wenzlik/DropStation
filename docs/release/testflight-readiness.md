@@ -1,4 +1,4 @@
-# TestFlight readiness audit — what blocks an internal beta today
+# TestFlight readiness audit — internal beta status
 
 > **Scope:** Move DropStation from "Xcode-installed dev build that
 > expires in seven days" to "stable, signed, OTA-updatable internal
@@ -14,94 +14,89 @@ sequence + metadata baseline lives in
 
 ## Verdict
 
-**Not yet uploadable.** Two hard blockers, one show-stopper bug for
-LAN testers, plus a handful of nuisance gaps. No architectural
-issues; no auth/networking rewrites required.
+**Upload path proven.** DropStation is now in internal TestFlight
+beta on the `0.5.2` line. Current repo checkpoint:
+`MARKETING_VERSION = 0.5.2`, `CURRENT_PROJECT_VERSION = 13`.
 
-Estimated effort to first successful TestFlight upload: **~half a
-day** of release-engineering work, almost all of it in Xcode + App
-Store Connect rather than in the codebase.
-
----
-
-## Hard blockers (must fix before first upload)
-
-### 1. No signing configuration in `project.yml`
-
-`project.yml` declares the bundle id and platform but does **not**
-set `CODE_SIGN_STYLE` or `DEVELOPMENT_TEAM`. Every regenerated
-Xcode project starts with signing unconfigured, which means:
-
-- Archive → Distribute defaults to "Sign to run locally" rather
-  than "App Store Connect distribution".
-- Without a `DEVELOPMENT_TEAM`, automatic provisioning can't
-  request a real distribution profile.
-
-**Required:** add `CODE_SIGN_STYLE: Automatic` and
-`DEVELOPMENT_TEAM: <Apple team id>` to the `DropStation` target's
-`settings.base` in `project.yml`. Team id is the 10-character
-string Apple shows under *Membership* in the developer portal.
-
-### 2. No `NSLocalNetworkUsageDescription` in `Info.plist`
-
-The app's entire purpose is talking to a Synology NAS on the
-user's LAN (typically `192.168.x.x`, `10.x.x.x`, or `.local`
-mDNS). iOS 14+ silently blocks connections to private subnets
-until the user grants the "Local Network" permission — and that
-prompt **only fires if `NSLocalNetworkUsageDescription` is in
-`Info.plist`**.
-
-Symptoms a beta tester would see today: app launches, login
-spinner spins forever, no error. The OS-level block doesn't
-surface as an `URLError`.
-
-**Required:** add `NSLocalNetworkUsageDescription` with copy that
-names what we're doing. Proposed wording:
-
-> DropStation connects to your Synology NAS on your home or office
-> network to manage your downloads.
+The original hard blockers from this audit have either been fixed
+in the repo or worked around by the proven App Store Connect
+upload flow.
+This document is now a status record plus maintenance checklist,
+not a pre-upload blocker list.
 
 ---
 
-## Nuisance gaps (fix before first upload to avoid repeated friction)
+## Resolved blockers
 
-### 3. `ITSAppUsesNonExemptEncryption` not declared
+### 1. Local Network permission
 
-Without this key, every TestFlight upload prompts an Export
-Compliance questionnaire in App Store Connect. DropStation uses
-only OS-standard HTTPS (`URLSession`, the system TLS stack) and
-qualifies for the standard exemption.
+`Info.plist` now includes `NSLocalNetworkUsageDescription`, so iOS
+can show the Local Network permission prompt before DropStation
+connects to a NAS on RFC 1918 / `.local` addresses.
 
-**Required:** add `ITSAppUsesNonExemptEncryption = false` to
-`Info.plist`. One-time fix; the upload flow then skips the prompt.
+### 2. Export compliance friction
 
-### 4. Marketing version out of sync with branch
+`Info.plist` now includes `ITSAppUsesNonExemptEncryption = false`.
+DropStation uses OS-standard HTTPS/TLS and qualifies for the
+standard exemption, avoiding the repeated App Store Connect
+questionnaire on every upload.
 
-`project.yml` has `MARKETING_VERSION: 0.5.0` and
-`CURRENT_PROJECT_VERSION: 9`. The current branch
-(`feature/0.5.2-active-state`) advertises 0.5.2 in `CHANGELOG.md`
-and the commit message. A TestFlight build cut from this branch
-would arrive labelled "0.5.0 (9)" — confusing for testers who can
-see the changelog.
+### 3. Version / build identity
 
-**Required:** bump `MARKETING_VERSION` to the version the next
-build represents (e.g. `0.5.2`) and increment
-`CURRENT_PROJECT_VERSION` per upload (App Store Connect rejects
-duplicates).
+`project.yml` now records `MARKETING_VERSION: "0.5.2"` and
+`CURRENT_PROJECT_VERSION: "13"`. Keep incrementing
+`CURRENT_PROJECT_VERSION` for every TestFlight archive, even when
+the marketing version stays `0.5.2`.
 
-### 5. CI is simulator-only
+### 4. iPad orientation upload blocker
+
+The `UISupportedInterfaceOrientations~ipad` set is present. This
+fixes App Store Connect's ITMS-90474 rejection for universal apps
+that omit iPad multitasking orientations.
+
+### 5. Xcode Cloud project bootstrap
+
+`ci_scripts/ci_post_clone.sh` is checked in and executable. Xcode
+Cloud can generate `DropStation.xcodeproj` from `project.yml` on a
+fresh clone before the Archive action runs.
+
+### 6. App Transport Security / self-signed certificates
+
+ATS is narrowed to `NSAllowsLocalNetworking` for cleartext HTTP to
+LAN NAS hosts. Self-signed HTTPS is handled explicitly by
+`ServerTrustCoordinator` using trust-on-first-use plus
+Keychain-backed fingerprint pinning and a user-facing certificate
+trust prompt.
+
+---
+
+## Remaining operational gaps
+
+### Signing config is still local/manual
+
+The first TestFlight upload proves that local Xcode signing and
+App Store Connect distribution work. The repo still leaves
+`CODE_SIGN_STYLE` / `DEVELOPMENT_TEAM` commented out in
+`project.yml`, so regenerated projects require manual signing
+selection before archiving.
+
+That is acceptable for the current private beta. Before a more
+repeatable release flow, either commit the Apple team id with
+automatic signing or document the local Xcode signing step as
+intentional.
+
+### CI upload remains manual
 
 `.github/workflows/release.yml` builds an unsigned simulator `.app`
 for proof-of-compile and explicitly does not produce an `.ipa`.
-That's correct for the current "personal project, no Apple
-account" posture but does **not** advance us toward TestFlight.
+Xcode Cloud bootstrap exists, but signed upload automation is not
+yet treated as source-controlled release infrastructure.
 
-**Not blocking the first manual upload.** A signed CI workflow can
-land later; for the first 2–3 betas, archiving + uploading from
-the Xcode Organizer is faster than wiring up App Store Connect API
-keys in GitHub secrets.
+Not blocking. For the first few betas, Xcode Organizer or Xcode
+Cloud uploads are still simpler than wiring App Store Connect API
+keys into a custom CI pipeline.
 
-### 6. App icon tinted variant — visual sanity needed
+### App icon tinted variant — visual sanity still useful
 
 The tinted-mode (iOS 18+ Home Screen) variant ships as a 1024×1024
 PNG generated from `icon-tinted.svg`. The SVG is correct (white
@@ -155,8 +150,8 @@ These were audited and are **not** in the way of TestFlight:
   `NSDocumentPickerUsageDescription` needed), `PasteButton` /
   one-way `UIPasteboard.general.string = …` write (no
   `NSPasteboardUsageDescription` needed), `MFMailComposeViewController`
-  (no extra entitlement). Local Network is the only permission
-  gap — see blocker #2.
+  (no extra entitlement). Local Network is covered by
+  `NSLocalNetworkUsageDescription`.
 - **Crash reporting.** Built-in TestFlight crash collection +
   MetricKit on iOS 13+ gives us crash + hang + disk-write reports
   in App Store Connect → TestFlight → Crashes, no SDK needed.
@@ -171,11 +166,12 @@ These were audited and are **not** in the way of TestFlight:
 - A dedicated dark-appearance app icon. The light icon is used in
   Dark Mode today; acceptable for a beta.
 - Per-domain ATS exceptions. Done differently than originally
-  planned: 0.5.1 narrowed the blanket `NSAllowsArbitraryLoads` to
-  `NSAllowsLocalNetworking` (cleartext HTTP on the LAN only) +
-  delegate-based self-signed HTTPS trust, rather than per-domain
-  exceptions (the NAS host is unknown ahead of time, so per-domain
-  was never workable). No further ATS work expected before review.
+  planned: the beta line narrowed the blanket
+  `NSAllowsArbitraryLoads` to `NSAllowsLocalNetworking`
+  (cleartext HTTP on the LAN only) + delegate-based self-signed
+  HTTPS trust, rather than per-domain exceptions (the NAS host is
+  unknown ahead of time, so per-domain was never workable). No
+  further ATS work expected before review.
 - iPad-specific layout review. The target is universal
   (`TARGETED_DEVICE_FAMILY: "1,2"`), but UI was designed
   iPhone-first. Recommend recording the first TF group as

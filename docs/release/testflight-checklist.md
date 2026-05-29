@@ -1,4 +1,4 @@
-# TestFlight action checklist — current repo → first internal beta
+# TestFlight action checklist — internal beta maintenance
 
 > Companion to [`testflight-readiness.md`](testflight-readiness.md)
 > (the diagnosis) and [`testflight-rollout.md`](testflight-rollout.md)
@@ -6,8 +6,10 @@
 > list**: top to bottom, each step is a discrete piece of work
 > that either lives in the repo or in App Store Connect.
 
-Total wall-clock estimate: half a day of focused work, most of it
-in Xcode and the App Store Connect web UI rather than in code.
+Current state: the first internal TestFlight path is live on the
+`0.5.2` line. Current repo checkpoint is build `13`. This
+checklist now tracks what remains to validate and repeat for
+future TestFlight uploads.
 
 ---
 
@@ -15,23 +17,23 @@ in Xcode and the App Store Connect web UI rather than in code.
 
 These don't touch source; they unblock everything that follows.
 
-- [ ] **Active Apple Developer Program membership** ($99/yr) on the
+- [x] **Active Apple Developer Program membership** ($99/yr) on the
       Apple ID you intend to ship from. Confirm under
       <https://developer.apple.com/account> → *Membership*.
-- [ ] **Capture your team id** (10-character alphanumeric string)
-      from that same Membership page. You'll paste it into
-      `project.yml` in Phase 2.
-- [ ] **Register the bundle id** `com.wenzlik.DropStation` under
+- [x] **Capture your team id** (10-character alphanumeric string)
+      from that same Membership page. Use it in Phase 2 only if
+      you decide to codify signing in `project.yml`.
+- [x] **Register the bundle id** `com.wenzlik.DropStation` under
       *Certificates, Identifiers & Profiles → Identifiers → App IDs*.
       No special capabilities to enable (push, sign-in-with-apple,
       etc.) — DropStation needs none of those today.
-- [ ] **Create the app record** in App Store Connect:
+- [x] **Create the app record** in App Store Connect:
       *My Apps → ＋ → New App*. Platform iOS, bundle id from above,
       SKU = `dropstation`, primary language English. Don't fill
       marketing copy yet — that comes in [`testflight-rollout.md`](testflight-rollout.md).
-- [ ] **(Optional) Set up an internal testing group** in App Store
+- [x] **Set up an internal testing group** in App Store
       Connect → *TestFlight → Internal Testing*. Add yourself first
-      so the very first upload has a destination.
+      so the first upload has a destination.
 
 ---
 
@@ -48,47 +50,54 @@ These are repo-side. Most are mechanical; the ones marked
       questionnaire on every upload.
 - [x] **`project.yml`: version bump** — `MARKETING_VERSION` and
       `CURRENT_PROJECT_VERSION` updated to match the branch.
-- [ ] **`project.yml`: signing config** *(user)* — add to the
-      `DropStation` target:
+- [ ] **Optional repo-side signing config** *(user)* — if you want
+      regenerated projects to archive without manual Xcode signing
+      selection, add to the `DropStation` target:
       ```yaml
       CODE_SIGN_STYLE: Automatic
       DEVELOPMENT_TEAM: <your 10-char team id>
       ```
       Then `xcodegen generate` to regenerate the project. The
       placeholder block is already present in `project.yml` —
-      uncomment and fill in your team id.
+      uncomment and fill in your team id. This is no longer a
+      blocker because the manual Xcode signing path has already
+      produced TestFlight builds.
 - [ ] **`xcodegen generate`** after every `project.yml` change.
       Don't commit `DropStation.xcodeproj` (still gitignored).
-- [ ] **Confirm `CURRENT_PROJECT_VERSION` bumps per upload.**
+- [x] **Confirm `CURRENT_PROJECT_VERSION` bumps per upload.**
       App Store Connect rejects duplicate build numbers within a
       version. Adopt: bump `CURRENT_PROJECT_VERSION` (e.g. 10 → 11)
       every time you archive a build for TestFlight, even if
-      `MARKETING_VERSION` hasn't changed.
+      `MARKETING_VERSION` hasn't changed. Current repo build is
+      `13`; the next TestFlight archive should bump to `14`.
 
 ---
 
-## Phase 3 — First archive
+## Phase 3 — First archive / upload
 
-Done in Xcode (Organizer flow). No CI yet — the goal is one
-successful manual upload, then we can talk about automation.
+The first TestFlight upload is proven. Keep the local Xcode
+Organizer steps below for manual uploads; if the build is produced
+by Xcode Cloud instead, the physical-device setup items do not
+apply.
 
-- [ ] **Plug in (or pair) a physical iPhone.** Required to build
+- [ ] **Plug in (or pair) a physical iPhone** *(manual archive
+      only)*. Required to build
       with the *Any iOS Device (arm64)* destination — the only
       destination Xcode accepts for archiving.
 - [ ] **Select scheme `DropStation`, destination *Any iOS Device
-      (arm64)*.**
-- [ ] **Product → Archive.** First archive on a fresh machine may
+      (arm64)* *(manual archive only)*.**
+- [x] **Produce an archive for App Store Connect.** First archive on a fresh machine may
       take 3–5 minutes; Xcode will also request a Distribution
       certificate the first time (let it auto-create).
-- [ ] **Organizer → Distribute App → App Store Connect → Upload.**
+- [x] **Distribute/upload to App Store Connect.**
       Pick *Automatic signing*. If Xcode shows a provisioning
       profile error, *Manage* → *Modify* → *Automatically manage
       signing*, then retry.
-- [ ] **Wait for "processing" email** from App Store Connect
+- [x] **Wait for "processing" email** from App Store Connect
       (5–60 minutes). The build appears in
       *App Store Connect → TestFlight → iOS Builds* once
       processing finishes.
-- [ ] **Add the new build to your internal testing group.** First
+- [x] **Add the new build to your internal testing group.** First
       build per version triggers an export compliance step (the
       `ITSAppUsesNonExemptEncryption = false` from Phase 2 makes
       it a no-op).
@@ -97,7 +106,9 @@ successful manual upload, then we can talk about automation.
 
 ## Phase 4 — First install on a real device
 
-Confirms the build actually runs end-to-end on TestFlight.
+Confirms the build actually runs end-to-end on TestFlight. Do not
+mark these done unless the installed TestFlight build has been
+checked on a real device.
 
 - [ ] **Install TestFlight** from the App Store on the test
       device if not already present.
