@@ -12,13 +12,13 @@ Synology Download Station — not a torrent-client kitchen sink.
 
 Priority: clarity, reliability, speed, native feel, calm utility UX.
 
-## Current focus (TestFlight beta / 0.5.2)
+## Current focus (TestFlight beta / 0.5.3)
 
-DropStation is now in the internal TestFlight beta phase. The repo
-is on `0.5.2`, build `13`, with the first release-engineering
-loop proven: App Store Connect upload, TestFlight distribution,
-Xcode Cloud bootstrap, iPad orientation fix, narrowed ATS, and
-self-signed certificate trust UX.
+DropStation is in the internal TestFlight beta phase. The repo
+is on `0.5.3`, build `15`. The release-engineering loop is
+proven (App Store Connect upload, TestFlight distribution,
+Xcode Cloud bootstrap) and the app now ships in English **and
+Czech**.
 
 Shipped on `main` since 0.5.0:
 
@@ -35,20 +35,29 @@ Shipped on `main` since 0.5.0:
 - ✅ In-app bug report form with safe diagnostics
 - ✅ TestFlight readiness fixes (`Info.plist`, build numbering,
   iPad orientations, Xcode Cloud bootstrap)
+- ✅ **Czech localization** — String Catalog with 221 keys, full
+  Czech translation pass for the 0.5.3 release
 
 Current work is beta hardening, not redesign:
 
 - ⏳ Run the TestFlight smoke checklist on the installed build
 - ⏳ Watch TestFlight crashes / hangs after daily use
 - ⏳ Keep bumping `CURRENT_PROJECT_VERSION` for every upload
-- ⏳ Prepare the next 0.5.2 build notes from
+- ⏳ Prepare the next build notes from
   [`docs/release/release-notes-template.md`](docs/release/release-notes-template.md)
 - ⏳ Decide when Phase 1 solo internal beta is stable enough for
   3-5 trusted testers
-- ⏳ Localization foundation (`Localizable.strings` + Czech)
+- ⏳ cs-locale UI walkthrough — Czech is 20-30% longer than
+  English on average; verify no buttons wrap or truncate
+- ⏳ Plural-rule entries for `%lld file` etc. (Czech has three
+  forms; needs xcstrings plural-variation UI)
+- ⏳ `No %@ downloads` adjective inflection — per-filter empty-
+  state strings in TaskListView
 
 See [`docs/next-steps/0.5.2-active-state-bug-report.md`](docs/next-steps/0.5.2-active-state-bug-report.md)
-for the 0.5.2 feature batch and
+for the prior feature batch,
+[`docs/i18n/terminology.md`](docs/i18n/terminology.md) for the
+Czech translator glossary, and
 [`docs/release/`](docs/release/) for the TestFlight operating
 documents.
 

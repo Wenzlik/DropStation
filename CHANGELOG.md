@@ -6,7 +6,12 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+_No changes since 0.5.3._
+
+## [0.5.3] — 2026-06-01 — Czech localization
+
 ### New
+- **Čeština.** DropStation now ships with a full Czech localization alongside English. Switches automatically when iOS is set to Czech, or manually via Settings → DropStation → Language.
 - Dashboard now leads with an **Active now** section when transfers are in flight — top 3 byte-moving tasks with live throughput, ETA, and a progress sliver. Idle NAS falls back to the calm Recently completed feed.
 - Seeding torrents count as completed content. Idle seeders show up in Recently completed (the file is locally available); seeders currently uploading appear in Active.
 - Hero card surfaces upload throughput alongside download as a dedicated `↓ X · ↑ Y` line, not buried in the metric row.
@@ -18,6 +23,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Notes
 - Suggest a feature still opens GitHub — public discussion fits there; bug reports moved in-app where structure and low friction matter more.
+- Czech translation pass covers every user-facing string the catalog could extract from source. Plural-rule entries (`%lld file` → 1 / 2-4 / 5+ forms) and adjective-inflection in interpolated filter labels are tracked as follow-ups.
 
 ## [0.5.0] — 2026-05-26 — UI modernization
 
@@ -134,6 +140,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Initial release.
 
+[0.5.3]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.3
 [0.5.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.4.0
 [0.3.1]: https://github.com/Wenzlik/DropStation/releases/tag/v0.3.1

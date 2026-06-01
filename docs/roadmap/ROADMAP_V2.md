@@ -76,10 +76,10 @@ Not:
   passwords, SIDs, cookies, OTPs, tokens, or torrent names.
 
 ### Distribution foundation
-- Internal TestFlight distribution is live for the 0.5.2 line.
-  Current repo checkpoint: build `13`.
+- Internal TestFlight distribution is live. Current repo
+  checkpoint: `0.5.3`, build `15`.
 - App Store Connect upload path proven with TestFlight processing
-  for the 0.5.2 line.
+  across the 0.5.2 → 0.5.3 line.
 - Xcode Cloud bootstrap added via `ci_scripts/ci_post_clone.sh`
   so fresh cloud clones generate `DropStation.xcodeproj` from
   `project.yml`.
@@ -88,14 +88,28 @@ Not:
   orientation set, narrowed ATS (`NSAllowsLocalNetworking`) plus
   explicit self-signed HTTPS trust.
 
+### Localization (0.5.3)
+- String Catalog (`Localizable.xcstrings`) with `en` source +
+  `cs` target — Xcode 15+ format, auto-extracts from
+  `LocalizedStringKey` / `String(localized:)` literals at build
+  time, single file per language pair.
+- 221 unique source keys, all translated to Czech. Translation
+  pass follows the rules in
+  [`docs/i18n/terminology.md`](../i18n/terminology.md) (brands
+  stay English, "session" → "relace", iOS-Czech matches for
+  Sign in / Settings / Cancel / Done, etc.).
+- `CFBundleLocalizations = [en, cs]` registered in `Info.plist`
+  so iOS exposes the language picker under Settings →
+  DropStation → Language.
+
 ---
 
 # Current beta hardening
 
 ## High priority
 
-- Run the TestFlight smoke checklist on build `13` and record any
-  failure as a docs-first follow-up.
+- Run the TestFlight smoke checklist on the 0.5.3 build and
+  record any failure as a docs-first follow-up.
 - Watch App Store Connect TestFlight crash / hang reports during
   solo daily use.
 - Keep `CURRENT_PROJECT_VERSION` moving for every new TestFlight
@@ -103,8 +117,17 @@ Not:
 - Prepare per-build "What to Test" notes before every upload.
 - When solo usage is stable, expand from Phase 1 to 3-5 trusted
   internal testers.
-- Start localization foundation (`Localizable.strings` + Czech)
-  before App Store submission work.
+- **cs-locale UI walkthrough** — Czech is on average 20-30%
+  longer than English; verify no buttons wrap or truncate
+  under the Czech build before declaring the localization
+  batch shippable.
+- Plural-rule entries for `%lld file` etc. (Czech has three
+  plural forms; needs the xcstrings plural-variation UI in
+  Xcode, not a string-replacement edit).
+- `No %@ downloads` adjective inflection — current Czech
+  translation reads "Žádná stahování (downloading)" which is
+  functional but ugly. Right fix is per-filter empty-state
+  strings in TaskListView (code change, not catalog).
 
 ---
 
