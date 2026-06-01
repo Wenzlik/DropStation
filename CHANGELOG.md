@@ -8,6 +8,31 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 _No changes since 0.5.3._
 
+<!--
+  Release engineering note for 0.5.3 — not rendered in the
+  bundled in-app changelog (HTML comments are stripped by the
+  markdown renderer).
+
+  The `v0.5.3` git tag points at commit `b6af516` (the PR #13
+  merge that landed the Czech translations). That commit still
+  has `MARKETING_VERSION = 0.5.2` and `CURRENT_PROJECT_VERSION
+  = 14` in `project.yml` — the version bump landed as a
+  follow-up PR #14, one commit later, because the bump push
+  reached origin/work/localization-foundation after the user
+  had already clicked Merge on PR #13. The tag was then cut
+  before the rescue PR was identified.
+
+  Per the `refs/tags/v*` ruleset the tag is immutable and was
+  deliberately left in place. Real TestFlight builds come from
+  Xcode Cloud against post-merge `main`, which carries the
+  correct 0.5.3 / 15 identity. The `release.yml` smoke-build
+  CI artifact attached to the v0.5.3 GitHub Release reports
+  itself as 0.5.2 (build 14) and is simulator-only — keep
+  that in mind if anyone goes spelunking the release archive.
+
+  Full incident log lives in `docs/release/process.md` under
+  "v0.5.3 tag — premature cut".
+-->
 ## [0.5.3] — 2026-06-01 — Czech localization
 
 ### New
