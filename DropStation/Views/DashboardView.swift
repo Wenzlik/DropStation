@@ -644,7 +644,7 @@ struct DashboardView: View {
         let size = ByteCountFormatter.string(fromByteCount: task.size.value, countStyle: .file)
         guard let completed = completedDate(for: task) else { return size }
         let relative = Self.relativeFormatter.localizedString(for: completed, relativeTo: Date())
-        return "Completed \(relative) • \(size)"
+        return String(localized: "Completed \(relative) • \(size)")
     }
 
     private func completedDate(for task: DownloadTask) -> Date? {

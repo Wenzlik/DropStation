@@ -24,8 +24,8 @@ enum AuthMethod: String, CaseIterable, Identifiable, Codable {
 
     var label: String {
         switch self {
-        case .otp:             return "Verification code"
-        case .secureSignInWeb: return "Secure SignIn app"
+        case .otp:             return String(localized: "Verification code")
+        case .secureSignInWeb: return String(localized: "Secure SignIn app")
         }
     }
 
@@ -34,9 +34,9 @@ enum AuthMethod: String, CaseIterable, Identifiable, Codable {
     var subtitle: String {
         switch self {
         case .otp:
-            return "Enter a 6-digit code from a TOTP app."
+            return String(localized: "Enter a 6-digit code from a TOTP app.")
         case .secureSignInWeb:
-            return "Approve a push notification in Synology Secure SignIn."
+            return String(localized: "Approve a push notification in Synology Secure SignIn.")
         }
     }
 

@@ -155,12 +155,28 @@ struct DownloadTask: Codable, Identifiable, Hashable {
     /// `.finished` into a single user-facing "Ended" — matching how DSM web
     /// labels these — so users aren't confused by Stop landing them in a
     /// "Paused" label that sounds temporary.
+    ///
+    /// Switches on the enum case directly rather than `.capitalized`-ing
+    /// the rawValue so each label is a discoverable source string that
+    /// String Catalog can extract and Czech / future locales can
+    /// translate. Returning `String(localized:)` means en builds get the
+    /// English literal (matching the test fixtures) and cs builds resolve
+    /// the catalog translation when one exists.
     var displayStatusLabel: String {
-        if isAtCompletion, status == .paused { return "Ended" }
-        if status == .finished { return "Ended" }
-        return status.rawValue
-            .replacingOccurrences(of: "_", with: " ")
-            .capitalized
+        if isAtCompletion, status == .paused { return String(localized: "Ended") }
+        switch status {
+        case .waiting:             return String(localized: "Waiting")
+        case .downloading:         return String(localized: "Downloading")
+        case .paused:              return String(localized: "Paused")
+        case .finishing:           return String(localized: "Finishing")
+        case .finished:            return String(localized: "Ended")
+        case .hash_checking:       return String(localized: "Hash checking")
+        case .seeding:             return String(localized: "Seeding")
+        case .filehosting_waiting: return String(localized: "Filehosting waiting")
+        case .extracting:          return String(localized: "Extracting")
+        case .error:               return String(localized: "Error")
+        case .unknown:             return String(localized: "Unknown")
+        }
     }
 
     /// Tint shown by the StatusPill. Matches displayStatusLabel by collapsing

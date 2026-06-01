@@ -240,7 +240,7 @@ final class SessionStore: ObservableObject {
     func login(config: ServerConfig, password: String) async {
         self.config = config
         guard let url = config.baseURL else {
-            state = .error("Invalid server URL.")
+            state = .error(String(localized: "Invalid server URL."))
             return
         }
         await client.configure(baseURL: url)
@@ -263,7 +263,7 @@ final class SessionStore: ObservableObject {
     /// Submit an OTP code from the 2FA challenge view.
     func submitOTP(_ otpCode: String) async {
         guard let pending = pendingCredentials else {
-            state = .error("Session lost. Please sign in again.")
+            state = .error(String(localized: "Session lost. Please sign in again."))
             return
         }
         state = .authenticating
@@ -299,7 +299,7 @@ final class SessionStore: ObservableObject {
         } catch let error as APIError where error.isOTPRequired {
             onOTPNeeded()
         } catch let error as APIError where error.isOTPInvalid {
-            state = .error("Incorrect verification code.")
+            state = .error(String(localized: "Incorrect verification code."))
         } catch let error as APIError where error.serverTrustInfo != nil {
             // First login to a self-signed NAS. Keep pendingCredentials
             // intact — trustCertificate() re-runs the login once the
@@ -442,7 +442,7 @@ final class SessionStore: ObservableObject {
     ) async {
         self.config = config
         guard let url = config.baseURL else {
-            state = .error("Invalid server URL.")
+            state = .error(String(localized: "Invalid server URL."))
             return
         }
         DSLog.session("completeWebSignIn host=\(config.host) initialSid=\(redact(sid)) cookies=\(cookies.count)")
@@ -480,13 +480,13 @@ final class SessionStore: ObservableObject {
             DSLog.session("DS probe → 105; web identity verified but no API permission")
             pendingCredentials = nil
             state = .sessionUnauthorized(
-                reason: "Secure SignIn login succeeded, but DSM did not grant API access to Download Station."
+                reason: String(localized: "Secure SignIn login succeeded, but DSM did not grant API access to Download Station.")
             )
             return
         } catch {
             DSLog.session("DS probe failed: \(error.localizedDescription)")
             pendingCredentials = nil
-            state = .error("Couldn't reach Download Station: \(error.localizedDescription)")
+            state = .error(String(localized: "Couldn't reach Download Station: \(error.localizedDescription)"))
             return
         }
 
@@ -647,7 +647,7 @@ final class SessionStore: ObservableObject {
         } catch let error as APIError where error.isSessionExpired {
             DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
             await clearStoredSession()
-            state = .sessionUnauthorized(reason: "Session expired. Please re-authenticate with verification code.")
+            state = .sessionUnauthorized(reason: String(localized: "Session expired. Please re-authenticate with verification code."))
         } catch let error as APIError where error.serverTrustInfo != nil {
             // Cert became untrusted between launches (DSM cert rotated,
             // or a previously-pinned cert changed). Route to the trust

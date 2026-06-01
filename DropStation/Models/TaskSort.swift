@@ -12,10 +12,10 @@ enum TaskSort: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .name:          return "Name"
-        case .size:          return "Size"
-        case .dateAdded:     return "Date added"
-        case .dateCompleted: return "Date completed"
+        case .name:          return String(localized: "Name")
+        case .size:          return String(localized: "Size")
+        case .dateAdded:     return String(localized: "Date added")
+        case .dateCompleted: return String(localized: "Date completed")
         }
     }
 
@@ -34,7 +34,11 @@ enum TaskSortDirection: String, CaseIterable, Identifiable {
     case descending
 
     var id: String { rawValue }
-    var label: String { self == .ascending ? "Ascending" : "Descending" }
+    var label: String {
+        self == .ascending
+            ? String(localized: "Ascending")
+            : String(localized: "Descending")
+    }
     var systemImage: String {
         self == .ascending ? "arrow.up" : "arrow.down"
     }

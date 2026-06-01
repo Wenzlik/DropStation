@@ -142,9 +142,9 @@ struct LoginView: View {
 
     private var welcomeSubtitle: String {
         if !session.config.host.isEmpty {
-            return "Sign in to \(session.config.host)"
+            return String(localized: "Sign in to \(session.config.host)")
         }
-        return "Sign in to your Synology Download Station"
+        return String(localized: "Sign in to your Synology Download Station")
     }
 
     // MARK: - Card

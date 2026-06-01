@@ -10,13 +10,13 @@ enum TaskFilter: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .all: return "All"
-        case .downloading: return "Downloading"
-        case .seeding: return "Seeding"
-        case .active: return "All active"
-        case .paused: return "Paused"
-        case .finished: return "Finished"
-        case .error: return "Error"
+        case .all:         return String(localized: "All")
+        case .downloading: return String(localized: "Downloading")
+        case .seeding:     return String(localized: "Seeding")
+        case .active:      return String(localized: "All active")
+        case .paused:      return String(localized: "Paused")
+        case .finished:    return String(localized: "Finished")
+        case .error:       return String(localized: "Error")
         }
     }
 
