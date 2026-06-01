@@ -187,6 +187,94 @@ final class APIErrorSessionExpiredTests: XCTestCase {
     }
 }
 
+/// Locks the contract that decides whether a probe failure WIPES the
+/// saved SID or PRESERVES it. The session-persistence behaviour rests
+/// entirely on this classification: SessionStore wipes only on
+/// `isSessionExpired`, preserves on `isTransient` / `.serverTrust` /
+/// anything-else. A regression here (e.g. a non-expiry code sneaking
+/// into `isSessionExpired`) would silently start logging users out —
+/// exactly the field-reported symptom. These tests fail loudly if the
+/// classification drifts.
+final class SessionWipeContractTests: XCTestCase {
+    /// Exactly these four DSM codes are session-expiry (→ wipe SID).
+    private let expiryCodes = [105, 106, 107, 119]
+
+    /// A spread of codes that must NEVER be treated as expiry — common
+    /// errors, auth-context 4xx, and codes adjacent to the expiry set.
+    private let nonExpiryCodes = [100, 101, 102, 103, 104, 108, 118, 120, 400, 401, 402, 403, 404]
+
+    func testOnlyFourCodesAreSessionExpiry() {
+        for code in expiryCodes {
+            XCTAssertTrue(APIError.synology(code: code, message: "x").isSessionExpired,
+                          "Code \(code) must be session-expiry (wipes SID)")
+        }
+        for code in nonExpiryCodes {
+            XCTAssertFalse(APIError.synology(code: code, message: "x").isSessionExpired,
+                           "Code \(code) must NOT be session-expiry — would wrongly wipe the SID")
+        }
+    }
+
+    /// `isUnauthorized` (the 105-only flavour used by the live-poll
+    /// recovery path) must stay exactly 105.
+    func testUnauthorizedIsExactly105() {
+        XCTAssertTrue(APIError.synology(code: 105, message: "x").isUnauthorized)
+        for code in [106, 107, 119, 100, 400] {
+            XCTAssertFalse(APIError.synology(code: code, message: "x").isUnauthorized,
+                           "Only 105 is .isUnauthorized; \(code) must not be")
+        }
+    }
+
+    /// Transport errors and 5xx are transient (→ preserve SID, retry).
+    /// Synology API codes are never transient — they're definite
+    /// server answers, not connectivity blips.
+    func testTransientCoversTransportAnd5xxOnly() {
+        let transientURLCodes: [URLError.Code] = [
+            .notConnectedToInternet, .networkConnectionLost, .timedOut,
+            .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+            .secureConnectionFailed, .internationalRoamingOff, .dataNotAllowed
+        ]
+        for code in transientURLCodes {
+            XCTAssertTrue(APIError.transport(URLError(code)).isTransient,
+                          "URLError \(code) should be transient")
+        }
+        XCTAssertTrue(APIError.http(500).isTransient)
+        XCTAssertTrue(APIError.http(503).isTransient)
+        XCTAssertFalse(APIError.http(404).isTransient, "4xx is not transient")
+        XCTAssertFalse(APIError.http(401).isTransient)
+        for code in expiryCodes + [400, 105] {
+            XCTAssertFalse(APIError.synology(code: code, message: "x").isTransient,
+                           "Synology code \(code) must not be transient")
+        }
+    }
+
+    /// The safety invariant the catch-order relies on: no single error
+    /// is BOTH session-expiry AND transient. If one were, the branch
+    /// order would decide whether the SID survives — a latent bug.
+    /// Checks the expiry codes, the transient transport codes, and 5xx.
+    func testExpiryAndTransientAreMutuallyExclusive() {
+        let samples: [APIError] =
+            expiryCodes.map { .synology(code: $0, message: "x") }
+            + [.transport(URLError(.timedOut)), .transport(URLError(.networkConnectionLost)),
+               .http(500), .http(503),
+               .serverTrust(host: "nas.local", fingerprint: "AB:CD")]
+        for error in samples {
+            XCTAssertFalse(error.isSessionExpired && error.isTransient,
+                           "Error \(error) is both expiry and transient — ambiguous wipe/preserve")
+        }
+    }
+
+    /// `.serverTrust` (self-signed cert) must preserve the session: it
+    /// is neither expiry nor transient nor unauthorized, so it routes
+    /// to the trust prompt with the SID intact.
+    func testServerTrustPreservesSession() {
+        let err = APIError.serverTrust(host: "nas.local", fingerprint: "AB:CD")
+        XCTAssertFalse(err.isSessionExpired, ".serverTrust must not wipe the SID")
+        XCTAssertFalse(err.isTransient)
+        XCTAssertFalse(err.isUnauthorized)
+        XCTAssertNotNil(err.serverTrustInfo)
+    }
+}
+
 final class LoginDataDecodingTests: XCTestCase {
     func testDecodeLoginWithoutDeviceToken() throws {
         let json = #"{"sid":"abc"}"#.data(using: .utf8)!
