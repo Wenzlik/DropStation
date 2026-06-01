@@ -18,13 +18,22 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return "Invalid server URL."
-        case .notLoggedIn: return "Not logged in."
-        case .http(let code): return "HTTP error \(code)."
-        case .decoding(let err): return "Decoding error: \(Self.describe(decodingError: err))"
-        case .synology(let code, let message): return "Synology error \(code): \(message)"
-        case .transport(let err): return err.localizedDescription
-        case .serverTrust(let host, _): return "Couldn't verify the security certificate for \(host)."
+        case .invalidURL:
+            return String(localized: "Invalid server URL.")
+        case .notLoggedIn:
+            return String(localized: "Not logged in.")
+        case .http(let code):
+            return String(localized: "HTTP error \(code).")
+        case .decoding(let err):
+            return String(localized: "Decoding error: \(Self.describe(decodingError: err))")
+        case .synology(let code, let message):
+            return String(localized: "Synology error \(code): \(message)")
+        case .transport(let err):
+            // System URLError messages localize themselves via the OS;
+            // pass through verbatim rather than re-wrapping.
+            return err.localizedDescription
+        case .serverTrust(let host, _):
+            return String(localized: "Couldn't verify the security certificate for \(host).")
         }
     }
 
@@ -52,13 +61,13 @@ enum APIError: LocalizedError {
         }
         switch de {
         case .keyNotFound(let key, let ctx):
-            return "missing key '\(key.stringValue)' at \(path(ctx))"
+            return String(localized: "missing key '\(key.stringValue)' at \(path(ctx))")
         case .valueNotFound(let type, let ctx):
-            return "missing \(type) value at \(path(ctx))"
+            return String(localized: "missing \(String(describing: type)) value at \(path(ctx))")
         case .typeMismatch(let type, let ctx):
-            return "wrong type — expected \(type) at \(path(ctx))"
+            return String(localized: "wrong type — expected \(String(describing: type)) at \(path(ctx))")
         case .dataCorrupted(let ctx):
-            return "data corrupted at \(path(ctx)): \(ctx.debugDescription)"
+            return String(localized: "data corrupted at \(path(ctx)): \(ctx.debugDescription)")
         @unknown default:
             return de.localizedDescription
         }
@@ -153,41 +162,41 @@ enum SynologyErrorCode {
     /// Codes 100-107 are returned by every endpoint with the same meaning.
     private static func commonMessage(for code: Int) -> String? {
         switch code {
-        case 100: return "Unknown error."
-        case 101: return "Invalid parameter."
-        case 102: return "The requested API does not exist."
-        case 103: return "The requested method does not exist."
-        case 104: return "The requested version does not support the functionality."
-        case 105: return "The logged in session does not have permission."
-        case 106: return "Session timeout."
-        case 107: return "Session interrupted by duplicate login."
+        case 100: return String(localized: "Unknown error.")
+        case 101: return String(localized: "Invalid parameter.")
+        case 102: return String(localized: "The requested API does not exist.")
+        case 103: return String(localized: "The requested method does not exist.")
+        case 104: return String(localized: "The requested version does not support the functionality.")
+        case 105: return String(localized: "The logged in session does not have permission.")
+        case 106: return String(localized: "Session timeout.")
+        case 107: return String(localized: "Session interrupted by duplicate login.")
         default:  return nil
         }
     }
 
     private static func authMessage(for code: Int) -> String {
         switch code {
-        case 400: return "No such account or incorrect password."
-        case 401: return "Account disabled."
-        case 402: return "Permission denied."
-        case 403: return "2-step verification code required."
-        case 404: return "Failed to authenticate 2-step verification code."
-        default:  return "Synology API returned error \(code)."
+        case 400: return String(localized: "No such account or incorrect password.")
+        case 401: return String(localized: "Account disabled.")
+        case 402: return String(localized: "Permission denied.")
+        case 403: return String(localized: "2-step verification code required.")
+        case 404: return String(localized: "Failed to authenticate 2-step verification code.")
+        default:  return String(localized: "Synology API returned error \(code).")
         }
     }
 
     private static func taskMessage(for code: Int) -> String {
         switch code {
-        case 400: return "File upload failed."
-        case 401: return "Maximum number of tasks reached."
-        case 402: return "Destination denied."
-        case 403: return "Destination does not exist."
-        case 404: return "Invalid task ID."
-        case 405: return "Invalid task action."
-        case 406: return "No default destination configured."
-        case 407: return "Set destination failed."
-        case 408: return "File does not exist."
-        default:  return "Synology API returned error \(code)."
+        case 400: return String(localized: "File upload failed.")
+        case 401: return String(localized: "Maximum number of tasks reached.")
+        case 402: return String(localized: "Destination denied.")
+        case 403: return String(localized: "Destination does not exist.")
+        case 404: return String(localized: "Invalid task ID.")
+        case 405: return String(localized: "Invalid task action.")
+        case 406: return String(localized: "No default destination configured.")
+        case 407: return String(localized: "Set destination failed.")
+        case 408: return String(localized: "File does not exist.")
+        default:  return String(localized: "Synology API returned error \(code).")
         }
     }
 }

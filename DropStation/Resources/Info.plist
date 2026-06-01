@@ -4,6 +4,19 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <!--
+        Explicitly declares the localizations DropStation ships. The
+        actual translations live in the `Localizable.xcstrings` String
+        Catalog (English source + Czech). Listing them here ensures iOS
+        offers Czech under Settings → DropStation → Language and loads
+        the compiled `cs.lproj` strings, independent of how the build
+        system derives known regions.
+    -->
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>cs</string>
+    </array>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>

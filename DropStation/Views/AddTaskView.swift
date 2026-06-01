@@ -21,9 +21,19 @@ struct AddTaskView: View {
     let onAddFile: (Data, String, String?) async -> Void
 
     enum Mode: String, CaseIterable, Identifiable {
-        case uri = "Link"
-        case file = "File"
+        case uri
+        case file
         var id: String { rawValue }
+
+        /// User-facing picker label. Switch on the case rather than the
+        /// rawValue so the literals are discoverable by Xcode's String
+        /// Catalog auto-extractor.
+        var label: String {
+            switch self {
+            case .uri:  return String(localized: "Link")
+            case .file: return String(localized: "File")
+            }
+        }
     }
 
     struct PickedFile: Equatable {
@@ -37,7 +47,7 @@ struct AddTaskView: View {
             Form {
                 Section {
                     Picker("Source", selection: $mode) {
-                        ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(Mode.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }

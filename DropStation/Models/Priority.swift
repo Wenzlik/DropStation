@@ -13,9 +13,9 @@ enum TaskPriority: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .low: return "Low"
-        case .normal: return "Normal"
-        case .high: return "High"
+        case .low:    return String(localized: "Low")
+        case .normal: return String(localized: "Normal")
+        case .high:   return String(localized: "High")
         }
     }
 }
@@ -32,10 +32,10 @@ enum FilePriority: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .skip:   return "Skip (don't download)"
-        case .low:    return "Low"
-        case .normal: return "Normal"
-        case .high:   return "High"
+        case .skip:   return String(localized: "Skip (don't download)")
+        case .low:    return String(localized: "Low")
+        case .normal: return String(localized: "Normal")
+        case .high:   return String(localized: "High")
         }
     }
     var systemImage: String {

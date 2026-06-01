@@ -236,10 +236,12 @@ struct TaskListView: View {
     }
 
     private var emptyStateTitle: String {
-        if hasSearch { return "No matches" }
-        return viewModel.filter == .all
-            ? "No downloads"
-            : "No \(viewModel.filter.label.lowercased()) downloads"
+        if hasSearch { return String(localized: "No matches") }
+        if viewModel.filter == .all {
+            return String(localized: "No downloads")
+        }
+        let bucket = viewModel.filter.label.lowercased()
+        return String(localized: "No \(bucket) downloads")
     }
 
     private var emptyStateIcon: String {
