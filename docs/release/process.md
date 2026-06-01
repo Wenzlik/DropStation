@@ -124,3 +124,64 @@ The right trigger to automate: when "ship a beta to TF" stops
 being a deliberate decision and starts being something you'd do
 on every push to `main`. Until then, manual is fine and gives
 you a chance to look at every archive before it goes to testers.
+
+---
+
+## Release-engineering log
+
+Short incident log so future contributors can `git blame` an
+older tag or weird-looking commit and find the *why*. Reverse
+chronological; only entries worth remembering.
+
+### v0.5.3 tag — premature cut
+
+**Symptom.** `v0.5.3` is on commit `b6af516`. That commit's
+`project.yml` says `MARKETING_VERSION = 0.5.2`,
+`CURRENT_PROJECT_VERSION = 14`. The actual 0.5.3 / 15 identity
+landed one commit later (PR #14 → `main`).
+
+**How it happened.** During the Czech-localization batch
+(PRs #11 / #12 / #13), the workflow was to stack changes on
+`work/localization-foundation` and merge in one go. A
+version-bump + docs commit (`e328d03`) was pushed onto the
+branch after PR #13 had already been clicked-to-merge in the
+web UI — GitHub's merge built off the PR's head ref as of the
+"Merge" click, missing the new push by seconds.
+
+The branch was then deleted as routine cleanup (without
+verifying `git log origin/<branch> ^origin/main` was empty),
+which orphaned `e328d03`. The `v0.5.3` tag was cut on
+`b6af516` before the gap was noticed. The commit survived
+locally as a dangling object in the reflog; a rescue cherry-
+pick (commit `f8e76ea`) and PR #14 brought the version bump
+to `main`.
+
+**Decision: tag left in place.** Per the `refs/tags/v*`
+ruleset, the tag is immutable without a manual bypass. Options
+were (a) live with it, (b) bypass the ruleset to move the tag,
+(c) skip and cut `v0.5.4` later. Option (a) was chosen because
+the consequences are bounded:
+- The `release.yml` artifact attached to the v0.5.3 GitHub
+  Release is a *simulator-only smoke build*. It's not a
+  distribution channel; it's a reproducible-build proof for
+  the tagged commit.
+- Real TestFlight builds come from Xcode Cloud against the
+  current `main` HEAD, which carries the correct 0.5.3 / 15
+  identity. The cs-bilingual binary that lands in testers'
+  TestFlight apps is fine.
+- The mismatch only matters to anyone running
+  `git checkout v0.5.3` and inspecting `project.yml` — which
+  is rare enough that one HTML comment in `CHANGELOG.md` and
+  this entry are sufficient signposting.
+
+**Prevention.** Two rules added for future releases:
+1. Before deleting a feature branch on origin after a PR
+   merges, verify `git log origin/<branch> ^origin/main`
+   outputs nothing.
+2. Do not cut a release tag in the same minute as the
+   release-PR merge. Pull `main`, `git log -3`, eyeball the
+   `project.yml` / `CHANGELOG.md` identity, *then* tag.
+
+Both are now in the `AGENTS.md`-adjacent claude-memory store so
+they survive into future agent sessions.
+
