@@ -14,9 +14,10 @@ sequence + metadata baseline lives in
 
 ## Verdict
 
-**Upload path proven.** DropStation is now in internal TestFlight
-beta on the `0.5.2` line. Current repo checkpoint:
-`MARKETING_VERSION = 0.5.2`, `CURRENT_PROJECT_VERSION = 13`.
+**Upload path proven.** DropStation is in internal TestFlight
+beta. Current repo checkpoint: `MARKETING_VERSION = 0.5.3`,
+`CURRENT_PROJECT_VERSION = 15`. The 0.5.3 build is the first
+bilingual (en + cs) release.
 
 The original hard blockers from this audit have either been fixed
 in the repo or worked around by the proven App Store Connect
@@ -43,10 +44,10 @@ questionnaire on every upload.
 
 ### 3. Version / build identity
 
-`project.yml` now records `MARKETING_VERSION: "0.5.2"` and
-`CURRENT_PROJECT_VERSION: "13"`. Keep incrementing
+`project.yml` now records `MARKETING_VERSION: "0.5.3"` and
+`CURRENT_PROJECT_VERSION: "15"`. Keep incrementing
 `CURRENT_PROJECT_VERSION` for every TestFlight archive, even when
-the marketing version stays `0.5.2`.
+the marketing version stays the same across builds.
 
 ### 4. iPad orientation upload blocker
 

@@ -115,8 +115,13 @@ Do:
 
 ## What's not here yet
 
-- **Localization** — every string is English. Czech localization +
-  `Localizable.strings` extraction is on the 0.5.1 roadmap.
+- **Plural rules** — Czech is shipped (0.5.3, String Catalog with
+  221 keys) but the few format strings that need plural-rule
+  entries (`%lld file` etc.) still render the singular form.
+  Fix needs the xcstrings plural-variation UI in Xcode, not a
+  string-replacement edit. See
+  [`docs/i18n/terminology.md`](docs/i18n/terminology.md) for the
+  translator glossary and conventions.
 - **Accessibility audit** — VoiceOver labels and Dynamic Type
   sanity-checking are listed as 1.0 (App Store) gating work.
 

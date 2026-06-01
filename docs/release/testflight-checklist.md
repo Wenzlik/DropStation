@@ -6,10 +6,11 @@
 > list**: top to bottom, each step is a discrete piece of work
 > that either lives in the repo or in App Store Connect.
 
-Current state: the first internal TestFlight path is live on the
-`0.5.2` line. Current repo checkpoint is build `13`. This
-checklist now tracks what remains to validate and repeat for
-future TestFlight uploads.
+Current state: internal TestFlight is live across the
+`0.5.2 → 0.5.3` line. Current repo checkpoint is build `15` —
+the first bilingual (en + cs) release. This checklist now tracks
+what remains to validate and repeat for future TestFlight
+uploads.
 
 ---
 
@@ -150,6 +151,11 @@ invite to another person:
       regression test added in 0.5.2).
 - [ ] **No debug output in Console.app** when device is attached
       and the app is running (`DSLog` should be silent in Release).
+- [ ] **Switch language to Czech** in Settings → DropStation →
+      Language (or set iOS system language to Czech). Re-launch
+      the app, confirm login / dashboard / downloads / settings
+      / bug report all render in Czech and no button label
+      wraps or truncates under the longer translations.
 
 ---
 

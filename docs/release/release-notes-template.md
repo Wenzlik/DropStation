@@ -37,21 +37,23 @@ read past the third bullet on a phone screen and no further.
 
 ## Worked example
 
-For the next 0.5.2 build after the current build `13`:
+For the next build after the current `0.5.3` build `15`:
 
 ```
-DropStation 0.5.2 (build 14).
+DropStation 0.5.3 (build 16).
 
 What changed:
-• [one user-visible fix or improvement since build 13]
+• [one user-visible fix or improvement since build 15]
 • [second tester-visible change]
 • [third tester-visible change, if any]
 
 What to focus on this build:
 • Regression-check login, certificate trust, Active now, and Settings → Report a bug.
+• Czech locale walkthrough — Settings → DropStation → Language → Čeština and verify no buttons wrap or truncate.
 • [specific risky change from this build]
 
 Known issues:
+• Plural rules for `%lld file` not yet wired — Czech builds render the singular form for all counts.
 • iPad layout not yet reviewed — iPhone only for this beta.
 • No background refresh; task list updates only while the app is open.
 

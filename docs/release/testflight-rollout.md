@@ -14,10 +14,11 @@ App Store Connect collects this in two places: the **App
 Information** block (lives forever) and the **TestFlight** block
 (beta-specific). All copy below is a draft — refine before paste.
 
-Current status: internal TestFlight distribution is live for the
-`0.5.2` line. Current repo checkpoint is build `13`. Treat this
-document as the operating plan for widening the beta, not as a
-pre-upload checklist.
+Current status: internal TestFlight distribution is live across
+the `0.5.2 → 0.5.3` line. Current repo checkpoint is build `15`,
+the first bilingual (en + cs) release. Treat this document as the
+operating plan for widening the beta, not as a pre-upload
+checklist.
 
 ### App Information (App Store Connect → App Information)
 
@@ -48,6 +49,7 @@ What works today:
 • Pause, resume, stop, delete tasks
 • Pick the destination folder on your NAS
 • Stay signed in across launches
+• English and Czech localization (0.5.3+) — iOS picks automatically from your system language
 
 If something goes wrong, please use Settings → Report a bug. The form gathers basic device info (iOS version, app version, anonymized device model) only if you tick the diagnostics checkbox. No passwords, session tokens, or torrent names are ever included.
 
@@ -80,25 +82,26 @@ Known limitations:
 Report bugs via Settings → Report a bug. Feature requests via GitHub.
 ```
 
-### Current build notes — 0.5.2 build 13
+### Current build notes — 0.5.3 build 15
 
-Use this shape for build `13` if the TestFlight "What to Test"
-field still needs a concise tester-facing summary:
+Use this shape for build `15` (the first bilingual release) in
+the TestFlight "What to Test" field:
 
 ```
-DropStation 0.5.2 (build 13).
+DropStation 0.5.3 (build 15).
 
 What changed:
-• Dashboard shows active transfers first, including live download/upload speed.
-• Free disk space now appears in the dashboard when the NAS reports it.
-• Self-signed NAS certificates can be reviewed and trusted in-app.
+• Czech localization — the app now ships in English and Czech. iOS picks the language automatically from your system setting; you can override under Settings → DropStation → Language.
+• Carries everything from the 0.5.2 line: Active now dashboard section, in-app bug report form, per-file Skipped / Completed / Downloading state hierarchy, real free-disk space, self-signed certificate trust prompt.
 
 What to focus on this build:
-• Login to a NAS with a self-signed HTTPS certificate and confirm the trust prompt feels clear.
-• Start an active download and confirm the dashboard switches from Recently completed to Active now.
-• Open Settings → Report a bug and confirm the mail draft contains useful, non-sensitive diagnostics only if you opt in.
+• Switch the system language (or the per-app override) to Czech and walk through Login → Dashboard → Downloads → Settings → Report a bug. Look for English strings leaking through, mis-translations, or button labels that wrap / truncate under the longer Czech wording.
+• English path should be unchanged. If anything reads differently in English than it did on 0.5.2, that's a regression.
+• Bug report flow under Czech — confirm the mail draft + diagnostics block compose correctly.
 
 Known issues:
+• Plural rules for `%lld file` etc. not yet wired (Czech has three plural forms); current builds render the singular form for all counts.
+• "Žádná stahování (downloading)" — the empty-state line for a filtered view passes the English filter name through verbatim. Cosmetic; will be fixed with per-filter empty-state strings.
 • iPad layout not yet reviewed — iPhone only for this beta.
 • No background refresh; task list updates only while the app is open.
 
