@@ -45,21 +45,32 @@ jobs:
 
       - name: Build for iOS Simulator (unsigned)
         run: |
-          xcodebuild \
-            -project DropStation.xcodeproj \
-            -scheme DropStation \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            build | xcpretty || true
-          # `xcpretty` is best-effort — if it's missing on macos-15
-          # runners the pipe fall back to raw xcodebuild output (the
-          # `|| true` keeps step exit status driven by xcodebuild
-          # itself, not the formatter).
+          set -o pipefail
+          if command -v xcpretty >/dev/null 2>&1; then
+            xcodebuild \
+              -project DropStation.xcodeproj \
+              -scheme DropStation \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              build | xcpretty
+          else
+            xcodebuild \
+              -project DropStation.xcodeproj \
+              -scheme DropStation \
+              -configuration Release \
+              -sdk iphonesimulator \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+          fi
 
       - name: Package .app as smoke-test zip
         id: package
@@ -68,6 +79,10 @@ jobs:
           APP_PATH=$(find build -name "DropStation.app" -type d | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::No DropStation.app produced by the build step."
+            exit 1
+          fi
+          if [ ! -f "$APP_PATH/DropStation" ]; then
+            echo "::error::DropStation binary is missing from the app bundle."
             exit 1
           fi
           ZIP_NAME="DropStation-${GITHUB_REF_NAME}-simulator-smoke.zip"
