@@ -6,7 +6,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-_No changes since 0.5.3._
+_No changes since 0.5.4._
 
 <!--
   Release engineering note for 0.5.3 — not rendered in the
@@ -33,6 +33,15 @@ _No changes since 0.5.3._
   Full incident log lives in `docs/release/process.md` under
   "v0.5.3 tag — premature cut".
 -->
+## [0.5.4] — 2026-06-14 — Liquid-glass login & saved passwords
+
+### New
+- **Remember password.** The app can now keep your password in the iOS Keychain (encrypted, device-bound). When a session expires it re-authenticates on its own and asks for **only** your verification code — never the password again. On by default; toggle it in Settings → Privacy → Remember password. An explicit Sign out / Forget this device always clears it.
+- **New app icon with light & dark variants.** A glass water-drop on a glass tray, with dedicated light, dark, and tinted (Home Screen) appearances that follow your system theme.
+
+### Improved
+- **Modernized login screen.** A glass droplet brand mark with a blue→purple gradient and soft glow, ambient light blooms behind the sign-in card, and a faint glass rim on the card — matching the new icon's liquid-glass look.
+
 ## [0.5.3] — 2026-06-01 — Czech localization
 
 ### New
@@ -165,6 +174,7 @@ _No changes since 0.5.3._
 
 Initial release.
 
+[0.5.4]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.4
 [0.5.3]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.3
 [0.5.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Wenzlik/DropStation/releases/tag/v0.4.0

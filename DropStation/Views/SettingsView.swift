@@ -15,6 +15,7 @@ struct SettingsView: View {
     @EnvironmentObject private var session: SessionStore
     @AppStorage(AppearanceSettings.storageKey) private var appearanceRaw: String = AppearanceMode.system.rawValue
     @AppStorage(RememberSessionSettings.storageKey) private var rememberSession: Bool = true
+    @AppStorage(PasswordPersistenceSettings.storageKey) private var rememberPassword: Bool = true
     @State private var confirmForget = false
 
     private var appearance: Binding<AppearanceMode> {
@@ -190,9 +191,7 @@ struct SettingsView: View {
     private var privacySection: some View {
         DSSectionCard(
             "Privacy",
-            helperText: rememberSession
-                ? "Your SID is stored in the iOS Keychain so the app stays signed in across launches."
-                : "Saved credentials are removed. You'll need to sign in every time you open the app."
+            helperText: privacyHelperText
         ) {
             DSSettingsRow.toggle(
                 systemImage: "lock.rotation",
@@ -205,6 +204,32 @@ struct SettingsView: View {
                     }
                 )
             )
+            rowDivider
+            DSSettingsRow.toggle(
+                systemImage: "key",
+                label: "Remember password",
+                isOn: Binding(
+                    get: { rememberPassword },
+                    set: { newValue in
+                        rememberPassword = newValue
+                        session.setRememberPassword(newValue)
+                    }
+                )
+            )
+        }
+    }
+
+    /// Helper copy under the Privacy card. Spells out the OTP-only
+    /// recovery flow when "Remember password" is on, since that's the
+    /// behaviour most users are looking for.
+    private var privacyHelperText: LocalizedStringKey {
+        switch (rememberSession, rememberPassword) {
+        case (_, true):
+            return "Your session and password are stored in the iOS Keychain. When the session expires you'll only be asked for your verification code, not your password."
+        case (true, false):
+            return "Your session is stored in the iOS Keychain so the app stays signed in across launches. Your password is not saved."
+        case (false, false):
+            return "Nothing is saved. You'll sign in with your password and verification code every time you open the app."
         }
     }
 

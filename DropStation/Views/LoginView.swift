@@ -104,11 +104,45 @@ struct LoginView: View {
 
     // MARK: - Header
 
-    private var backgroundGradient: some View {
+    // MARK: - Brand palette
+
+    /// Blue→purple pair sampled from the app icon's glass droplet. Used
+    /// for the brand mark gradient, the ambient background glow, and the
+    /// card's glass rim so the login screen reads as the same material as
+    /// the icon.
+    private var brandBlue: Color { Color(red: 0.29, green: 0.51, blue: 1.0) }
+    private var brandPurple: Color { Color(red: 0.55, green: 0.36, blue: 0.96) }
+
+    private var brandGradient: LinearGradient {
         LinearGradient(
-            colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
-            startPoint: .top, endPoint: .bottom
+            colors: [brandBlue, brandPurple],
+            startPoint: .topLeading, endPoint: .bottomTrailing
         )
+    }
+
+    /// Calm system gradient as the base, with two soft, heavily-blurred
+    /// colour blobs floating behind the card — the neon glow from the
+    /// dark app icon, dialled down so it reads as ambient light rather
+    /// than decoration. System backgrounds keep it adapting per scheme;
+    /// the blobs sit at low opacity so light mode stays airy and dark
+    /// mode picks up the glow.
+    private var backgroundGradient: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
+                startPoint: .top, endPoint: .bottom
+            )
+            Circle()
+                .fill(brandBlue.opacity(0.30))
+                .frame(width: 360, height: 360)
+                .blur(radius: 130)
+                .offset(x: -130, y: -240)
+            Circle()
+                .fill(brandPurple.opacity(0.28))
+                .frame(width: 320, height: 320)
+                .blur(radius: 140)
+                .offset(x: 150, y: 140)
+        }
     }
 
     private var header: some View {
@@ -126,17 +160,24 @@ struct LoginView: View {
     /// (the only orange-gradient surface in the app — visually off
     /// from the Phase-3 restrained palette).
     private var brandDisc: some View {
-        Image(systemName: "arrow.down.to.line.compact")
-            .font(.system(size: 36, weight: .semibold, design: .rounded))
-            .foregroundStyle(.tint)
-            .frame(width: 72, height: 72)
+        Image(systemName: "drop.fill")
+            .font(.system(size: 40, weight: .semibold))
+            .foregroundStyle(brandGradient)
+            .frame(width: 84, height: 84)
             .glassEffect(
-                .regular.tint(Color.accentColor.opacity(0.18)),
+                .regular.tint(brandBlue.opacity(0.18)),
                 in: .circle
             )
             .overlay(
-                Circle().strokeBorder(Color.accentColor.opacity(0.22), lineWidth: 0.5)
+                Circle().strokeBorder(
+                    LinearGradient(
+                        colors: [brandBlue.opacity(0.55), brandPurple.opacity(0.55)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
             )
+            .shadow(color: brandBlue.opacity(0.35), radius: 18, y: 6)
             .accessibilityHidden(true)
     }
 
@@ -164,6 +205,19 @@ struct LoginView: View {
                 }
             }
         }
+        .overlay(
+            // Faint blue→purple rim so the primary glass card catches the
+            // light like the icon's glass, without touching the shared
+            // DSCard component.
+            RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [brandBlue.opacity(0.45), brandPurple.opacity(0.45)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.75
+                )
+        )
         .animation(.snappy(duration: 0.25), value: session.state)
     }
 
@@ -557,9 +611,12 @@ struct LoginView: View {
         port = String(cfg.port)
         account = cfg.account
         serverExpanded = host.isEmpty
-        // Password is intentionally not prefilled. 0.4.0 dropped
-        // automatic password persistence — a separate "Remember
-        // password" opt-in is intended for a later release.
+        // Prefill the saved password when "Remember password" is on, so a
+        // returning user who lands on the form (rather than auto-advancing
+        // straight to the OTP screen) doesn't have to retype it.
+        if PasswordPersistenceSettings.enabled, !cfg.account.isEmpty {
+            password = KeychainStorage.password(for: cfg.account) ?? ""
+        }
     }
 
     private func login() async {
