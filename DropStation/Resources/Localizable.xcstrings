@@ -1,35 +1,15 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {},
-    "%@ (%lld)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ (%2$lld)"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (%lld)"
-          }
-        }
-      }
+    "" : {
+
     },
-    "%@ / %@" : {
+    "·" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / %2$@"
-          }
-        },
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ / %@"
+            "value" : "·"
           }
         }
       }
@@ -40,6 +20,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ · SHA-256"
+          }
+        }
+      }
+    },
+    "%@ (%lld)" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (%lld)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$lld)"
+          }
+        }
+      }
+    },
+    "%@ / %@" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ / %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ / %2$@"
           }
         }
       }
@@ -66,16 +78,16 @@
     },
     "%lld seeds · %lld peers" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld seeds · %2$lld peers"
-          }
-        },
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld seedů · %lld peerů"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld seeds · %2$lld peers"
           }
         }
       }
@@ -86,6 +98,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld %%"
+          }
+        }
+      }
+    },
+    "•" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "•"
+          }
+        }
+      }
+    },
+    "© 2026 Vasek Zmrhal · MIT License" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "© 2026 Vasek Zmrhal · Licence MIT"
           }
         }
       }
@@ -352,16 +384,16 @@
     },
     "Completed %@ • %@" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Completed %1$@ • %2$@"
-          }
-        },
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dokončeno %@ • %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Completed %1$@ • %2$@"
           }
         }
       }
@@ -452,6 +484,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Přehled"
+          }
+        }
+      }
+    },
+    "data corrupted at %@: %@" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "poškozená data na %@: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "data corrupted at %1$@: %2$@"
           }
         }
       }
@@ -896,16 +944,6 @@
         }
       }
     },
-    "HTTP error %lld." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chyba HTTP %lld."
-          }
-        }
-      }
-    },
     "Hash checking" : {
       "localizations" : {
         "cs" : {
@@ -932,6 +970,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Úlohy s vyšší prioritou dostanou šířku pásma jako první. Synology aplikuje volbu v rámci pravidel fronty Download Station."
+          }
+        }
+      }
+    },
+    "HTTP error %lld." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chyba HTTP %lld."
           }
         }
       }
@@ -986,22 +1034,22 @@
         }
       }
     },
-    "Invalid task ID." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neplatné ID úlohy."
-          }
-        }
-      }
-    },
     "Invalid task action." : {
       "localizations" : {
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Neplatná akce úlohy."
+          }
+        }
+      }
+    },
+    "Invalid task ID." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neplatné ID úlohy."
           }
         }
       }
@@ -1056,12 +1104,54 @@
         }
       }
     },
+    "magnet:?xt=… or https://…" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "magnet:?xt=… nebo https://…"
+          }
+        }
+      }
+    },
     "Maximum number of tasks reached." : {
       "localizations" : {
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dosažen maximální počet úloh."
+          }
+        }
+      }
+    },
+    "missing %@ value at %@" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "chybí hodnota %@ na %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "missing %1$@ value at %2$@"
+          }
+        }
+      }
+    },
+    "missing key '%@' at %@" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "chybí klíč '%@' na %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "missing key '%1$@' at %2$@"
           }
         }
       }
@@ -1186,15 +1276,9 @@
         }
       }
     },
-    "OK" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
-          }
-        }
-      }
+    "Nothing is saved. You'll sign in with your password and verification code every time you open the app." : {
+      "comment" : "Text displayed in a section card that explains that nothing is saved when the user opts out of storing their credentials.",
+      "isCommentAutoGenerated" : true
     },
     "Offline" : {
       "localizations" : {
@@ -1202,6 +1286,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Offline"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
           }
         }
       }
@@ -1296,6 +1390,10 @@
         }
       }
     },
+    "Remember password" : {
+      "comment" : "Label for a toggle that lets the user decide whether to remember their password.",
+      "isCommentAutoGenerated" : true
+    },
     "Remember session" : {
       "localizations" : {
         "cs" : {
@@ -1387,6 +1485,7 @@
       }
     },
     "Saved credentials are removed. You'll need to sign in every time you open the app." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
@@ -1818,16 +1917,16 @@
     },
     "Synology error %lld: %@" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Synology error %1$lld: %2$@"
-          }
-        },
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chyba Synology %lld: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Synology error %1$lld: %2$@"
           }
         }
       }
@@ -1992,16 +2091,6 @@
         }
       }
     },
-    "URI" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URI"
-          }
-        }
-      }
-    },
     "Unknown" : {
       "localizations" : {
         "cs" : {
@@ -2032,12 +2121,12 @@
         }
       }
     },
-    "Use the destination configured in DSM Download Station." : {
+    "URI" : {
       "localizations" : {
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Použít cíl nakonfigurovaný v DSM Download Station."
+            "value" : "URI"
           }
         }
       }
@@ -2048,6 +2137,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Použít „%@“"
+          }
+        }
+      }
+    },
+    "Use the destination configured in DSM Download Station." : {
+      "localizations" : {
+        "cs" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Použít cíl nakonfigurovaný v DSM Download Station."
           }
         }
       }
@@ -2132,96 +2231,18 @@
         }
       }
     },
-    "Your SID is stored in the iOS Keychain so the app stays signed in across launches." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vaše SID je uloženo v iOS Klíčence, takže aplikace zůstává přihlášena i po restartu."
-          }
-        }
-      }
-    },
-    "Your session is saved. We’ll reconnect automatically when the NAS is reachable." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vaše relace je uložena. Znovu se připojíme automaticky, jakmile bude NAS dostupný."
-          }
-        }
-      }
-    },
-    "data corrupted at %@: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "data corrupted at %1$@: %2$@"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "poškozená data na %@: %@"
-          }
-        }
-      }
-    },
-    "magnet:?xt=… or https://…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "magnet:?xt=… nebo https://…"
-          }
-        }
-      }
-    },
-    "missing %@ value at %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "missing %1$@ value at %2$@"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chybí hodnota %@ na %@"
-          }
-        }
-      }
-    },
-    "missing key '%@' at %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "missing key '%1$@' at %2$@"
-          }
-        },
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chybí klíč '%@' na %@"
-          }
-        }
-      }
-    },
     "wrong type — expected %@ at %@" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "wrong type — expected %1$@ at %2$@"
-          }
-        },
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "špatný typ — očekáván %@ na %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "wrong type — expected %1$@ at %2$@"
           }
         }
       }
@@ -2236,36 +2257,35 @@
         }
       }
     },
-    "© 2026 Vasek Zmrhal · MIT License" : {
+    "Your session and password are stored in the iOS Keychain. When the session expires you'll only be asked for your verification code, not your password." : {
+      "comment" : "Helper text in the Settings view explaining the privacy policy for the session and password.",
+      "isCommentAutoGenerated" : true
+    },
+    "Your session is saved. We’ll reconnect automatically when the NAS is reachable." : {
       "localizations" : {
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "© 2026 Vasek Zmrhal · Licence MIT"
+            "value" : "Vaše relace je uložena. Znovu se připojíme automaticky, jakmile bude NAS dostupný."
           }
         }
       }
     },
-    "·" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "·"
-          }
-        }
-      }
+    "Your session is stored in the iOS Keychain so the app stays signed in across launches. Your password is not saved." : {
+      "comment" : "Helper text under the Privacy section, describing the session and password storage.",
+      "isCommentAutoGenerated" : true
     },
-    "•" : {
+    "Your SID is stored in the iOS Keychain so the app stays signed in across launches." : {
+      "extractionState" : "stale",
       "localizations" : {
         "cs" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "•"
+            "value" : "Vaše SID je uloženo v iOS Klíčence, takže aplikace zůstává přihlášena i po restartu."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version" : "1.1"
 }

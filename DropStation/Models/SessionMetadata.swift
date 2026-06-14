@@ -43,3 +43,26 @@ enum RememberSessionSettings {
     }
 }
 
+/// UserDefaults-backed preference for whether the app should persist the
+/// account password in the Keychain.
+///
+/// Default is ON. When enabled, a successful sign-in stores the password
+/// (encrypted, device-bound, keyed by username) so that after a session
+/// expiry the app can re-authenticate on its own and prompt the user for
+/// **only** the rotating OTP code — never the password again. The OTP
+/// itself is time-based and can't be cached, so it's always required when
+/// 2FA is on.
+///
+/// Switching OFF deletes any saved password immediately. An explicit
+/// "Sign out" / "Forget this device" always clears it regardless of this
+/// setting.
+enum PasswordPersistenceSettings {
+    static let storageKey = "auth.rememberPassword"
+
+    /// Default true — mirrors `RememberSessionSettings` so a returning
+    /// user gets the smooth OTP-only flow without a Settings detour.
+    static var enabled: Bool {
+        UserDefaults.standard.object(forKey: storageKey) as? Bool ?? true
+    }
+}
+

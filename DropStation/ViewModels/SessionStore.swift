@@ -113,11 +113,14 @@ final class SessionStore: ObservableObject {
     /// `probeStoredSession` so a manual Retry tap from the offline
     /// card takes exactly the same code path.
     private func restoreSession() async {
-        // One-shot migration: clear any password an earlier build left
-        // in the Keychain. 0.4.0 stops persisting passwords entirely,
-        // and we don't want a stale credential lingering on disk on
-        // users who upgraded.
-        purgeLegacyPasswordIfPresent()
+        // If the user has password persistence turned off, make sure no
+        // stored password lingers (covers turning the toggle off on a
+        // prior run, plus any legacy credential an older build left
+        // behind). When it's on we keep the password so an expired
+        // session can re-auth with only an OTP prompt.
+        if !PasswordPersistenceSettings.enabled {
+            purgeStoredPasswordIfPresent()
+        }
         await probeStoredSession()
     }
 
@@ -177,6 +180,10 @@ final class SessionStore: ObservableObject {
             // session. Land on a fresh login form.
             DSLog.session("probeStoredSession: SID rejected (\(error.localizedDescription)); dropping")
             await clearStoredSession()
+            // If we still hold the password, re-authenticate silently so
+            // the user only has to enter an OTP rather than retype
+            // everything on a fresh form.
+            if await reauthWithStoredPassword() { return }
             state = .loggedOut
         } catch let error as APIError where error.serverTrustInfo != nil {
             // Self-signed certificate the user hasn't trusted yet.
@@ -201,17 +208,39 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    /// Best-effort delete of a password an earlier build may have left
-    /// in the Keychain. 0.4.0 dropped password persistence; this
-    /// migration keeps users who upgrade from <0.4.0 from carrying a
-    /// stale credential indefinitely. Runs on every launch (it's
-    /// idempotent and cheap when there's nothing to remove).
-    private func purgeLegacyPasswordIfPresent() {
+    /// Best-effort delete of any stored password. Called on launch when
+    /// password persistence is OFF, so turning the toggle off on a prior
+    /// run (or upgrading from a build that stored a password under a
+    /// different policy) doesn't leave a credential behind. Idempotent
+    /// and cheap when there's nothing to remove.
+    private func purgeStoredPasswordIfPresent() {
         guard !config.account.isEmpty else { return }
         if KeychainStorage.password(for: config.account) != nil {
-            DSLog.session("purging legacy stored password from Keychain")
+            DSLog.session("password persistence off — purging stored password")
             KeychainStorage.deletePassword(for: config.account)
         }
+    }
+
+    /// The saved password for the current account, when password
+    /// persistence is on and one is stored. `nil` otherwise. Used to
+    /// re-authenticate silently after a confirmed session expiry so the
+    /// user only has to supply the rotating OTP code.
+    private var storedPassword: String? {
+        guard PasswordPersistenceSettings.enabled, !config.account.isEmpty else { return nil }
+        return KeychainStorage.password(for: config.account)
+    }
+
+    /// After a confirmed session expiry, attempt to re-authenticate with
+    /// the saved password. `login` lands on `.twoFactorRequired` (so the
+    /// user types only the OTP) or straight on `.loggedIn` when 2FA isn't
+    /// enabled. Returns `false` when no password is stored so callers can
+    /// fall back to their normal expired-session UI.
+    @discardableResult
+    private func reauthWithStoredPassword() async -> Bool {
+        guard let password = storedPassword else { return false }
+        DSLog.session("reauthWithStoredPassword: silent re-login, expecting OTP challenge")
+        await login(config: config, password: password)
+        return true
     }
 
     /// Drop every persisted credential we hold for the current
@@ -291,10 +320,11 @@ final class SessionStore: ObservableObject {
             try await performLogin(password: password, otpCode: otpCode)
             // Server config (host/port/account/scheme) is not a
             // credential — always remember it so the login form
-            // prefills. The password is never persisted by
-            // "Remember session"; that's reserved for a separate
-            // opt-in toggle we haven't added yet.
+            // prefills. The password is persisted separately, gated by
+            // the "Remember password" preference, so an expired session
+            // can re-auth with only an OTP prompt.
             ServerConfigStore.save(config)
+            persistPasswordIfAllowed(password)
             pendingCredentials = nil
         } catch let error as APIError where error.isOTPRequired {
             onOTPNeeded()
@@ -329,6 +359,15 @@ final class SessionStore: ObservableObject {
     /// "Remember session". A best-effort write — keychain failures
     /// don't break the active session, they just mean the next launch
     /// will require a fresh sign-in.
+    /// Persist the account password to the Keychain when the user has
+    /// opted in to "Remember password". Best-effort — a keychain write
+    /// failure just means the next session expiry falls back to the full
+    /// credentials form instead of an OTP-only prompt.
+    private func persistPasswordIfAllowed(_ password: String) {
+        guard PasswordPersistenceSettings.enabled, !config.account.isEmpty else { return }
+        try? KeychainStorage.setPassword(password, for: config.account)
+    }
+
     private func persistSessionIfAllowed(sid: String, cookies: [HTTPCookie]) {
         guard RememberSessionSettings.enabled else { return }
         try? KeychainStorage.setSID(sid, for: accountAtHost)
@@ -529,11 +568,17 @@ final class SessionStore: ObservableObject {
     func handleUnauthorized(reason: String) {
         DSLog.session("handleUnauthorized: \(reason)")
         clearStoredKeychainSession()
+        // Show the neutral restoring state while we try a silent re-auth;
+        // if there's no stored password the Task falls straight through to
+        // the recovery card, same as before.
+        let canReauth = storedPassword != nil
+        if canReauth { state = .restoring }
         Task {
             await client.clearSession()
             await client.clearAuthCookies()
+            if await reauthWithStoredPassword() { return }
+            state = .sessionUnauthorized(reason: reason)
         }
-        state = .sessionUnauthorized(reason: reason)
     }
 
     // MARK: - Self-signed certificate trust
@@ -647,6 +692,7 @@ final class SessionStore: ObservableObject {
         } catch let error as APIError where error.isSessionExpired {
             DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
             await clearStoredSession()
+            if await reauthWithStoredPassword() { return }
             state = .sessionUnauthorized(reason: String(localized: "Session expired. Please re-authenticate with verification code."))
         } catch let error as APIError where error.serverTrustInfo != nil {
             // Cert became untrusted between launches (DSM cert rotated,
@@ -679,16 +725,26 @@ final class SessionStore: ObservableObject {
     /// left intact so the user can keep using the app for this run
     /// without an immediate re-sign-in.
     ///
-    /// Password isn't part of "Remember session" any more (0.4.0
-    /// dropped automatic password persistence), but we still call
-    /// `deletePassword` here defensively so that flipping the toggle
-    /// off on a device upgraded from an older build clears the legacy
-    /// credential too.
+    /// Password persistence is governed separately by
+    /// `setRememberPassword`, so turning "Remember session" off only
+    /// clears the SID/cookies/metadata — the saved password (if any) is
+    /// left to its own toggle.
     func setRememberSession(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: RememberSessionSettings.storageKey)
         DSLog.session("rememberSession = \(enabled)")
         if !enabled {
             clearStoredKeychainSession()
+        }
+    }
+
+    /// Settings-toggle entry point for password persistence. Turning it
+    /// off deletes any saved password immediately; the active session is
+    /// untouched. When on, the next successful sign-in stores the
+    /// password so a later session expiry only needs the OTP code.
+    func setRememberPassword(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: PasswordPersistenceSettings.storageKey)
+        DSLog.session("rememberPassword = \(enabled)")
+        if !enabled {
             KeychainStorage.deletePassword(for: config.account)
         }
     }
