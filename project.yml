@@ -57,6 +57,28 @@ targets:
         #
         # CODE_SIGN_STYLE: Automatic
         # DEVELOPMENT_TEAM: XXXXXXXXXX
+    dependencies:
+      # Embed the Live Activity / widget extension into the app bundle.
+      - target: DropStationWidgets
+        embed: true
+
+  # WidgetKit extension — hosts the downloads Live Activity (Dynamic
+  # Island + lock screen). Shares DownloadsActivityAttributes.swift
+  # with the app so the contract can't drift.
+  DropStationWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: DropStationWidgets
+        excludes:
+          - "Info.plist"
+      - path: DropStation/Shared/DownloadsActivityAttributes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wenzlik.DropStation.Widgets
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: DropStationWidgets/Info.plist
+        SWIFT_EMIT_LOC_STRINGS: "YES"
 
   DropStationTests:
     type: bundle.unit-test

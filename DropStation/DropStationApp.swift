@@ -19,6 +19,7 @@ struct DropStationApp: App {
         let navigation = NavigationStore()
         let store = DownloadTaskStore(
             client: session.client,
+            serverName: session.config.host.isEmpty ? "DropStation" : session.config.host,
             onUnauthorized: { [weak session] reason in
                 Task { @MainActor in
                     session?.handleUnauthorized(reason: reason)

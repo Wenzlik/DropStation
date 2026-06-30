@@ -4,6 +4,9 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <!-- Enables the downloads Live Activity (Dynamic Island / lock screen). -->
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <!--
         Explicitly declares the localizations DropStation ships. The
         actual translations live in the `Localizable.xcstrings` String
