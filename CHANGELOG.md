@@ -6,7 +6,21 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-_No changes since 0.5.4._
+_No changes since 0.5.5._
+
+## [0.5.5] — 2026-07-01 — iOS 26 redesign
+
+### New
+- **Open `.torrent` files in DropStation.** Tap a torrent in Files, Safari, or Mail and "Open in DropStation" — it lands in Add download, ready to go (magnet links from Safari already worked).
+- **Live Activity & Dynamic Island.** While something is downloading, see the live speed and progress on the Lock Screen and in the Dynamic Island.
+- **Long-press a download** for quick actions — Pause / Resume / Stop / Copy link / Delete — and **quick-filter chips** above the list (Downloading / Seeding / Paused / Finished) with live counts.
+
+### Changed
+- **A full iOS 26 visual refresh** built around a single clean blue accent and Liquid Glass.
+- **Downloads are now media-style cards** with clean titles and quality tags (4K / HDR / Atmos / WEB-DL …) parsed from the raw release name, instead of a dense list of scene filenames. In-flight downloads sort to the top.
+- **Clear status at a glance** — colour + icon per state (downloading blue, seeding green, paused orange, done a quiet check) replace the old identical icons.
+- **Task detail** now leads with a progress hero and on-screen Pause / Resume / Stop, with metrics grouped into Transfer and Swarm.
+- **Add download** has a proper prominent button, **Settings** is rebuilt on a native grouped form, the **login** drops its purple glow, and all-caps section headers become calm sentence case.
 
 <!--
   Release engineering note for 0.5.3 — not rendered in the

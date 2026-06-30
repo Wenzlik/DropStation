@@ -112,8 +112,19 @@ struct AddTaskView: View {
                             Image(systemName: pickedDestination == nil ? "folder" : "folder.fill")
                                 .foregroundStyle(.tint)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(pickedDestination?.name ?? "Default destination")
-                                    .foregroundStyle(.primary)
+                                // Branch on the optional rather than using
+                                // `?? "Default destination"`: the `??`
+                                // expression is a `String`, which binds to
+                                // the non-localizing `Text(_:)` overload and
+                                // left the fallback rendering English in the
+                                // Czech UI. A bare literal hits the
+                                // LocalizedStringKey overload and resolves the
+                                // catalog ("Výchozí cíl").
+                                if let name = pickedDestination?.name {
+                                    Text(name).foregroundStyle(.primary)
+                                } else {
+                                    Text("Default destination").foregroundStyle(.primary)
+                                }
                                 if let path = pickedDestination?.path {
                                     Text(path).font(.caption).foregroundStyle(.secondary)
                                 } else {
@@ -130,16 +141,30 @@ struct AddTaskView: View {
                 }
 
                 Section {
+                    // The primary action — a prominent capsule, not a
+                    // plain form-row button. The old default-styled row
+                    // read as a disabled text field when nothing was
+                    // picked; a bordered-prominent capsule looks
+                    // unmistakably tappable when enabled and honestly
+                    // dimmed when disabled.
                     Button {
                         Task { await submit() }
                     } label: {
-                        if isSubmitting {
-                            ProgressView()
-                        } else {
-                            Text("Add download")
+                        Group {
+                            if isSubmitting {
+                                ProgressView()
+                            } else {
+                                Text("Add download").fontWeight(.semibold)
+                            }
                         }
+                        .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
                     .disabled(!canSubmit || isSubmitting)
+                    .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
+                    .listRowBackground(Color.clear)
                 }
             }
             .navigationTitle("New download")
@@ -154,6 +179,21 @@ struct AddTaskView: View {
                     uri = pending
                     mode = .uri
                     session.pendingMagnetLink = nil
+                }
+                // A .torrent opened from Files / Safari / Mail —
+                // preload it into the file slot and switch to File mode
+                // so the sheet is one tap ("Add download") from done.
+                if let torrent = session.pendingTorrentFile {
+                    pickedFile = PickedFile(
+                        name: torrent.name,
+                        data: torrent.data,
+                        sizeDescription: ByteCountFormatter.string(
+                            fromByteCount: Int64(torrent.data.count),
+                            countStyle: .file
+                        )
+                    )
+                    mode = .file
+                    session.pendingTorrentFile = nil
                 }
             }
             .fileImporter(

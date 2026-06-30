@@ -106,26 +106,25 @@ struct LoginView: View {
 
     // MARK: - Brand palette
 
-    /// Blue→purple pair sampled from the app icon's glass droplet. Used
-    /// for the brand mark gradient, the ambient background glow, and the
-    /// card's glass rim so the login screen reads as the same material as
-    /// the icon.
+    /// Mono-blue pair for the brand mark gradient, ambient glow, and
+    /// card rim. Per the iOS 26 redesign the UI accent is a single
+    /// clean blue with no purple — the droplet keeps its shape and a
+    /// subtle light→deep blue gradient for identity, but the old
+    /// blue→purple glassmorphism is gone.
     private var brandBlue: Color { Color(red: 0.29, green: 0.51, blue: 1.0) }
-    private var brandPurple: Color { Color(red: 0.55, green: 0.36, blue: 0.96) }
+    private var brandBlueLight: Color { Color(red: 0.40, green: 0.72, blue: 1.0) }
 
     private var brandGradient: LinearGradient {
         LinearGradient(
-            colors: [brandBlue, brandPurple],
+            colors: [brandBlueLight, brandBlue],
             startPoint: .topLeading, endPoint: .bottomTrailing
         )
     }
 
-    /// Calm system gradient as the base, with two soft, heavily-blurred
-    /// colour blobs floating behind the card — the neon glow from the
-    /// dark app icon, dialled down so it reads as ambient light rather
-    /// than decoration. System backgrounds keep it adapting per scheme;
-    /// the blobs sit at low opacity so light mode stays airy and dark
-    /// mode picks up the glow.
+    /// Calm system gradient as the base, with one soft, heavily-blurred
+    /// blue blob floating behind the card so the screen has a little
+    /// ambient light without the old twin blue+purple neon glow. Low
+    /// opacity keeps light mode airy; dark mode picks up the glow.
     private var backgroundGradient: some View {
         ZStack {
             LinearGradient(
@@ -133,15 +132,10 @@ struct LoginView: View {
                 startPoint: .top, endPoint: .bottom
             )
             Circle()
-                .fill(brandBlue.opacity(0.30))
+                .fill(brandBlue.opacity(0.22))
                 .frame(width: 360, height: 360)
-                .blur(radius: 130)
-                .offset(x: -130, y: -240)
-            Circle()
-                .fill(brandPurple.opacity(0.28))
-                .frame(width: 320, height: 320)
                 .blur(radius: 140)
-                .offset(x: 150, y: 140)
+                .offset(x: -130, y: -240)
         }
     }
 
@@ -171,7 +165,7 @@ struct LoginView: View {
             .overlay(
                 Circle().strokeBorder(
                     LinearGradient(
-                        colors: [brandBlue.opacity(0.55), brandPurple.opacity(0.55)],
+                        colors: [brandBlueLight.opacity(0.55), brandBlue.opacity(0.55)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
                     lineWidth: 0.75
@@ -212,7 +206,7 @@ struct LoginView: View {
             RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [brandBlue.opacity(0.45), brandPurple.opacity(0.45)],
+                        colors: [brandBlueLight.opacity(0.45), brandBlue.opacity(0.45)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
                     lineWidth: 0.75

@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Uppercase tracked-caption section label. Reads as a calm,
-/// utility-app eyebrow ("RECENTLY COMPLETED", "QUICK ACTIONS")
-/// rather than a heavy title — pairs with the wider Phase-3
-/// move from glass-everywhere to material-and-hairline surfaces.
+/// Section header — sentence-case, no all-caps tracking. The iOS 26
+/// redesign retired the editorial uppercase eyebrow
+/// ("RECENTLY COMPLETED") that read as a 2019 template in favour of a
+/// calm native-feeling header ("Recently completed"). One component,
+/// so every surface that uses it — dashboard sections, the Settings
+/// section cards, the login eyebrow — picks up the change at once.
 ///
 /// Optional leading SF Symbol for sections that benefit from a
 /// glyph cue, and an optional trailing `accessory` slot for
@@ -29,13 +31,11 @@ struct DSEyebrow<Accessory: View>: View {
         HStack(spacing: DSSpacing.sm) {
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
             Text(title)
-                .font(.caption2.weight(.semibold))
-                .tracking(0.8)
-                .textCase(.uppercase)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             Spacer(minLength: DSSpacing.sm)
             accessory

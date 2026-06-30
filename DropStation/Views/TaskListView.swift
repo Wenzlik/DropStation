@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TaskListView: View {
     @EnvironmentObject private var session: SessionStore
@@ -9,6 +10,9 @@ struct TaskListView: View {
     /// Task the user just swiped to delete; non-nil presents the
     /// keep-partial-files confirmation dialog.
     @State private var taskPendingDelete: DownloadTask?
+    /// Bumped on every task action (swipe or context menu) to drive a
+    /// confirming haptic via `.sensoryFeedback`.
+    @State private var actionTick = 0
 
     init(session: SessionStore, store: DownloadTaskStore) {
         // 105 forwarding now lives on DownloadTaskStore — wired
@@ -32,12 +36,17 @@ struct TaskListView: View {
                     // chrome.
                     Section {
                         ForEach(viewModel.filteredTasks) { task in
-                            NavigationLink(value: task) {
-                                TaskRow(task: task)
+                            TaskRow(task: task)
+                            // Tap target without the system disclosure
+                            // chevron — a zero-opacity link behind the
+                            // card keeps it a clean media-style tile.
+                            .background {
+                                NavigationLink(value: task) { EmptyView() }
+                                    .opacity(0)
                             }
-                            .buttonStyle(DSRowButtonStyle())
-                            .listRowSeparatorTint(Color(.separator).opacity(0.4))
-                            .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.lg, bottom: DSSpacing.xs, trailing: DSSpacing.lg))
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     taskPendingDelete = task
@@ -48,6 +57,7 @@ struct TaskListView: View {
                             .swipeActions(edge: .leading) {
                                 if task.canPause {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.pause(task) }
                                     } label: {
                                         Label("Pause", systemImage: "pause.fill")
@@ -56,6 +66,7 @@ struct TaskListView: View {
                                 }
                                 if task.canStop {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.stop(task) }
                                     } label: {
                                         Label("Stop", systemImage: "stop.fill")
@@ -64,6 +75,7 @@ struct TaskListView: View {
                                 }
                                 if task.canResume {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.resume(task) }
                                     } label: {
                                         Label("Resume", systemImage: "play.fill")
@@ -71,13 +83,16 @@ struct TaskListView: View {
                                     .tint(.green)
                                 }
                             }
+                            .contextMenu { rowMenu(for: task) }
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .safeAreaInset(edge: .top, spacing: 0) { filterChipBar }
                 .refreshable { await viewModel.refresh() }
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
+                .sensoryFeedback(.impact(weight: .light), trigger: actionTick)
             }
             .overlay {
                 if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
@@ -100,9 +115,6 @@ struct TaskListView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     sortMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    filterMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -129,6 +141,11 @@ struct TaskListView: View {
                 TaskDetailView(task: task, client: session.client)
             }
             .onChange(of: session.pendingMagnetLink) { _, newValue in
+                if newValue != nil {
+                    showingAddTask = true
+                }
+            }
+            .onChange(of: session.pendingTorrentFile) { _, newValue in
                 if newValue != nil {
                     showingAddTask = true
                 }
@@ -180,19 +197,86 @@ struct TaskListView: View {
         )
     }
 
-    private var filterMenu: some View {
-        Menu {
-            Picker("Filter", selection: $viewModel.filter) {
-                ForEach(TaskFilter.allCases) { f in
-                    Label("\(f.label) (\(viewModel.count(for: f)))", systemImage: f.systemImage)
-                        .tag(f)
+    // MARK: - Filter chips
+
+    /// Quick-filter pills shown above the list. Always offers "All";
+    /// the rest appear only when they have something in them, so the
+    /// bar stays short and never shows an empty bucket.
+    private var chipFilters: [TaskFilter] {
+        var result: [TaskFilter] = [.all]
+        for f in [TaskFilter.downloading, .seeding, .paused, .finished, .error]
+        where viewModel.count(for: f) > 0 {
+            result.append(f)
+        }
+        return result
+    }
+
+    private var filterChipBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DSSpacing.sm) {
+                ForEach(chipFilters) { f in
+                    let selected = viewModel.filter == f
+                    Button {
+                        actionTick += 1
+                        viewModel.filter = f
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(f.label)
+                            Text("\(viewModel.count(for: f))")
+                                .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial))
+                        )
+                        .foregroundStyle(selected ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-        } label: {
-            Image(systemName: viewModel.filter == .all
-                  ? "line.3.horizontal.decrease.circle"
-                  : "line.3.horizontal.decrease.circle.fill")
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.sm)
         }
+    }
+
+    // MARK: - Row context menu
+
+    /// Long-press actions on a card: the same verbs as the swipe
+    /// actions plus Copy link, so the common operations are reachable
+    /// without remembering which swipe direction does what.
+    @ViewBuilder
+    private func rowMenu(for task: DownloadTask) -> some View {
+        if task.canResume {
+            Button {
+                actionTick += 1
+                Task { await viewModel.resume(task) }
+            } label: { Label("Resume", systemImage: "play.fill") }
+        }
+        if task.canPause {
+            Button {
+                actionTick += 1
+                Task { await viewModel.pause(task) }
+            } label: { Label("Pause", systemImage: "pause.fill") }
+        }
+        if task.canStop {
+            Button {
+                actionTick += 1
+                Task { await viewModel.stop(task) }
+            } label: { Label("Stop", systemImage: "stop.fill") }
+        }
+        if let link = task.additional?.detail?.uri, !link.isEmpty {
+            Button {
+                UIPasteboard.general.string = link
+                actionTick += 1
+            } label: { Label("Copy link", systemImage: "doc.on.doc") }
+        }
+        Divider()
+        Button(role: .destructive) {
+            taskPendingDelete = task
+        } label: { Label("Delete", systemImage: "trash") }
     }
 
     private var sortMenu: some View {
@@ -219,7 +303,15 @@ struct TaskListView: View {
     }
 
     private var navigationTitle: String {
-        viewModel.filter == .all ? "Downloads" : "Downloads — \(viewModel.filter.label)"
+        // `.navigationTitle` takes the String overload here (the title
+        // is computed, not a literal), which does NOT auto-localize —
+        // that's why the title rendered as English "Downloads" inside
+        // the Czech UI. Resolve through the catalog explicitly, and
+        // compose the filtered variant from the localized base + the
+        // (already-localized) filter label so we don't need a separate
+        // "Downloads — %@" catalog entry.
+        let base = String(localized: "Downloads")
+        return viewModel.filter == .all ? base : "\(base) — \(viewModel.filter.label)"
     }
 
     private var speedSubtitle: String {
@@ -256,65 +348,103 @@ struct TaskListView: View {
     }
 }
 
-/// Single row in the Downloads list. Visual hierarchy now matches the
-/// Phase-3 design-system patterns:
+/// One download as a calm media-style card. Instead of a dense table
+/// row of raw scene text, each task reads like an entry in a media
+/// app:
 ///
-///   - Title row: type glyph + the torrent / file name, two lines max
-///     with middle truncation so "Movie.2026.2160p.HDR.x265-GROUP"
-///     keeps both prefix and codec suffix visible when constrained.
-///   - Metadata row: inline `DSStatusDot` + status label, optional
-///     live ↓ speed, total size on the trailing edge. No more tinted
-///     glass capsule — the dot reads as ambient signal next to its
-///     label, sitting flush against the surrounding row content.
-///   - Progress bar stays at full width here; 4.1.2 swaps it for
-///     `DSProgressSliver` and hides it for completed tasks.
+///   - A rounded status tile (colour + glyph, pulsing while live) as
+///     the leading anchor.
+///   - A clean parsed title + year (`ReleaseName` turns
+///     "Dune.2021.2160p.WEB-DL…-DeDo" into "Dune  2021").
+///   - Up to three quality pills (4K / HDR / Atmos …) — the at-a-glance
+///     "what kind of file is this".
+///   - A quiet footer: status · optional live ↓ speed · size, with a
+///     progress sliver only while the task is actively transferring.
+///
+/// The card sits on `.regularMaterial` with a hairline, spaced from
+/// its neighbours by the list-row insets, so the screen breathes.
 private struct TaskRow: View {
     let task: DownloadTask
 
+    private var release: ReleaseName { ReleaseName(parsing: task.title) }
+    private var tint: Color { task.displayStatusTintRaw.tintColor }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: DSSpacing.sm) {
-                Image(systemName: task.type.systemImage)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18)
-                Text(task.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+        HStack(spacing: DSSpacing.md) {
+            statusTile
+            VStack(alignment: .leading, spacing: 7) {
+                titleLine
+                if !release.tags.isEmpty {
+                    HStack(spacing: 5) {
+                        ForEach(release.tags.prefix(3), id: \.self) { TagPill(text: $0) }
+                    }
+                }
+                footerLine
+                // Progress sliver only while actually pulling bytes —
+                // a seeding task sits at 100 %, so a full-width bar on
+                // every completed card was pure noise.
+                if isDownloading {
+                    DSProgressSliver(value: task.progress, tint: tint)
+                        .padding(.top, 1)
+                }
             }
-            // Ambient progress signal — 2pt sliver tinted to status.
-            // Hidden once the task has reached its terminal completion
-            // state (true `.finished` *or* paused-at-100 %, which the
-            // task's `isAtCompletion` collapses into one): a 100 %
-            // filled bar on a completed row is redundant noise.
-            if !task.isAtCompletion {
-                DSProgressSliver(
-                    value: task.progress,
-                    tint: task.displayStatusTintRaw.tintColor
-                )
+            Spacer(minLength: 0)
+        }
+        .padding(DSSpacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                .strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous))
+    }
+
+    /// Leading status tile — a soft tinted rounded square with the
+    /// status glyph, pulsing while actively transferring. Reads like
+    /// a small poster/app tile and gives the row a confident anchor.
+    private var statusTile: some View {
+        RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .fill(tint.opacity(0.16))
+            .frame(width: 48, height: 48)
+            .overlay(
+                Image(systemName: task.displayStatusTintRaw.statusSystemImage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .symbolEffect(.pulse, options: .repeating, isActive: isDownloading)
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var titleLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(release.title)
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let year = release.year {
+                Text(year)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            metadataRow
         }
     }
 
-    /// Three-tier metadata: anchored status on the left
-    /// (DSStatusDot + label at `.secondary`), middle metrics
-    /// (speed / ETA / %) at the more subtle `.tertiary`, and
-    /// total size right-aligned at `.secondary` so it balances
-    /// the status anchor across the row. The eye reads status →
-    /// size first (the row's identity), then drops into the
-    /// middle line for "what's it doing right now" detail.
-    private var metadataRow: some View {
-        HStack(spacing: DSSpacing.sm) {
-            DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
+    /// Quiet footer: status word, an optional live ↓ speed, and the
+    /// total size on the trailing edge. Percent/ETA are intentionally
+    /// dropped from the card — the sliver carries progress; the card
+    /// stays calm.
+    private var footerLine: some View {
+        HStack(spacing: 6) {
             Text(task.displayStatusLabel)
-                .font(.caption.weight(.medium))
+                .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(Array(middleMetrics.enumerated()), id: \.offset) { _, value in
-                Text("·")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Text(value)
+            if let speed = liveSpeed, speed > 0 {
+                Text("·").font(.caption).foregroundStyle(.tertiary)
+                Text("↓ \(formattedSpeed(speed))")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
@@ -322,64 +452,29 @@ private struct TaskRow: View {
             }
             Spacer(minLength: DSSpacing.sm)
             Text(formattedSize(task.size.value))
-                .font(.caption)
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
     }
 
-    /// True for actively-transferring tasks — drives the inline ↓ speed
-    /// readout and the pulsing dot. `canPause` excludes finished and
-    /// errored states; `.paused` is explicitly filtered so paused
-    /// transfers don't pulse just because they're pause-capable.
+    /// True for actively-transferring tasks — drives the pulsing tile,
+    /// the inline ↓ speed, and the progress sliver. `.paused` is
+    /// filtered out so paused transfers don't pulse.
     private var isLive: Bool {
         task.canPause && task.status != .paused
     }
 
-    /// Show ↓ speed inline only when the task is actively transferring; otherwise it's noise.
+    /// Strictly "bytes are arriving" — drives the pulse and the
+    /// progress sliver. Narrower than `isLive` (which also covers
+    /// seeding) so a seeding card neither pulses nor shows a bar.
+    private var isDownloading: Bool {
+        task.status == .downloading
+    }
+
     private var liveSpeed: Int64? {
         guard isLive else { return nil }
         return task.additional?.transfer?.speedDownload.value
-    }
-
-    /// Speed / ETA / percent fragments for the metadata row's
-    /// tertiary middle zone. Each is conditional so a finished
-    /// or paused row drops every fragment and the row reads as
-    /// just "status · size"; an actively-transferring one shows
-    /// the full three. Status itself is anchored separately at
-    /// `.secondary` (see `metadataRow`) so it doesn't fade with
-    /// the tertiary middle copy.
-    private var middleMetrics: [String] {
-        var values: [String] = []
-        if let speed = liveSpeed, speed > 0 {
-            values.append("↓ \(formattedSpeed(speed))")
-            if let eta = formattedETA(speed: speed) {
-                values.append(eta)
-            }
-        }
-        if !task.isAtCompletion {
-            values.append("\(Int(task.progress * 100))%")
-        }
-        return values
-    }
-
-    /// Time until the remaining bytes finish at the current download
-    /// speed. Returns nil for the cases where ETA is meaningless
-    /// (no remaining bytes, no speed, non-finite math). Mirrors the
-    /// shape of `TaskDetailView.duration(_:)` without sharing the
-    /// helper — the row only needs an abbreviated "12 min" / "1 h"
-    /// flavour, not the full detail-screen formatter setup.
-    private func formattedETA(speed: Int64) -> String? {
-        let downloaded = task.additional?.transfer?.sizeDownloaded.value ?? 0
-        let remaining = max(0, task.size.value - downloaded)
-        guard remaining > 0, speed > 0 else { return nil }
-        let secs = Double(remaining) / Double(speed)
-        guard secs.isFinite, secs > 0 else { return nil }
-        let f = DateComponentsFormatter()
-        f.unitsStyle = .abbreviated
-        f.allowedUnits = [.day, .hour, .minute, .second]
-        f.maximumUnitCount = 2
-        return f.string(from: secs)
     }
 
     private func formattedSize(_ bytes: Int64) -> String {
@@ -388,5 +483,33 @@ private struct TaskRow: View {
 
     private func formattedSpeed(_ bytes: Int64) -> String {
         "\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))/s"
+    }
+}
+
+/// Small quality chip ("4K", "HDR", "Atmos"). Resolution chips take
+/// the accent, HDR/Dolby Vision an amber tint, everything else a
+/// neutral fill — a little colour without turning the row into a
+/// rainbow.
+private struct TagPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(palette.fg)
+            .background(Capsule(style: .continuous).fill(palette.bg))
+    }
+
+    private var palette: (fg: Color, bg: Color) {
+        switch text {
+        case "4K", "1080p", "720p":
+            return (.accentColor, Color.accentColor.opacity(0.14))
+        case "HDR", "Dolby Vision":
+            return (.orange, Color.orange.opacity(0.16))
+        default:
+            return (Color.primary.opacity(0.7), Color.primary.opacity(0.07))
+        }
     }
 }

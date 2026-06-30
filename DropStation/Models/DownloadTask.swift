@@ -224,16 +224,69 @@ struct DownloadTask: Codable, Identifiable, Hashable {
     }
 }
 
+extension DownloadTask {
+    /// Ordering priority for the mixed "All" list so the screen reads
+    /// top-to-bottom by what matters: errors first (need attention),
+    /// then anything in flight, then seeding, then paused, then done.
+    /// Used as a stable primary key on top of the user's chosen sort.
+    var sortRank: Int {
+        switch status {
+        case .error: return 0
+        case .downloading, .waiting, .hash_checking, .filehosting_waiting, .extracting: return 1
+        case .seeding, .finishing: return 2
+        case .paused: return isAtCompletion ? 4 : 3
+        case .finished: return 4
+        case .unknown: return 5
+        }
+    }
+}
+
 extension DownloadTask.Status {
-    /// Accent colour used by the status pill and progress bar.
+    /// Status colour used by the status dot, leading glyph, and
+    /// progress sliver. The single source of truth for the status
+    /// vocabulary (see docs/ux/redesign-ios26.md):
+    ///
+    ///   - Downloading — the accent (single clean blue): the headline
+    ///     "bytes are arriving" state.
+    ///   - Seeding / extracting — green: complete, giving back.
+    ///   - Transitional (waiting / hash-checking / finishing /
+    ///     filehosting) — secondary grey: in progress but not the
+    ///     headline, so it doesn't compete with an active download.
+    ///   - Paused — orange. Finished — neutral grey. Error — red.
+    ///
+    /// Downloading and seeding used to share green, which collapsed
+    /// the two most common states into one undifferentiated dot;
+    /// splitting blue/green is the core readability fix.
     var tintColor: Color {
         switch self {
-        case .downloading, .seeding, .extracting: return .green
-        case .waiting, .hash_checking, .filehosting_waiting, .finishing: return .blue
+        case .downloading: return .accentColor
+        case .seeding, .extracting: return .green
+        case .waiting, .hash_checking, .filehosting_waiting, .finishing: return .gray
         case .paused: return .orange
         case .finished: return .gray
         case .error: return .red
         case .unknown: return .gray
+        }
+    }
+
+    /// Status-driven leading glyph for list / activity rows. The
+    /// leading slot is reserved for *status*, not task type — a glance
+    /// down the list reads as a column of meaningful states (arrow.down
+    /// = pulling, arrow.up = seeding, checkmark = done, …) instead of
+    /// an identical type icon on every torrent row.
+    ///
+    /// Callers pass `displayStatusTintRaw` so paused-at-100 % folds
+    /// onto the finished checkmark, matching the colour and label.
+    var statusSystemImage: String {
+        switch self {
+        case .downloading:                       return "arrow.down.circle.fill"
+        case .seeding:                           return "arrow.up.circle.fill"
+        case .paused:                            return "pause.circle.fill"
+        case .finished:                          return "checkmark.circle.fill"
+        case .error:                             return "exclamationmark.triangle.fill"
+        case .waiting, .filehosting_waiting:     return "clock.fill"
+        case .hash_checking, .finishing, .extracting: return "ellipsis.circle.fill"
+        case .unknown:                           return "questionmark.circle.fill"
         }
     }
 }

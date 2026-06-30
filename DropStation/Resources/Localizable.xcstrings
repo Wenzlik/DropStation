@@ -1,2291 +1,2311 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "" : {
-
-    },
-    "·" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "·"
-          }
-        }
-      }
-    },
-    "%@ · SHA-256" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · SHA-256"
-          }
-        }
-      }
-    },
-    "%@ (%lld)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (%lld)"
+  "sourceLanguage": "en",
+  "strings": {
+    "": {},
+    "%@ (%lld)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ (%lld)"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ (%2$lld)"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ (%2$lld)"
           }
         }
       }
     },
-    "%@ / %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ / %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ / %2$@"
-          }
-        }
-      }
-    },
-    "%lld" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld"
-          }
-        }
-      }
-    },
-    "%lld failed" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld selhalo"
-          }
-        }
-      }
-    },
-    "%lld seeds · %lld peers" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld seedů · %lld peerů"
+    "%@ / %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ / %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld seeds · %2$lld peers"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ / %2$@"
           }
         }
       }
     },
-    "%lld%%" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld %%"
+    "%@ · SHA-256": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · SHA-256"
           }
         }
       }
     },
-    "•" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "•"
+    "%lld": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
           }
         }
       }
     },
-    "© 2026 Vasek Zmrhal · MIT License" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "© 2026 Vasek Zmrhal · Licence MIT"
+    "%lld failed": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld selhalo"
           }
         }
       }
     },
-    "1. …\n2. …" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "1. …\n2. …"
-          }
-        }
-      }
-    },
-    "2-step verification code required." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vyžadován kód dvoufázového ověření."
-          }
-        }
-      }
-    },
-    "About" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O aplikaci"
-          }
-        }
-      }
-    },
-    "Account disabled." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Účet je zakázán."
-          }
-        }
-      }
-    },
-    "Active now" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktivní právě teď"
-          }
-        }
-      }
-    },
-    "Add download" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přidat stahování"
-          }
-        }
-      }
-    },
-    "All" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vše"
-          }
-        }
-      }
-    },
-    "All active" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vše aktivní"
-          }
-        }
-      }
-    },
-    "All caught up" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vše dohnáno"
-          }
-        }
-      }
-    },
-    "App" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aplikace"
-          }
-        }
-      }
-    },
-    "Appearance" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vzhled"
-          }
-        }
-      }
-    },
-    "Approve a push notification in Synology Secure SignIn." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schválit push notifikaci v Synology Secure SignIn."
-          }
-        }
-      }
-    },
-    "As configured in DSM" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Podle nastavení v DSM"
-          }
-        }
-      }
-    },
-    "Ascending" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vzestupně"
-          }
-        }
-      }
-    },
-    "Attaches app/iOS version, device model, hostname, auth method, session state, and timestamp. No passwords, SID, cookies, OTP, or torrent names." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přidá verzi aplikace/iOS, model zařízení, název hostitele, způsob přihlášení, stav relace a časové razítko. Žádná hesla, SID, cookies, OTP ani názvy torrentů."
-          }
-        }
-      }
-    },
-    "Bug reports send via your mail app. Feature requests open on GitHub." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hlášení chyb se odesílá přes vaši poštovní aplikaci. Návrhy funkcí se otevírají na GitHubu."
-          }
-        }
-      }
-    },
-    "Cancel" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zrušit"
-          }
-        }
-      }
-    },
-    "Cannot browse folders" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze procházet složky"
-          }
-        }
-      }
-    },
-    "Certificate changed" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Certifikát se změnil"
-          }
-        }
-      }
-    },
-    "Change" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Změnit"
-          }
-        }
-      }
-    },
-    "Checking Download Station access…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ověřuji přístup k Download Station…"
-          }
-        }
-      }
-    },
-    "Choose .torrent file…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vybrat soubor .torrent…"
-          }
-        }
-      }
-    },
-    "Choose destination" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vybrat cíl"
-          }
-        }
-      }
-    },
-    "Choose per-file priority for this BT torrent. Skip stops the file from downloading." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vyberte prioritu jednotlivých souborů tohoto BT torrentu. Přeskočit zastaví stahování souboru."
-          }
-        }
-      }
-    },
-    "Coming soon" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Již brzy"
-          }
-        }
-      }
-    },
-    "Completed" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončeno"
-          }
-        }
-      }
-    },
-    "Completed %@ • %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončeno %@ • %@"
+    "%lld seeds · %lld peers": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld seedů · %lld peerů"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Completed %1$@ • %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld seeds · %2$lld peers"
           }
         }
       }
     },
-    "Completed downloads will show up here." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončená stahování se objeví zde."
+    "%lld%%": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld %%"
           }
         }
       }
     },
-    "Connection lost" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Připojení ztraceno"
+    "1. …\n2. …": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1. …\n2. …"
           }
         }
       }
     },
-    "Contact (optional)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kontakt (volitelné)"
+    "2-step verification code required.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vyžadován kód dvoufázového ověření."
           }
         }
       }
     },
-    "Couldn't reach Download Station: %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze se připojit k Download Station: %@"
+    "About": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O aplikaci"
           }
         }
       }
     },
-    "Couldn't read changelog" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze načíst seznam změn"
+    "Account disabled.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Účet je zakázán."
           }
         }
       }
     },
-    "Couldn't verify the security certificate for %@." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nelze ověřit bezpečnostní certifikát pro %@."
+    "Active now": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivní právě teď"
           }
         }
       }
     },
-    "Currently idle" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktuálně nečinné"
+    "Add download": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přidat stahování"
           }
         }
       }
     },
-    "Dark" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tmavé"
+    "All": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vše"
           }
         }
       }
     },
-    "Dashboard" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přehled"
+    "All active": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vše aktivní"
           }
         }
       }
     },
-    "data corrupted at %@: %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "poškozená data na %@: %@"
+    "All caught up": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vše dohnáno"
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplikace"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vzhled"
+          }
+        }
+      }
+    },
+    "Approve a push notification in Synology Secure SignIn.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schválit push notifikaci v Synology Secure SignIn."
+          }
+        }
+      }
+    },
+    "As configured in DSM": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podle nastavení v DSM"
+          }
+        }
+      }
+    },
+    "Ascending": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vzestupně"
+          }
+        }
+      }
+    },
+    "Attaches app/iOS version, device model, hostname, auth method, session state, and timestamp. No passwords, SID, cookies, OTP, or torrent names.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přidá verzi aplikace/iOS, model zařízení, název hostitele, způsob přihlášení, stav relace a časové razítko. Žádná hesla, SID, cookies, OTP ani názvy torrentů."
+          }
+        }
+      }
+    },
+    "Bug reports send via your mail app. Feature requests open on GitHub.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hlášení chyb se odesílá přes vaši poštovní aplikaci. Návrhy funkcí se otevírají na GitHubu."
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zrušit"
+          }
+        }
+      }
+    },
+    "Cannot browse folders": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nelze procházet složky"
+          }
+        }
+      }
+    },
+    "Certificate changed": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certifikát se změnil"
+          }
+        }
+      }
+    },
+    "Change": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Změnit"
+          }
+        }
+      }
+    },
+    "Checking Download Station access…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ověřuji přístup k Download Station…"
+          }
+        }
+      }
+    },
+    "Choose .torrent file…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vybrat soubor .torrent…"
+          }
+        }
+      }
+    },
+    "Choose destination": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vybrat cíl"
+          }
+        }
+      }
+    },
+    "Choose per-file priority for this BT torrent. Skip stops the file from downloading.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vyberte prioritu jednotlivých souborů tohoto BT torrentu. Přeskočit zastaví stahování souboru."
+          }
+        }
+      }
+    },
+    "Coming soon": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Již brzy"
+          }
+        }
+      }
+    },
+    "Completed": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončeno"
+          }
+        }
+      }
+    },
+    "Completed %@ • %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončeno %@ • %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "data corrupted at %1$@: %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Completed %1$@ • %2$@"
           }
         }
       }
     },
-    "Date added" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datum přidání"
+    "Completed downloads will show up here.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončená stahování se objeví zde."
           }
         }
       }
     },
-    "Date completed" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Datum dokončení"
+    "Connection lost": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Připojení ztraceno"
           }
         }
       }
     },
-    "Decoding error: %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chyba dekódování: %@"
+    "Contact (optional)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontakt (volitelné)"
           }
         }
       }
     },
-    "Default destination" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Výchozí cíl"
+    "Copy link": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopírovat odkaz"
           }
         }
       }
     },
-    "Delete" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smazat"
+    "Couldn't reach Download Station: %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nelze se připojit k Download Station: %@"
           }
         }
       }
     },
-    "Delete task and files" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smazat úlohu i soubory"
+    "Couldn't read changelog": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nelze načíst seznam změn"
           }
         }
       }
     },
-    "Delete task only (keep partial files)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smazat jen úlohu (zachovat stažené části)"
+    "Couldn't verify the security certificate for %@.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nelze ověřit bezpečnostní certifikát pro %@."
           }
         }
       }
     },
-    "Delete this download?" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Smazat toto stahování?"
+    "Currently idle": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuálně nečinné"
           }
         }
       }
     },
-    "Descending" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sestupně"
+    "Dark": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tmavé"
           }
         }
       }
     },
-    "Description" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Popis"
+    "Dashboard": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přehled"
           }
         }
       }
     },
-    "Destination" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cíl"
+    "Date added": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum přidání"
           }
         }
       }
     },
-    "Destination denied." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cíl odmítnut."
+    "Date completed": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datum dokončení"
           }
         }
       }
     },
-    "Destination does not exist." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cíl neexistuje."
+    "Decoding error: %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chyba dekódování: %@"
           }
         }
       }
     },
-    "Details (optional)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Podrobnosti (volitelné)"
+    "Default destination": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Výchozí cíl"
           }
         }
       }
     },
-    "Diagnostics" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diagnostika"
+    "Delete": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smazat"
           }
         }
       }
     },
-    "Diagnostics block won't be attached." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diagnostická data nebudou připojena."
+    "Delete task and files": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smazat úlohu i soubory"
           }
         }
       }
     },
-    "Direction" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Směr"
+    "Delete task only (keep partial files)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smazat jen úlohu (zachovat stažené části)"
           }
         }
       }
     },
-    "Done" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hotovo"
+    "Delete this download?": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smazat toto stahování?"
           }
         }
       }
     },
-    "Download URI" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adresa stahování"
+    "Descending": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sestupně"
           }
         }
       }
     },
-    "Downloading" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stahování"
+    "Description": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popis"
           }
         }
       }
     },
-    "Downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stahování"
+    "Destination": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cíl"
           }
         }
       }
     },
-    "DropStation" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DropStation"
+    "Destination denied.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cíl odmítnut."
           }
         }
       }
     },
-    "DropStation can't verify %@'s certificate against a trusted authority. Synology NAS devices ship with a self-signed certificate by default. If you recognise this server, trust the certificate to continue." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DropStation nemůže ověřit certifikát serveru %@ proti důvěryhodné autoritě. Zařízení Synology NAS se ve výchozím nastavení dodávají s vlastním self-signed certifikátem. Pokud tento server znáte, důvěřujte certifikátu pro pokračování."
+    "Destination does not exist.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cíl neexistuje."
           }
         }
       }
     },
-    "Email" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "E-mail"
+    "Details (optional)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podrobnosti (volitelné)"
           }
         }
       }
     },
-    "Ended" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončeno"
+    "Diagnostics": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostika"
           }
         }
       }
     },
-    "Enter a 6-digit code from a TOTP app." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zadejte 6místný kód z TOTP aplikace."
+    "Diagnostics block won't be attached.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostická data nebudou připojena."
           }
         }
       }
     },
-    "Enter your 6-digit code" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zadejte svůj 6místný kód"
+    "Direction": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Směr"
           }
         }
       }
     },
-    "Error" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chyba"
+    "Done": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hotovo"
           }
         }
       }
     },
-    "Expected behavior" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Očekávané chování"
+    "Download URI": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresa stahování"
           }
         }
       }
     },
-    "Extracting" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rozbalování"
+    "Downloading": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stahování"
           }
         }
       }
     },
-    "Failed to authenticate 2-step verification code." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ověření kódu dvoufázového ověření selhalo."
+    "Downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stahování"
           }
         }
       }
     },
-    "Feedback" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zpětná vazba"
+    "DropStation": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DropStation"
           }
         }
       }
     },
-    "File" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soubor"
+    "DropStation can't verify %@'s certificate against a trusted authority. Synology NAS devices ship with a self-signed certificate by default. If you recognise this server, trust the certificate to continue.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DropStation nemůže ověřit certifikát serveru %@ proti důvěryhodné autoritě. Zařízení Synology NAS se ve výchozím nastavení dodávají s vlastním self-signed certifikátem. Pokud tento server znáte, důvěřujte certifikátu pro pokračování."
           }
         }
       }
     },
-    "File does not exist." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soubor neexistuje."
+    "Email": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-mail"
           }
         }
       }
     },
-    "File upload failed." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nahrávání souboru selhalo."
+    "Ended": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončeno"
           }
         }
       }
     },
-    "Filehosting waiting" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Čekání na filehosting"
+    "Enter a 6-digit code from a TOTP app.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zadejte 6místný kód z TOTP aplikace."
           }
         }
       }
     },
-    "Files (%lld)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soubory (%lld)"
+    "Enter your 6-digit code": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zadejte svůj 6místný kód"
           }
         }
       }
     },
-    "Filter" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Filtr"
+    "Error": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chyba"
           }
         }
       }
     },
-    "Finished" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončeno"
+    "Expected behavior": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Očekávané chování"
           }
         }
       }
     },
-    "Finishing" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dokončování"
+    "Extracting": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rozbalování"
           }
         }
       }
     },
-    "First connection" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "První připojení"
+    "Failed to authenticate 2-step verification code.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ověření kódu dvoufázového ověření selhalo."
           }
         }
       }
     },
-    "Forget" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zapomenout"
+    "Feedback": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zpětná vazba"
           }
         }
       }
     },
-    "Forget this device" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zapomenout toto zařízení"
+    "File": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubor"
           }
         }
       }
     },
-    "Forget this device?" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zapomenout toto zařízení?"
+    "File does not exist.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubor neexistuje."
           }
         }
       }
     },
-    "Hash checking" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kontrola hashe"
+    "File upload failed.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahrávání souboru selhalo."
           }
         }
       }
     },
-    "High" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vysoká"
+    "Filehosting waiting": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Čekání na filehosting"
           }
         }
       }
     },
-    "Higher-priority tasks get bandwidth first. Synology applies the choice within Download Station's own queue rules." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Úlohy s vyšší prioritou dostanou šířku pásma jako první. Synology aplikuje volbu v rámci pravidel fronty Download Station."
+    "Files (%lld)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubory (%lld)"
           }
         }
       }
     },
-    "HTTP error %lld." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chyba HTTP %lld."
+    "Filter": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtr"
           }
         }
       }
     },
-    "I may reply if I need more detail." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Možná odpovím, pokud budu potřebovat více informací."
+    "Finished": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončeno"
           }
         }
       }
     },
-    "Include diagnostics" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zahrnout diagnostiku"
+    "Finishing": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dokončování"
           }
         }
       }
     },
-    "Incorrect verification code." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nesprávný ověřovací kód."
+    "First connection": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "První připojení"
           }
         }
       }
     },
-    "Invalid parameter." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neplatný parametr."
+    "Forget": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zapomenout"
           }
         }
       }
     },
-    "Invalid server URL." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neplatná adresa serveru."
+    "Forget this device": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zapomenout toto zařízení"
           }
         }
       }
     },
-    "Invalid task action." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neplatná akce úlohy."
+    "Forget this device?": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zapomenout toto zařízení?"
           }
         }
       }
     },
-    "Invalid task ID." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neplatné ID úlohy."
+    "HTTP error %lld.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chyba HTTP %lld."
           }
         }
       }
     },
-    "Light" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Světlé"
+    "Hash checking": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrola hashe"
           }
         }
       }
     },
-    "Link" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odkaz"
+    "High": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vysoká"
           }
         }
       }
     },
-    "Loading…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Načítání…"
+    "Higher-priority tasks get bandwidth first. Synology applies the choice within Download Station's own queue rules.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Úlohy s vyšší prioritou dostanou šířku pásma jako první. Synology aplikuje volbu v rámci pravidel fronty Download Station."
           }
         }
       }
     },
-    "Low" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nízká"
+    "I may reply if I need more detail.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Možná odpovím, pokud budu potřebovat více informací."
           }
         }
       }
     },
-    "Made by @Wenzlik" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vytvořil @Wenzlik"
+    "Include diagnostics": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zahrnout diagnostiku"
           }
         }
       }
     },
-    "magnet:?xt=… or https://…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "magnet:?xt=… nebo https://…"
+    "Incorrect verification code.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nesprávný ověřovací kód."
           }
         }
       }
     },
-    "Maximum number of tasks reached." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dosažen maximální počet úloh."
+    "Invalid parameter.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatný parametr."
           }
         }
       }
     },
-    "missing %@ value at %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chybí hodnota %@ na %@"
+    "Invalid server URL.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatná adresa serveru."
+          }
+        }
+      }
+    },
+    "Invalid task ID.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatné ID úlohy."
+          }
+        }
+      }
+    },
+    "Invalid task action.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatná akce úlohy."
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Světlé"
+          }
+        }
+      }
+    },
+    "Link": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odkaz"
+          }
+        }
+      }
+    },
+    "Loading…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Načítání…"
+          }
+        }
+      }
+    },
+    "Low": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nízká"
+          }
+        }
+      }
+    },
+    "Made by @Wenzlik": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vytvořil @Wenzlik"
+          }
+        }
+      }
+    },
+    "Maximum number of tasks reached.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dosažen maximální počet úloh."
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Název"
+          }
+        }
+      }
+    },
+    "New download": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nové stahování"
+          }
+        }
+      }
+    },
+    "No %@ downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Žádná stahování (%@)"
+          }
+        }
+      }
+    },
+    "No active downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Žádná aktivní stahování"
+          }
+        }
+      }
+    },
+    "No default destination configured.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Není nakonfigurován žádný výchozí cíl."
+          }
+        }
+      }
+    },
+    "No downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Žádná stahování"
+          }
+        }
+      }
+    },
+    "No matches": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Žádné shody"
+          }
+        }
+      }
+    },
+    "No subfolders.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Žádné podsložky."
+          }
+        }
+      }
+    },
+    "No such account or incorrect password.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Účet neexistuje nebo nesprávné heslo."
+          }
+        }
+      }
+    },
+    "Normal": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Normální"
+          }
+        }
+      }
+    },
+    "Not logged in.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nepřihlášen."
+          }
+        }
+      }
+    },
+    "Nothing finished yet": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zatím nic nedokončeno"
+          }
+        }
+      }
+    },
+    "Nothing is saved. You'll sign in with your password and verification code every time you open the app.": {
+      "comment": "Text displayed in a section card that explains that nothing is saved when the user opts out of storing their credentials.",
+      "isCommentAutoGenerated": true
+    },
+    "OK": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline"
+          }
+        }
+      }
+    },
+    "Online": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Online"
+          }
+        }
+      }
+    },
+    "Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otevřete svou autentizační aplikaci — Synology Secure SignIn (záložka Codes), Google Authenticator, 1Password apod. — a zadejte 6místný kód."
+          }
+        }
+      }
+    },
+    "Pause": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pozastavit"
+          }
+        }
+      }
+    },
+    "Paused": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pozastaveno"
+          }
+        }
+      }
+    },
+    "Permission denied.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přístup odepřen."
+          }
+        }
+      }
+    },
+    "Priority": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Priorita"
+          }
+        }
+      }
+    },
+    "Privacy": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soukromí"
+          }
+        }
+      }
+    },
+    "Recently completed": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nedávno dokončeno"
+          }
+        }
+      }
+    },
+    "Recovery": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obnova"
+          }
+        }
+      }
+    },
+    "Remember password": {
+      "comment": "Label for a toggle that lets the user decide whether to remember their password.",
+      "isCommentAutoGenerated": true
+    },
+    "Remember session": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zapamatovat relaci"
+          }
+        }
+      }
+    },
+    "Removes the saved session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odebere uloženou relaci z Klíčenky. Příští přihlášení bude vyžadovat heslo i případný 2FA kód od začátku."
+          }
+        }
+      }
+    },
+    "Report": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hlášení"
+          }
+        }
+      }
+    },
+    "Report a bug": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nahlásit chybu"
+          }
+        }
+      }
+    },
+    "Restoring session…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obnovování relace…"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokračovat"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkusit znovu"
+          }
+        }
+      }
+    },
+    "Retry now": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkusit nyní"
+          }
+        }
+      }
+    },
+    "Retrying…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkouším znovu…"
+          }
+        }
+      }
+    },
+    "Saved credentials are removed. You'll need to sign in every time you open the app.": {
+      "extractionState": "stale",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uložené přihlašovací údaje jsou odebrány. Při každém spuštění aplikace se budete muset přihlásit znovu."
+          }
+        }
+      }
+    },
+    "Scheme": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schéma"
+          }
+        }
+      }
+    },
+    "Search downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hledat stahování"
+          }
+        }
+      }
+    },
+    "Secure SignIn app": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplikace Secure SignIn"
+          }
+        }
+      }
+    },
+    "Secure SignIn login succeeded, but DSM did not grant API access to Download Station.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlášení přes Secure SignIn proběhlo úspěšně, ale DSM neumožnilo API přístup k Download Station."
+          }
+        }
+      }
+    },
+    "Secure SignIn verified": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure SignIn ověřeno"
+          }
+        }
+      }
+    },
+    "Security warning": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bezpečnostní upozornění"
+          }
+        }
+      }
+    },
+    "See all": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zobrazit vše"
+          }
+        }
+      }
+    },
+    "See all active transfers": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zobrazit všechny aktivní přenosy"
+          }
+        }
+      }
+    },
+    "See all completed downloads": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zobrazit všechna dokončená stahování"
+          }
+        }
+      }
+    },
+    "Seeding": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sdílení"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odeslat"
+          }
+        }
+      }
+    },
+    "Server": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
+          }
+        }
+      }
+    },
+    "Session": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relace"
+          }
+        }
+      }
+    },
+    "Session expired. Please re-authenticate with verification code.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relace vypršela. Prosím přihlaste se znovu s ověřovacím kódem."
+          }
+        }
+      }
+    },
+    "Session interrupted by duplicate login.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relace přerušena duplikátním přihlášením."
+          }
+        }
+      }
+    },
+    "Session lost. Please sign in again.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relace ztracena. Prosím přihlaste se znovu."
+          }
+        }
+      }
+    },
+    "Session timeout.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relace vypršela."
+          }
+        }
+      }
+    },
+    "Set destination failed.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení cíle selhalo."
+          }
+        }
+      }
+    },
+    "Set priority": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavit prioritu"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení"
+          }
+        }
+      }
+    },
+    "Shared folders": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sdílené složky"
+          }
+        }
+      }
+    },
+    "Short summary": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Krátký souhrn"
+          }
+        }
+      }
+    },
+    "Sign in to %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlásit se k %@"
+          }
+        }
+      }
+    },
+    "Sign in to NAS": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlásit se k NAS"
+          }
+        }
+      }
+    },
+    "Sign in to your Synology Download Station": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlásit se k vašemu Download Station"
+          }
+        }
+      }
+    },
+    "Sign out": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odhlásit se"
+          }
+        }
+      }
+    },
+    "Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odhlášení vymaže uloženou relaci. Zapomenout toto zařízení navíc odstraní starší přihlašovací údaje, které mohly uložit dřívější verze aplikace."
+          }
+        }
+      }
+    },
+    "Sign-in method": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Způsob přihlášení"
+          }
+        }
+      }
+    },
+    "Size": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Velikost"
+          }
+        }
+      }
+    },
+    "Skip (don't download)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přeskočit (nestahovat)"
+          }
+        }
+      }
+    },
+    "Skipped": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přeskočeno"
+          }
+        }
+      }
+    },
+    "Soon": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brzy"
+          }
+        }
+      }
+    },
+    "Sort by": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Řadit podle"
+          }
+        }
+      }
+    },
+    "Source": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zdroj"
+          }
+        }
+      }
+    },
+    "Source on GitHub": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zdrojový kód na GitHubu"
+          }
+        }
+      }
+    },
+    "Steps to reproduce": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Postup pro reprodukci"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zastavit"
+          }
+        }
+      }
+    },
+    "Subfolders": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podsložky"
+          }
+        }
+      }
+    },
+    "Subject": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Předmět"
+          }
+        }
+      }
+    },
+    "Subject and a short description help me triage quickly.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Předmět a krátký popis mi pomohou rychle zaměřit chybu."
+          }
+        }
+      }
+    },
+    "Suggest a feature": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navrhnout funkci"
+          }
+        }
+      }
+    },
+    "Swarm": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Roj"
+          }
+        }
+      }
+    },
+    "Synology API returned error %lld.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synology API vrátilo chybu %lld."
+          }
+        }
+      }
+    },
+    "Synology error %lld: %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chyba Synology %lld: %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "missing %1$@ value at %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Synology error %1$lld: %2$@"
           }
         }
       }
     },
-    "missing key '%@' at %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chybí klíč '%@' na %@"
+    "System": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Systém"
+          }
+        }
+      }
+    },
+    "Tap Continue to open your NAS sign-in page. Enter your username and password there, then approve the push notification in Synology Secure SignIn.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klepnutím na Pokračovat otevřete přihlašovací stránku NAS. Zadejte tam uživatelské jméno a heslo, pak schvalte push notifikaci v Synology Secure SignIn."
+          }
+        }
+      }
+    },
+    "Task": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Úloha"
+          }
+        }
+      }
+    },
+    "Tasks": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Úlohy"
+          }
+        }
+      }
+    },
+    "The certificate for %@ changed since you last trusted it. This can happen after a DSM update or a certificate renewal — but it can also mean someone is intercepting the connection. Only continue if you were expecting this change.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certifikát serveru %@ se od doby, kdy jste mu naposledy důvěřovali, změnil. To se může stát po aktualizaci DSM nebo obnově certifikátu — může to také ale znamenat, že někdo zachytává spojení. Pokračujte jen pokud jste tuto změnu očekávali."
+          }
+        }
+      }
+    },
+    "The logged in session does not have permission.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlášená relace nemá oprávnění."
+          }
+        }
+      }
+    },
+    "The requested API does not exist.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Požadované API neexistuje."
+          }
+        }
+      }
+    },
+    "The requested method does not exist.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Požadovaná metoda neexistuje."
+          }
+        }
+      }
+    },
+    "The requested version does not support the functionality.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Požadovaná verze tuto funkci nepodporuje."
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téma"
+          }
+        }
+      }
+    },
+    "Torrent file": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubor torrent"
+          }
+        }
+      }
+    },
+    "Trackers (%lld)": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trackery (%lld)"
+          }
+        }
+      }
+    },
+    "Transfer": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přenos"
+          }
+        }
+      }
+    },
+    "Trust and continue": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Důvěřovat a pokračovat"
+          }
+        }
+      }
+    },
+    "Trust anyway": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přesto důvěřovat"
+          }
+        }
+      }
+    },
+    "Try Secure SignIn": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkusit Secure SignIn"
+          }
+        }
+      }
+    },
+    "URI": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URI"
+          }
+        }
+      }
+    },
+    "Unknown": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neznámé"
+          }
+        }
+      }
+    },
+    "Unknown error.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neznámá chyba."
+          }
+        }
+      }
+    },
+    "Untrusted certificate": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nedůvěryhodný certifikát"
+          }
+        }
+      }
+    },
+    "Use the destination configured in DSM Download Station.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Použít cíl nakonfigurovaný v DSM Download Station."
+          }
+        }
+      }
+    },
+    "Use “%@”": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Použít „%@“"
+          }
+        }
+      }
+    },
+    "Verification": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ověření"
+          }
+        }
+      }
+    },
+    "Verification code": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ověřovací kód"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verze"
+          }
+        }
+      }
+    },
+    "Waiting": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Čekání"
+          }
+        }
+      }
+    },
+    "What happened?": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Co se stalo?"
+          }
+        }
+      }
+    },
+    "What should have happened?": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Co se mělo stát?"
+          }
+        }
+      }
+    },
+    "What's new": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Co je nového"
+          }
+        }
+      }
+    },
+    "Working…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pracuji…"
+          }
+        }
+      }
+    },
+    "Your SID is stored in the iOS Keychain so the app stays signed in across launches.": {
+      "extractionState": "stale",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaše SID je uloženo v iOS Klíčence, takže aplikace zůstává přihlášena i po restartu."
+          }
+        }
+      }
+    },
+    "Your session and password are stored in the iOS Keychain. When the session expires you'll only be asked for your verification code, not your password.": {
+      "comment": "Helper text in the Settings view explaining the privacy policy for the session and password.",
+      "isCommentAutoGenerated": true
+    },
+    "Your session is saved. We’ll reconnect automatically when the NAS is reachable.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vaše relace je uložena. Znovu se připojíme automaticky, jakmile bude NAS dostupný."
+          }
+        }
+      }
+    },
+    "Your session is stored in the iOS Keychain so the app stays signed in across launches. Your password is not saved.": {
+      "comment": "Helper text under the Privacy section, describing the session and password storage.",
+      "isCommentAutoGenerated": true
+    },
+    "data corrupted at %@: %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "poškozená data na %@: %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "missing key '%1$@' at %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "data corrupted at %1$@: %2$@"
           }
         }
       }
     },
-    "Name" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Název"
+    "magnet:?xt=… or https://…": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "magnet:?xt=… nebo https://…"
           }
         }
       }
     },
-    "New download" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nové stahování"
-          }
-        }
-      }
-    },
-    "No %@ downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Žádná stahování (%@)"
-          }
-        }
-      }
-    },
-    "No active downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Žádná aktivní stahování"
-          }
-        }
-      }
-    },
-    "No default destination configured." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Není nakonfigurován žádný výchozí cíl."
-          }
-        }
-      }
-    },
-    "No downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Žádná stahování"
-          }
-        }
-      }
-    },
-    "No matches" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Žádné shody"
-          }
-        }
-      }
-    },
-    "No subfolders." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Žádné podsložky."
-          }
-        }
-      }
-    },
-    "No such account or incorrect password." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Účet neexistuje nebo nesprávné heslo."
-          }
-        }
-      }
-    },
-    "Normal" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Normální"
-          }
-        }
-      }
-    },
-    "Not logged in." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nepřihlášen."
-          }
-        }
-      }
-    },
-    "Nothing finished yet" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zatím nic nedokončeno"
-          }
-        }
-      }
-    },
-    "Nothing is saved. You'll sign in with your password and verification code every time you open the app." : {
-      "comment" : "Text displayed in a section card that explains that nothing is saved when the user opts out of storing their credentials.",
-      "isCommentAutoGenerated" : true
-    },
-    "Offline" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Offline"
-          }
-        }
-      }
-    },
-    "OK" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
-          }
-        }
-      }
-    },
-    "Online" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Online"
-          }
-        }
-      }
-    },
-    "Open your authenticator app — Synology Secure SignIn (Codes tab), Google Authenticator, 1Password, etc. — and enter the 6-digit code." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Otevřete svou autentizační aplikaci — Synology Secure SignIn (záložka Codes), Google Authenticator, 1Password apod. — a zadejte 6místný kód."
-          }
-        }
-      }
-    },
-    "Pause" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pozastavit"
-          }
-        }
-      }
-    },
-    "Paused" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pozastaveno"
-          }
-        }
-      }
-    },
-    "Permission denied." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přístup odepřen."
-          }
-        }
-      }
-    },
-    "Priority" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Priorita"
-          }
-        }
-      }
-    },
-    "Privacy" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soukromí"
-          }
-        }
-      }
-    },
-    "Recently completed" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nedávno dokončeno"
-          }
-        }
-      }
-    },
-    "Recovery" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obnova"
-          }
-        }
-      }
-    },
-    "Remember password" : {
-      "comment" : "Label for a toggle that lets the user decide whether to remember their password.",
-      "isCommentAutoGenerated" : true
-    },
-    "Remember session" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zapamatovat relaci"
-          }
-        }
-      }
-    },
-    "Removes the saved session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odebere uloženou relaci z Klíčenky. Příští přihlášení bude vyžadovat heslo i případný 2FA kód od začátku."
-          }
-        }
-      }
-    },
-    "Report" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hlášení"
-          }
-        }
-      }
-    },
-    "Report a bug" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nahlásit chybu"
-          }
-        }
-      }
-    },
-    "Restoring session…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Obnovování relace…"
-          }
-        }
-      }
-    },
-    "Resume" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pokračovat"
-          }
-        }
-      }
-    },
-    "Retry" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zkusit znovu"
-          }
-        }
-      }
-    },
-    "Retry now" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zkusit nyní"
-          }
-        }
-      }
-    },
-    "Retrying…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zkouším znovu…"
-          }
-        }
-      }
-    },
-    "Saved credentials are removed. You'll need to sign in every time you open the app." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uložené přihlašovací údaje jsou odebrány. Při každém spuštění aplikace se budete muset přihlásit znovu."
-          }
-        }
-      }
-    },
-    "Scheme" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Schéma"
-          }
-        }
-      }
-    },
-    "Search downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hledat stahování"
-          }
-        }
-      }
-    },
-    "Secure SignIn app" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aplikace Secure SignIn"
-          }
-        }
-      }
-    },
-    "Secure SignIn login succeeded, but DSM did not grant API access to Download Station." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlášení přes Secure SignIn proběhlo úspěšně, ale DSM neumožnilo API přístup k Download Station."
-          }
-        }
-      }
-    },
-    "Secure SignIn verified" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Secure SignIn ověřeno"
-          }
-        }
-      }
-    },
-    "Security warning" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bezpečnostní upozornění"
-          }
-        }
-      }
-    },
-    "See all" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zobrazit vše"
-          }
-        }
-      }
-    },
-    "See all active transfers" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zobrazit všechny aktivní přenosy"
-          }
-        }
-      }
-    },
-    "See all completed downloads" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zobrazit všechna dokončená stahování"
-          }
-        }
-      }
-    },
-    "Seeding" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sdílení"
-          }
-        }
-      }
-    },
-    "Send" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odeslat"
-          }
-        }
-      }
-    },
-    "Server" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server"
-          }
-        }
-      }
-    },
-    "Session" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relace"
-          }
-        }
-      }
-    },
-    "Session expired. Please re-authenticate with verification code." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relace vypršela. Prosím přihlaste se znovu s ověřovacím kódem."
-          }
-        }
-      }
-    },
-    "Session interrupted by duplicate login." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relace přerušena duplikátním přihlášením."
-          }
-        }
-      }
-    },
-    "Session lost. Please sign in again." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relace ztracena. Prosím přihlaste se znovu."
-          }
-        }
-      }
-    },
-    "Session timeout." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relace vypršela."
-          }
-        }
-      }
-    },
-    "Set destination failed." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nastavení cíle selhalo."
-          }
-        }
-      }
-    },
-    "Set priority" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nastavit prioritu"
-          }
-        }
-      }
-    },
-    "Settings" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nastavení"
-          }
-        }
-      }
-    },
-    "Shared folders" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sdílené složky"
-          }
-        }
-      }
-    },
-    "Short summary" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Krátký souhrn"
-          }
-        }
-      }
-    },
-    "Sign in to %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlásit se k %@"
-          }
-        }
-      }
-    },
-    "Sign in to NAS" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlásit se k NAS"
-          }
-        }
-      }
-    },
-    "Sign in to your Synology Download Station" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlásit se k vašemu Download Station"
-          }
-        }
-      }
-    },
-    "Sign out" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odhlásit se"
-          }
-        }
-      }
-    },
-    "Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Odhlášení vymaže uloženou relaci. Zapomenout toto zařízení navíc odstraní starší přihlašovací údaje, které mohly uložit dřívější verze aplikace."
-          }
-        }
-      }
-    },
-    "Sign-in method" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Způsob přihlášení"
-          }
-        }
-      }
-    },
-    "Size" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Velikost"
-          }
-        }
-      }
-    },
-    "Skip (don't download)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přeskočit (nestahovat)"
-          }
-        }
-      }
-    },
-    "Skipped" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přeskočeno"
-          }
-        }
-      }
-    },
-    "Soon" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Brzy"
-          }
-        }
-      }
-    },
-    "Sort by" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Řadit podle"
-          }
-        }
-      }
-    },
-    "Source" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zdroj"
-          }
-        }
-      }
-    },
-    "Source on GitHub" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zdrojový kód na GitHubu"
-          }
-        }
-      }
-    },
-    "Steps to reproduce" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Postup pro reprodukci"
-          }
-        }
-      }
-    },
-    "Stop" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zastavit"
-          }
-        }
-      }
-    },
-    "Subfolders" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Podsložky"
-          }
-        }
-      }
-    },
-    "Subject" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Předmět"
-          }
-        }
-      }
-    },
-    "Subject and a short description help me triage quickly." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Předmět a krátký popis mi pomohou rychle zaměřit chybu."
-          }
-        }
-      }
-    },
-    "Suggest a feature" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Navrhnout funkci"
-          }
-        }
-      }
-    },
-    "Synology API returned error %lld." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Synology API vrátilo chybu %lld."
-          }
-        }
-      }
-    },
-    "Synology error %lld: %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chyba Synology %lld: %@"
+    "missing %@ value at %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chybí hodnota %@ na %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Synology error %1$lld: %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "missing %1$@ value at %2$@"
           }
         }
       }
     },
-    "System" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Systém"
-          }
-        }
-      }
-    },
-    "Tap Continue to open your NAS sign-in page. Enter your username and password there, then approve the push notification in Synology Secure SignIn." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Klepnutím na Pokračovat otevřete přihlašovací stránku NAS. Zadejte tam uživatelské jméno a heslo, pak schvalte push notifikaci v Synology Secure SignIn."
-          }
-        }
-      }
-    },
-    "Task" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Úloha"
-          }
-        }
-      }
-    },
-    "Tasks" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Úlohy"
-          }
-        }
-      }
-    },
-    "The certificate for %@ changed since you last trusted it. This can happen after a DSM update or a certificate renewal — but it can also mean someone is intercepting the connection. Only continue if you were expecting this change." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Certifikát serveru %@ se od doby, kdy jste mu naposledy důvěřovali, změnil. To se může stát po aktualizaci DSM nebo obnově certifikátu — může to také ale znamenat, že někdo zachytává spojení. Pokračujte jen pokud jste tuto změnu očekávali."
-          }
-        }
-      }
-    },
-    "The logged in session does not have permission." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přihlášená relace nemá oprávnění."
-          }
-        }
-      }
-    },
-    "The requested API does not exist." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Požadované API neexistuje."
-          }
-        }
-      }
-    },
-    "The requested method does not exist." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Požadovaná metoda neexistuje."
-          }
-        }
-      }
-    },
-    "The requested version does not support the functionality." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Požadovaná verze tuto funkci nepodporuje."
-          }
-        }
-      }
-    },
-    "Theme" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Téma"
-          }
-        }
-      }
-    },
-    "Torrent file" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soubor torrent"
-          }
-        }
-      }
-    },
-    "Trackers (%lld)" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trackery (%lld)"
-          }
-        }
-      }
-    },
-    "Transfer" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přenos"
-          }
-        }
-      }
-    },
-    "Trust and continue" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Důvěřovat a pokračovat"
-          }
-        }
-      }
-    },
-    "Trust anyway" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Přesto důvěřovat"
-          }
-        }
-      }
-    },
-    "Try Secure SignIn" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zkusit Secure SignIn"
-          }
-        }
-      }
-    },
-    "Unknown" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neznámé"
-          }
-        }
-      }
-    },
-    "Unknown error." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neznámá chyba."
-          }
-        }
-      }
-    },
-    "Untrusted certificate" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nedůvěryhodný certifikát"
-          }
-        }
-      }
-    },
-    "URI" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "URI"
-          }
-        }
-      }
-    },
-    "Use “%@”" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Použít „%@“"
-          }
-        }
-      }
-    },
-    "Use the destination configured in DSM Download Station." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Použít cíl nakonfigurovaný v DSM Download Station."
-          }
-        }
-      }
-    },
-    "Verification" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ověření"
-          }
-        }
-      }
-    },
-    "Verification code" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ověřovací kód"
-          }
-        }
-      }
-    },
-    "Version" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verze"
-          }
-        }
-      }
-    },
-    "Waiting" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Čekání"
-          }
-        }
-      }
-    },
-    "What happened?" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Co se stalo?"
-          }
-        }
-      }
-    },
-    "What should have happened?" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Co se mělo stát?"
-          }
-        }
-      }
-    },
-    "What's new" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Co je nového"
-          }
-        }
-      }
-    },
-    "Working…" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pracuji…"
-          }
-        }
-      }
-    },
-    "wrong type — expected %@ at %@" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "špatný typ — očekáván %@ na %@"
+    "missing key '%@' at %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chybí klíč '%@' na %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "wrong type — expected %1$@ at %2$@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "missing key '%1$@' at %2$@"
           }
         }
       }
     },
-    "you@example.com" : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "vy@priklad.cz"
+    "wrong type — expected %@ at %@": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "špatný typ — očekáván %@ na %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "wrong type — expected %1$@ at %2$@"
           }
         }
       }
     },
-    "Your session and password are stored in the iOS Keychain. When the session expires you'll only be asked for your verification code, not your password." : {
-      "comment" : "Helper text in the Settings view explaining the privacy policy for the session and password.",
-      "isCommentAutoGenerated" : true
-    },
-    "Your session is saved. We’ll reconnect automatically when the NAS is reachable." : {
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vaše relace je uložena. Znovu se připojíme automaticky, jakmile bude NAS dostupný."
+    "you@example.com": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vy@priklad.cz"
           }
         }
       }
     },
-    "Your session is stored in the iOS Keychain so the app stays signed in across launches. Your password is not saved." : {
-      "comment" : "Helper text under the Privacy section, describing the session and password storage.",
-      "isCommentAutoGenerated" : true
+    "© 2026 Vasek Zmrhal · MIT License": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "© 2026 Vasek Zmrhal · Licence MIT"
+          }
+        }
+      }
     },
-    "Your SID is stored in the iOS Keychain so the app stays signed in across launches." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "cs" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vaše SID je uloženo v iOS Klíčence, takže aplikace zůstává přihlášena i po restartu."
+    "·": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
+          }
+        }
+      }
+    },
+    "•": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "•"
           }
         }
       }
     }
   },
-  "version" : "1.1"
+  "version": "1.1"
 }

@@ -130,6 +130,11 @@ struct DashboardView: View {
                     showingAddTask = true
                 }
             }
+            .onChange(of: session.pendingTorrentFile) { _, newValue in
+                if newValue != nil {
+                    showingAddTask = true
+                }
+            }
         }
     }
 
@@ -452,7 +457,7 @@ struct DashboardView: View {
             DSActivityRow(
                 title: task.title,
                 metadata: activeMetadataLine(for: task),
-                iconSystemName: task.type.systemImage,
+                iconSystemName: task.displayStatusTintRaw.statusSystemImage,
                 iconTint: task.displayStatusTintRaw.tintColor
             )
             // Sliver tucked under the metadata, indented past the
@@ -631,8 +636,8 @@ struct DashboardView: View {
         DSActivityRow(
             title: task.title,
             metadata: metadataLine(for: task),
-            iconSystemName: task.type.systemImage,
-            iconTint: .accentColor
+            iconSystemName: task.displayStatusTintRaw.statusSystemImage,
+            iconTint: task.displayStatusTintRaw.tintColor
         )
     }
 

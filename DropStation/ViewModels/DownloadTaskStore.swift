@@ -81,10 +81,19 @@ final class DownloadTaskStore: ObservableObject {
     /// import).
     private let onUnauthorized: (String) -> Void
     private var refreshTimer: Timer?
+    /// Drives the Live Activity (Dynamic Island / lock screen) for
+    /// active downloads. Fed the latest task list after every poll;
+    /// starts/updates while something is downloading, ends when not.
+    private let activityController: DownloadActivityController
 
-    init(client: SynologyAPIClient, onUnauthorized: @escaping (String) -> Void = { _ in }) {
+    init(
+        client: SynologyAPIClient,
+        serverName: String = "DropStation",
+        onUnauthorized: @escaping (String) -> Void = { _ in }
+    ) {
         self.client = client
         self.onUnauthorized = onUnauthorized
+        self.activityController = DownloadActivityController(serverName: serverName)
     }
 
     // MARK: - Polling
@@ -99,6 +108,7 @@ final class DownloadTaskStore: ObservableObject {
             tasks = try await client.listTasks()
             errorMessage = nil
             isOnline = true
+            activityController.sync(with: tasks)
             // Session just confirmed valid by the task fetch — a
             // good moment to opportunistically refresh free disk,
             // throttled so it doesn't ride every 5 s tick.
@@ -163,6 +173,7 @@ final class DownloadTaskStore: ObservableObject {
     /// previous account's task list.
     func clear() {
         stopAutoRefresh()
+        activityController.end()
         tasks = []
         isLoading = false
         hasLoadedOnce = false
