@@ -138,6 +138,11 @@ struct TaskListView: View {
                     showingAddTask = true
                 }
             }
+            .onChange(of: session.pendingTorrentFile) { _, newValue in
+                if newValue != nil {
+                    showingAddTask = true
+                }
+            }
             .onChange(of: navigation.downloadsFilterRequest) { _, request in
                 // One-shot hint from a sibling tab (e.g. the
                 // dashboard's "See all →" link landing on Finished).

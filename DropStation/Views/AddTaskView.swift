@@ -180,6 +180,21 @@ struct AddTaskView: View {
                     mode = .uri
                     session.pendingMagnetLink = nil
                 }
+                // A .torrent opened from Files / Safari / Mail —
+                // preload it into the file slot and switch to File mode
+                // so the sheet is one tap ("Add download") from done.
+                if let torrent = session.pendingTorrentFile {
+                    pickedFile = PickedFile(
+                        name: torrent.name,
+                        data: torrent.data,
+                        sizeDescription: ByteCountFormatter.string(
+                            fromByteCount: Int64(torrent.data.count),
+                            countStyle: .file
+                        )
+                    )
+                    mode = .file
+                    session.pendingTorrentFile = nil
+                }
             }
             .fileImporter(
                 isPresented: $isFileImporterPresented,

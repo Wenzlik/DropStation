@@ -67,6 +67,10 @@ final class SessionStore: ObservableObject {
     }
     @Published private(set) var config: ServerConfig = ServerConfigStore.load() ?? .default
     @Published var pendingMagnetLink: String?
+    /// A `.torrent` file the user opened into the app from Files /
+    /// Safari / Mail ("Open in DropStation"). Consumed by AddTaskView,
+    /// which preloads it into the file picker and switches to File mode.
+    @Published var pendingTorrentFile: PendingTorrentFile?
 
     /// Active NWPathMonitor while we're in `.connectionLost`. Comes up
     /// when we transition into the state and tears down when we leave
@@ -776,13 +780,37 @@ final class SessionStore: ObservableObject {
         }
     }
 
-    /// Handle magnet: links opened from outside the app.
+    /// Handle content opened from outside the app: a `magnet:` link
+    /// (from Safari) or a `.torrent` file ("Open in DropStation" from
+    /// Files / Mail / Safari downloads). The file is read here, while
+    /// the security-scoped URL is still valid, and stashed as
+    /// `pendingTorrentFile` for AddTaskView to pick up.
     func handleIncomingURL(_ url: URL) {
-        guard url.scheme?.lowercased() == "magnet" else { return }
-        pendingMagnetLink = url.absoluteString
+        if url.scheme?.lowercased() == "magnet" {
+            pendingMagnetLink = url.absoluteString
+            return
+        }
+        if url.isFileURL, url.pathExtension.lowercased() == "torrent" {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            if let data = try? Data(contentsOf: url) {
+                pendingTorrentFile = PendingTorrentFile(
+                    name: url.lastPathComponent,
+                    data: data
+                )
+            }
+        }
     }
 
     // MARK: - Helpers
 
     private var accountAtHost: String { "\(config.account)@\(config.host)" }
+}
+
+/// A `.torrent` file handed to the app from outside (Files / Safari /
+/// Mail). Carries the raw data so AddTaskView can submit it without
+/// re-reading a security-scoped URL that may no longer be valid.
+struct PendingTorrentFile: Equatable {
+    let name: String
+    let data: Data
 }

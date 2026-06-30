@@ -130,6 +130,11 @@ struct DashboardView: View {
                     showingAddTask = true
                 }
             }
+            .onChange(of: session.pendingTorrentFile) { _, newValue in
+                if newValue != nil {
+                    showingAddTask = true
+                }
+            }
         }
     }
 
