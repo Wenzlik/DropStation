@@ -38,6 +38,11 @@ targets:
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: DropStation/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Single clean blue accent — the one UI accent across the app
+        # (CTAs, links, selection, the Downloading status). Owned via
+        # the AccentColor colorset rather than the implicit system blue
+        # so the exact shade is ours.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         # Signing config — required for any archive intended for
         # TestFlight or the App Store. Uncomment both lines and paste
         # your 10-character Apple Developer team id (Membership page

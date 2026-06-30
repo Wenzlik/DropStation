@@ -219,7 +219,15 @@ struct TaskListView: View {
     }
 
     private var navigationTitle: String {
-        viewModel.filter == .all ? "Downloads" : "Downloads — \(viewModel.filter.label)"
+        // `.navigationTitle` takes the String overload here (the title
+        // is computed, not a literal), which does NOT auto-localize —
+        // that's why the title rendered as English "Downloads" inside
+        // the Czech UI. Resolve through the catalog explicitly, and
+        // compose the filtered variant from the localized base + the
+        // (already-localized) filter label so we don't need a separate
+        // "Downloads — %@" catalog entry.
+        let base = String(localized: "Downloads")
+        return viewModel.filter == .all ? base : "\(base) — \(viewModel.filter.label)"
     }
 
     private var speedSubtitle: String {
@@ -274,9 +282,16 @@ private struct TaskRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DSSpacing.sm) {
-                Image(systemName: task.type.systemImage)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 18)
+                // Leading slot = status (colour + shape), not task type.
+                // arrow.down = pulling, arrow.up = seeding, checkmark =
+                // done — the list reads as a column of states at a
+                // glance. Pulses while actively transferring.
+                Image(systemName: task.displayStatusTintRaw.statusSystemImage)
+                    .font(.body)
+                    .foregroundStyle(task.displayStatusTintRaw.tintColor)
+                    .symbolEffect(.pulse, options: .repeating, isActive: isLive)
+                    .frame(width: 20)
+                    .accessibilityHidden(true)
                 Text(task.title)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(2)
@@ -306,7 +321,9 @@ private struct TaskRow: View {
     /// middle line for "what's it doing right now" detail.
     private var metadataRow: some View {
         HStack(spacing: DSSpacing.sm) {
-            DSStatusDot(tint: task.displayStatusTintRaw.tintColor, pulsing: isLive)
+            // Status colour + shape live in the leading glyph now, so
+            // the metadata line just carries the status *word* — no
+            // second coloured dot duplicating the same signal.
             Text(task.displayStatusLabel)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
