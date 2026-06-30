@@ -32,12 +32,17 @@ struct TaskListView: View {
                     // chrome.
                     Section {
                         ForEach(viewModel.filteredTasks) { task in
-                            NavigationLink(value: task) {
-                                TaskRow(task: task)
+                            TaskRow(task: task)
+                            // Tap target without the system disclosure
+                            // chevron — a zero-opacity link behind the
+                            // card keeps it a clean media-style tile.
+                            .background {
+                                NavigationLink(value: task) { EmptyView() }
+                                    .opacity(0)
                             }
-                            .buttonStyle(DSRowButtonStyle())
-                            .listRowSeparatorTint(Color(.separator).opacity(0.4))
-                            .listRowInsets(EdgeInsets(top: DSSpacing.sm, leading: DSSpacing.md, bottom: DSSpacing.sm, trailing: DSSpacing.md))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.lg, bottom: DSSpacing.xs, trailing: DSSpacing.lg))
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     taskPendingDelete = task
@@ -74,7 +79,7 @@ struct TaskListView: View {
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .refreshable { await viewModel.refresh() }
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
@@ -264,74 +269,100 @@ struct TaskListView: View {
     }
 }
 
-/// Single row in the Downloads list. Visual hierarchy now matches the
-/// Phase-3 design-system patterns:
+/// One download as a calm media-style card. Instead of a dense table
+/// row of raw scene text, each task reads like an entry in a media
+/// app:
 ///
-///   - Title row: type glyph + the torrent / file name, two lines max
-///     with middle truncation so "Movie.2026.2160p.HDR.x265-GROUP"
-///     keeps both prefix and codec suffix visible when constrained.
-///   - Metadata row: inline `DSStatusDot` + status label, optional
-///     live ↓ speed, total size on the trailing edge. No more tinted
-///     glass capsule — the dot reads as ambient signal next to its
-///     label, sitting flush against the surrounding row content.
-///   - Progress bar stays at full width here; 4.1.2 swaps it for
-///     `DSProgressSliver` and hides it for completed tasks.
+///   - A rounded status tile (colour + glyph, pulsing while live) as
+///     the leading anchor.
+///   - A clean parsed title + year (`ReleaseName` turns
+///     "Dune.2021.2160p.WEB-DL…-DeDo" into "Dune  2021").
+///   - Up to three quality pills (4K / HDR / Atmos …) — the at-a-glance
+///     "what kind of file is this".
+///   - A quiet footer: status · optional live ↓ speed · size, with a
+///     progress sliver only while the task is actively transferring.
+///
+/// The card sits on `.regularMaterial` with a hairline, spaced from
+/// its neighbours by the list-row insets, so the screen breathes.
 private struct TaskRow: View {
     let task: DownloadTask
 
+    private var release: ReleaseName { ReleaseName(parsing: task.title) }
+    private var tint: Color { task.displayStatusTintRaw.tintColor }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: DSSpacing.sm) {
-                // Leading slot = status (colour + shape), not task type.
-                // arrow.down = pulling, arrow.up = seeding, checkmark =
-                // done — the list reads as a column of states at a
-                // glance. Pulses while actively transferring.
+        HStack(spacing: DSSpacing.md) {
+            statusTile
+            VStack(alignment: .leading, spacing: 7) {
+                titleLine
+                if !release.tags.isEmpty {
+                    HStack(spacing: 5) {
+                        ForEach(release.tags.prefix(3), id: \.self) { TagPill(text: $0) }
+                    }
+                }
+                footerLine
+                if isLive {
+                    DSProgressSliver(value: task.progress, tint: tint)
+                        .padding(.top, 1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(DSSpacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                .strokeBorder(Color.dsSurfaceHairline, lineWidth: 0.5)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous))
+    }
+
+    /// Leading status tile — a soft tinted rounded square with the
+    /// status glyph, pulsing while actively transferring. Reads like
+    /// a small poster/app tile and gives the row a confident anchor.
+    private var statusTile: some View {
+        RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .fill(tint.opacity(0.16))
+            .frame(width: 48, height: 48)
+            .overlay(
                 Image(systemName: task.displayStatusTintRaw.statusSystemImage)
-                    .font(.body)
-                    .foregroundStyle(task.displayStatusTintRaw.tintColor)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(tint)
                     .symbolEffect(.pulse, options: .repeating, isActive: isLive)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text(task.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(2)
-                    .truncationMode(.middle)
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var titleLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(release.title)
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if let year = release.year {
+                Text(year)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            // Ambient progress signal — 2pt sliver tinted to status.
-            // Hidden once the task has reached its terminal completion
-            // state (true `.finished` *or* paused-at-100 %, which the
-            // task's `isAtCompletion` collapses into one): a 100 %
-            // filled bar on a completed row is redundant noise.
-            if !task.isAtCompletion {
-                DSProgressSliver(
-                    value: task.progress,
-                    tint: task.displayStatusTintRaw.tintColor
-                )
-            }
-            metadataRow
         }
     }
 
-    /// Three-tier metadata: anchored status on the left
-    /// (DSStatusDot + label at `.secondary`), middle metrics
-    /// (speed / ETA / %) at the more subtle `.tertiary`, and
-    /// total size right-aligned at `.secondary` so it balances
-    /// the status anchor across the row. The eye reads status →
-    /// size first (the row's identity), then drops into the
-    /// middle line for "what's it doing right now" detail.
-    private var metadataRow: some View {
-        HStack(spacing: DSSpacing.sm) {
-            // Status colour + shape live in the leading glyph now, so
-            // the metadata line just carries the status *word* — no
-            // second coloured dot duplicating the same signal.
+    /// Quiet footer: status word, an optional live ↓ speed, and the
+    /// total size on the trailing edge. Percent/ETA are intentionally
+    /// dropped from the card — the sliver carries progress; the card
+    /// stays calm.
+    private var footerLine: some View {
+        HStack(spacing: 6) {
             Text(task.displayStatusLabel)
-                .font(.caption.weight(.medium))
+                .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(Array(middleMetrics.enumerated()), id: \.offset) { _, value in
-                Text("·")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                Text(value)
+            if let speed = liveSpeed, speed > 0 {
+                Text("·").font(.caption).foregroundStyle(.tertiary)
+                Text("↓ \(formattedSpeed(speed))")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
@@ -339,64 +370,22 @@ private struct TaskRow: View {
             }
             Spacer(minLength: DSSpacing.sm)
             Text(formattedSize(task.size.value))
-                .font(.caption)
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
     }
 
-    /// True for actively-transferring tasks — drives the inline ↓ speed
-    /// readout and the pulsing dot. `canPause` excludes finished and
-    /// errored states; `.paused` is explicitly filtered so paused
-    /// transfers don't pulse just because they're pause-capable.
+    /// True for actively-transferring tasks — drives the pulsing tile,
+    /// the inline ↓ speed, and the progress sliver. `.paused` is
+    /// filtered out so paused transfers don't pulse.
     private var isLive: Bool {
         task.canPause && task.status != .paused
     }
 
-    /// Show ↓ speed inline only when the task is actively transferring; otherwise it's noise.
     private var liveSpeed: Int64? {
         guard isLive else { return nil }
         return task.additional?.transfer?.speedDownload.value
-    }
-
-    /// Speed / ETA / percent fragments for the metadata row's
-    /// tertiary middle zone. Each is conditional so a finished
-    /// or paused row drops every fragment and the row reads as
-    /// just "status · size"; an actively-transferring one shows
-    /// the full three. Status itself is anchored separately at
-    /// `.secondary` (see `metadataRow`) so it doesn't fade with
-    /// the tertiary middle copy.
-    private var middleMetrics: [String] {
-        var values: [String] = []
-        if let speed = liveSpeed, speed > 0 {
-            values.append("↓ \(formattedSpeed(speed))")
-            if let eta = formattedETA(speed: speed) {
-                values.append(eta)
-            }
-        }
-        if !task.isAtCompletion {
-            values.append("\(Int(task.progress * 100))%")
-        }
-        return values
-    }
-
-    /// Time until the remaining bytes finish at the current download
-    /// speed. Returns nil for the cases where ETA is meaningless
-    /// (no remaining bytes, no speed, non-finite math). Mirrors the
-    /// shape of `TaskDetailView.duration(_:)` without sharing the
-    /// helper — the row only needs an abbreviated "12 min" / "1 h"
-    /// flavour, not the full detail-screen formatter setup.
-    private func formattedETA(speed: Int64) -> String? {
-        let downloaded = task.additional?.transfer?.sizeDownloaded.value ?? 0
-        let remaining = max(0, task.size.value - downloaded)
-        guard remaining > 0, speed > 0 else { return nil }
-        let secs = Double(remaining) / Double(speed)
-        guard secs.isFinite, secs > 0 else { return nil }
-        let f = DateComponentsFormatter()
-        f.unitsStyle = .abbreviated
-        f.allowedUnits = [.day, .hour, .minute, .second]
-        f.maximumUnitCount = 2
-        return f.string(from: secs)
     }
 
     private func formattedSize(_ bytes: Int64) -> String {
@@ -405,5 +394,33 @@ private struct TaskRow: View {
 
     private func formattedSpeed(_ bytes: Int64) -> String {
         "\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))/s"
+    }
+}
+
+/// Small quality chip ("4K", "HDR", "Atmos"). Resolution chips take
+/// the accent, HDR/Dolby Vision an amber tint, everything else a
+/// neutral fill — a little colour without turning the row into a
+/// rainbow.
+private struct TagPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(palette.fg)
+            .background(Capsule(style: .continuous).fill(palette.bg))
+    }
+
+    private var palette: (fg: Color, bg: Color) {
+        switch text {
+        case "4K", "1080p", "720p":
+            return (.accentColor, Color.accentColor.opacity(0.14))
+        case "HDR", "Dolby Vision":
+            return (.orange, Color.orange.opacity(0.16))
+        default:
+            return (Color.primary.opacity(0.7), Color.primary.opacity(0.07))
+        }
     }
 }
