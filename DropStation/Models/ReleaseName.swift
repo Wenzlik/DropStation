@@ -29,14 +29,27 @@ struct ReleaseName: Equatable {
             .split(whereSeparator: { $0 == " " })
             .map(String.init)
 
-        // Year = first standalone 19xx/20xx token. Title is whatever
-        // precedes it; if there's no year, the title runs up to the
-        // first recognised quality token instead.
+        // Year = first standalone 19xx/20xx token (anywhere).
         let yearIndex = tokens.firstIndex(where: Self.isYear)
-        let firstTagIndex = tokens.firstIndex { Self.tag(for: $0) != nil }
-        let titleEnd = yearIndex ?? firstTagIndex ?? tokens.count
 
-        let titleTokens = Array(tokens.prefix(titleEnd))
+        // Title = the leading run of real words, stopping at the first
+        // metadata token: a year, a quality tag, or "noise" (language
+        // codes, channel/audio markers, bare numbers). Crucially this
+        // cuts *before* the year too, so audio/lang junk that scene
+        // names put ahead of the year
+        // ("INTERSTELLAR-CZE.5.1.DD.ENG…2014") doesn't leak into the
+        // title — that one resolves to just "INTERSTELLAR".
+        var titleTokens: [String] = []
+        for token in tokens {
+            if Self.isYear(token) { break }
+            if Self.tag(for: token) != nil { break }
+            if let prefix = Self.wordPrefixBeforeNoise(token) {
+                if !prefix.isEmpty { titleTokens.append(prefix) }
+                break
+            }
+            if Self.isNoise(token) { break }
+            titleTokens.append(token)
+        }
         let rawTitle = titleTokens.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         self.title = rawTitle.isEmpty ? spaced.trimmingCharacters(in: .whitespaces) : rawTitle
         self.year = yearIndex.map { tokens[$0] }
@@ -56,6 +69,41 @@ struct ReleaseName: Equatable {
     private static func isYear(_ token: String) -> Bool {
         guard token.count == 4, let n = Int(token) else { return false }
         return (1900...2099).contains(n)
+    }
+
+    /// Language codes, audio markers, and channel/bitrate fragments
+    /// that scene names sprinkle through the title region. Treated as
+    /// a hard title boundary so they never show up as part of the name.
+    private static let noiseWords: Set<String> = [
+        "cze", "eng", "cz", "en", "ces", "sk", "ger", "fre", "spa", "ita",
+        "rus", "pol", "hun", "kor", "jpn", "chs", "cht",
+        "sub", "subs", "multi", "dual", "hardsub", "hc",
+        "dd", "ddp", "eac3", "mp3", "flac", "lpcm", "dl",
+    ]
+
+    /// A token that should end the title: a bare number ("5", "1",
+    /// "264"), a single character, or a known language/audio noise
+    /// word. (Years are handled separately, before this is consulted.)
+    private static func isNoise(_ token: String) -> Bool {
+        let t = token.lowercased()
+        if t.count <= 1 { return true }
+        if Int(t) != nil { return true }
+        return noiseWords.contains(t)
+    }
+
+    /// Handles a hyphen-joined token whose tail is metadata, e.g.
+    /// "INTERSTELLAR-CZE" → keep "INTERSTELLAR" then stop the title.
+    /// Returns nil when the token has no metadata tail (a real
+    /// hyphenated word like "Spider-Man" or "January-October" stays
+    /// whole), and "" when the token starts with metadata (contribute
+    /// nothing, just stop).
+    private static func wordPrefixBeforeNoise(_ token: String) -> String? {
+        guard token.contains("-") else { return nil }
+        let parts = token.split(separator: "-").map(String.init)
+        guard parts.count >= 2,
+              let cut = parts.firstIndex(where: { isNoise($0) || tag(for: $0) != nil || isYear($0) })
+        else { return nil }
+        return cut > 0 ? parts.prefix(cut).joined(separator: "-") : ""
     }
 
     /// Maps a raw token onto a canonical display tag, or nil if the

@@ -301,7 +301,10 @@ private struct TaskRow: View {
                     }
                 }
                 footerLine
-                if isLive {
+                // Progress sliver only while actually pulling bytes —
+                // a seeding task sits at 100 %, so a full-width bar on
+                // every completed card was pure noise.
+                if isDownloading {
                     DSProgressSliver(value: task.progress, tint: tint)
                         .padding(.top, 1)
                 }
@@ -331,7 +334,7 @@ private struct TaskRow: View {
                 Image(systemName: task.displayStatusTintRaw.statusSystemImage)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(tint)
-                    .symbolEffect(.pulse, options: .repeating, isActive: isLive)
+                    .symbolEffect(.pulse, options: .repeating, isActive: isDownloading)
             )
             .accessibilityHidden(true)
     }
@@ -381,6 +384,13 @@ private struct TaskRow: View {
     /// filtered out so paused transfers don't pulse.
     private var isLive: Bool {
         task.canPause && task.status != .paused
+    }
+
+    /// Strictly "bytes are arriving" — drives the pulse and the
+    /// progress sliver. Narrower than `isLive` (which also covers
+    /// seeding) so a seeding card neither pulses nor shows a bar.
+    private var isDownloading: Bool {
+        task.status == .downloading
     }
 
     private var liveSpeed: Int64? {
