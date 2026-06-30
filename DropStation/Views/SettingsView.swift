@@ -1,15 +1,16 @@
 import SwiftUI
 
-/// Settings rewritten to the Phase-3 design system. SwiftUI `Form`
-/// dropped in favour of `ScrollView` + `DSSectionCard` so the
-/// surface treatment matches the dashboard and Downloads list
-/// (uppercase tracked eyebrow headers, `.regularMaterial` rounded
-/// cards with a hairline border, helper text outside the card).
+/// Settings on a native grouped `Form` — the iOS 26 redesign moved off
+/// the hand-rolled `ScrollView` + `DSSectionCard` stack (which
+/// approximated the system list and drifted into uncanny-valley
+/// "almost native") back to the real thing. The account block stays a
+/// distinct identity row at the top of its section — it earns the
+/// prominence — while every other section is a plain native grouped
+/// section with a footer, so the screen reads unmistakably as iOS.
 ///
-/// Phase 4.2.2 scope: section migration only — appearance,
-/// privacy, account, feedback, about. The account section keeps
-/// its existing list-row shape via `DSSettingsRow`; Phase 4.2.3
-/// promotes it to an identity hero card with `DSAvatarCircle`.
+/// Coloured leading SF Symbols are kept (via `settingsLabel`): the
+/// grouped-list row is the one place the native Settings idiom wants
+/// colour in the icon slot.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var session: SessionStore
@@ -34,20 +35,12 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                backgroundGradient.ignoresSafeArea()
-                ScrollView {
-                    VStack(alignment: .leading, spacing: DSSpacing.xl) {
-                        if isSignedIn { accountHero }
-                        appearanceSection
-                        privacySection
-                        feedbackSection
-                        aboutSection
-                    }
-                    .padding(.horizontal, DSSpacing.lg)
-                    .padding(.vertical, DSSpacing.lg)
-                }
-                .scrollContentBackground(.hidden)
+            Form {
+                if isSignedIn { accountSection }
+                appearanceSection
+                privacySection
+                feedbackSection
+                aboutSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -70,67 +63,61 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Account
 
-    // MARK: Account hero
-
-    /// Identity card at the top of Settings — the one `.primary`
-    /// glass surface on this screen. Mirrors the dashboard's hero
-    /// pattern: avatar + name + ambient status line + actions
-    /// inline inside the card rather than as separate list rows.
-    /// Helper text sits below the card per the Phase-3 section
-    /// shape.
-    private var accountHero: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            DSCard(.primary) {
-                VStack(alignment: .leading, spacing: DSSpacing.md) {
-                    accountHeroIdentity
-                    Divider()
-                    accountHeroActions
+    /// Identity row + the two account actions, grouped like the
+    /// Apple-ID block at the top of system Settings: the avatar/name/
+    /// status row, then Sign out, then a destructive Forget this
+    /// device. Footer carries the explanatory copy.
+    private var accountSection: some View {
+        Section {
+            accountIdentityRow
+            Button {
+                Task {
+                    await session.logout()
+                    dismiss()
                 }
+            } label: {
+                settingsLabel("Sign out", "rectangle.portrait.and.arrow.right")
             }
+            Button(role: .destructive) {
+                confirmForget = true
+            } label: {
+                settingsLabel("Forget this device", "trash", tint: .red)
+            }
+        } footer: {
             Text("Sign out clears the saved session. Forget this device additionally removes any legacy credentials older builds may have stored.")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, DSSpacing.lg)
-                .padding(.top, DSSpacing.sm)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    /// Avatar + account label + ambient status line. The status
-    /// line composes through DSMetricRow so the dot/text rhythm
-    /// matches the dashboard hero header pixel-for-pixel.
-    private var accountHeroIdentity: some View {
+    /// Avatar + account label + ambient status line, as a single
+    /// grouped row.
+    private var accountIdentityRow: some View {
         HStack(spacing: DSSpacing.md) {
             DSAvatarCircle(
-                account: session.config.account.isEmpty
-                    ? "DS"
-                    : session.config.account,
+                account: session.config.account.isEmpty ? "DS" : session.config.account,
                 size: 52
             )
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.config.account.isEmpty
-                     ? "DropStation"
-                     : session.config.account)
+                Text(session.config.account.isEmpty ? "DropStation" : session.config.account)
                     .font(.headline.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 HStack(spacing: 4) {
                     DSStatusDot(tint: .green)
-                    DSMetricRow(values: accountHeroMetrics, font: .caption)
+                    DSMetricRow(values: accountMetrics, font: .caption)
                 }
             }
             Spacer(minLength: 0)
         }
+        .padding(.vertical, DSSpacing.xs)
     }
 
-    /// "Online · nas.local · 0.4.0 (8)" — host is dropped if the
-    /// config is empty (defensive; shouldn't happen post-login
-    /// but matches the earlier defence). Version is always
-    /// surfaced for at-a-glance debug context.
-    private var accountHeroMetrics: [String] {
+    /// "Online · nas.local · 0.5.4 (16)" — host dropped if the config
+    /// is empty (defensive). Version always surfaced for at-a-glance
+    /// debug context.
+    private var accountMetrics: [String] {
         var values: [String] = ["Online"]
         if !session.config.host.isEmpty {
             values.append(session.config.host)
@@ -139,49 +126,21 @@ struct SettingsView: View {
         return values
     }
 
-    /// Sign out as the visible bordered action; Forget this
-    /// device kept inline but rendered as a quiet text-only
-    /// destructive button at `.caption.weight(.medium)`. Both
-    /// stay reachable in a single tap — no overflow menu — but
-    /// the destructive variant no longer competes visually with
-    /// Sign out's bordered chrome.
-    private var accountHeroActions: some View {
-        HStack(spacing: DSSpacing.md) {
-            Button {
-                Task {
-                    await session.logout()
-                    dismiss()
-                }
-            } label: {
-                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                    .labelStyle(.titleAndIcon)
-            }
-            .buttonStyle(.bordered)
-
-            Spacer(minLength: 0)
-
-            Button(role: .destructive) {
-                confirmForget = true
-            } label: {
-                Text("Forget this device")
-                    .font(.caption.weight(.medium))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.red)
-        }
-    }
+    // MARK: - Appearance
 
     private var appearanceSection: some View {
-        DSSectionCard("Appearance") {
-            DSSettingsRow.picker(
-                systemImage: "paintpalette",
-                label: "Theme",
-                selection: appearance,
-                options: AppearanceMode.allCases,
-                optionLabel: \.label
-            )
+        Section {
+            Picker(selection: appearance) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            } label: {
+                settingsLabel("Theme", "paintpalette")
+            }
         }
     }
+
+    // MARK: - Privacy
 
     /// Controls credential persistence. Default ON: the app caches the
     /// Download Station SID in the Keychain so cold starts can skip the
@@ -189,37 +148,31 @@ struct SettingsView: View {
     /// for the current account (SID, cookies, metadata, password). The
     /// active in-memory session keeps working until the next launch.
     private var privacySection: some View {
-        DSSectionCard(
-            "Privacy",
-            helperText: privacyHelperText
-        ) {
-            DSSettingsRow.toggle(
-                systemImage: "lock.rotation",
-                label: "Remember session",
-                isOn: Binding(
-                    get: { rememberSession },
-                    set: { newValue in
-                        rememberSession = newValue
-                        session.setRememberSession(newValue)
-                    }
-                )
-            )
-            rowDivider
-            DSSettingsRow.toggle(
-                systemImage: "key",
-                label: "Remember password",
-                isOn: Binding(
-                    get: { rememberPassword },
-                    set: { newValue in
-                        rememberPassword = newValue
-                        session.setRememberPassword(newValue)
-                    }
-                )
-            )
+        Section {
+            Toggle(isOn: Binding(
+                get: { rememberSession },
+                set: { newValue in
+                    rememberSession = newValue
+                    session.setRememberSession(newValue)
+                }
+            )) {
+                settingsLabel("Remember session", "lock.rotation")
+            }
+            Toggle(isOn: Binding(
+                get: { rememberPassword },
+                set: { newValue in
+                    rememberPassword = newValue
+                    session.setRememberPassword(newValue)
+                }
+            )) {
+                settingsLabel("Remember password", "key")
+            }
+        } footer: {
+            Text(privacyHelperText)
         }
     }
 
-    /// Helper copy under the Privacy card. Spells out the OTP-only
+    /// Helper copy under the Privacy section. Spells out the OTP-only
     /// recovery flow when "Remember password" is on, since that's the
     /// behaviour most users are looking for.
     private var privacyHelperText: LocalizedStringKey {
@@ -233,6 +186,8 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Feedback
+
     private var feedbackSection: some View {
         // Suggest a feature stays on GitHub: feature requests are
         // discussions that benefit from being public — anyone can
@@ -241,81 +196,78 @@ struct SettingsView: View {
         //
         // Report a bug moves in-app: bug reports want low friction
         // (the user is already frustrated) and benefit from
-        // structured fields (subject / steps / expected) plus
-        // optional diagnostics, neither of which a free-form
-        // GitHub issue does well.
-        DSSectionCard(
-            "Feedback",
-            helperText: "Bug reports send via your mail app. Feature requests open on GitHub."
-        ) {
-            DSSettingsRow.link(
-                systemImage: "lightbulb",
-                label: "Suggest a feature",
-                destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!
-            )
-            rowDivider
-            DSSettingsRow.navigation(
-                systemImage: "ladybug",
-                label: "Report a bug"
-            ) {
-                BugReportView()
+        // structured fields plus optional diagnostics.
+        Section {
+            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation/issues/new?template=feature_request.md")!) {
+                settingsLabel("Suggest a feature", "lightbulb", trailing: "arrow.up.right")
             }
+            NavigationLink {
+                BugReportView()
+            } label: {
+                settingsLabel("Report a bug", "ladybug")
+            }
+        } footer: {
+            Text("Bug reports send via your mail app. Feature requests open on GitHub.")
         }
     }
 
+    // MARK: - About
+
     private var aboutSection: some View {
-        DSSectionCard(
-            "About",
-            helperText: "© 2026 Vasek Zmrhal · MIT License"
-        ) {
-            DSSettingsRow.value(
-                systemImage: "app.gift",
-                label: "App",
-                value: "DropStation"
-            )
-            rowDivider
-            // Tappable Version row: pushes the in-app changelog.
-            DSSettingsRow.navigation(
-                systemImage: "number",
-                label: "Version",
-                value: Self.versionString
-            ) {
-                ChangelogView()
+        Section {
+            LabeledContent {
+                Text("DropStation")
+            } label: {
+                settingsLabel("App", "app.gift")
             }
-            rowDivider
-            DSSettingsRow.link(
-                systemImage: "person.circle",
-                label: "Made by @Wenzlik",
-                destination: URL(string: "https://github.com/Wenzlik")!
-            )
-            rowDivider
-            DSSettingsRow.link(
-                systemImage: "chevron.left.forwardslash.chevron.right",
-                label: "Source on GitHub",
-                destination: URL(string: "https://github.com/Wenzlik/DropStation")!
-            )
+            // Tappable Version row: pushes the in-app changelog.
+            NavigationLink {
+                ChangelogView()
+            } label: {
+                HStack {
+                    settingsLabel("Version", "number")
+                    Spacer(minLength: DSSpacing.sm)
+                    Text(Self.versionString)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            Link(destination: URL(string: "https://github.com/Wenzlik")!) {
+                settingsLabel("Made by @Wenzlik", "person.circle", trailing: "arrow.up.right")
+            }
+            Link(destination: URL(string: "https://github.com/Wenzlik/DropStation")!) {
+                settingsLabel("Source on GitHub", "chevron.left.forwardslash.chevron.right", trailing: "arrow.up.right")
+            }
+        } footer: {
+            Text("© 2026 Vasek Zmrhal · MIT License")
         }
     }
 
     // MARK: - Helpers
 
-    /// Hairline between rows, indented to align past the leading
-    /// SF Symbol (lg padding + 22 pt icon frame + md gap). Every
-    /// row in this view has a leading icon, so a single inset
-    /// value reads as consistent.
-    private var rowDivider: some View {
-        Divider()
-            .padding(.leading, DSSpacing.lg + 22 + DSSpacing.md)
-    }
-
-    /// Same subtle background gradient as Dashboard / Downloads so
-    /// the three primary surfaces share a single visual ground.
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+    /// A grouped-list label: accent-tinted leading SF Symbol + primary
+    /// title, with an optional quiet trailing glyph (e.g. the external-
+    /// link arrow on `Link` rows). Tint overridable for the
+    /// destructive Forget row.
+    private func settingsLabel(
+        _ title: LocalizedStringKey,
+        _ symbol: String,
+        tint: Color = .accentColor,
+        trailing: String? = nil
+    ) -> some View {
+        HStack {
+            Label {
+                Text(title).foregroundStyle(tint == .red ? Color.red : .primary)
+            } icon: {
+                Image(systemName: symbol).foregroundStyle(tint)
+            }
+            if let trailing {
+                Spacer(minLength: DSSpacing.sm)
+                Image(systemName: trailing)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+        }
     }
 
     private static var versionString: String {
