@@ -13,7 +13,9 @@ struct TaskDetailView: View {
     var body: some View {
         List {
             overviewSection
+            actionsSection
             transferSection
+            swarmSection
             if let files = viewModel.task.additional?.file?.filter({ $0.filename != nil }), !files.isEmpty {
                 filesSection(files: files)
             }
@@ -24,40 +26,6 @@ struct TaskDetailView: View {
         }
         .navigationTitle(viewModel.task.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Hide the menu entirely when there's nothing to do (e.g. an
-            // .unknown status with neither canPause nor canResume) so the
-            // ellipsis isn't a dead tap-target.
-            if viewModel.task.canPause || viewModel.task.canStop || viewModel.task.canResume {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        if viewModel.task.canPause {
-                            Button {
-                                Task { await viewModel.pause() }
-                            } label: {
-                                Label("Pause", systemImage: "pause.fill")
-                            }
-                        }
-                        if viewModel.task.canStop {
-                            Button {
-                                Task { await viewModel.stop() }
-                            } label: {
-                                Label("Stop", systemImage: "stop.fill")
-                            }
-                        }
-                        if viewModel.task.canResume {
-                            Button {
-                                Task { await viewModel.resume() }
-                            } label: {
-                                Label("Resume", systemImage: "play.fill")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
-        }
         .refreshable { await viewModel.refresh() }
         .task {
             viewModel.startAutoRefresh()
@@ -120,22 +88,29 @@ struct TaskDetailView: View {
 
     // MARK: - Sections
 
+    /// Progress hero — the detail screen's primary surface. Leads
+    /// with the status glyph + title, then a large monospaced
+    /// percentage, the progress sliver, and a live ↓/↑ throughput
+    /// line while bytes are moving. Speeds live here (not as two
+    /// more "—" rows buried in the Transfer list) so the screen
+    /// answers "what's it doing right now" at the top.
     private var overviewSection: some View {
         Section {
             VStack(alignment: .leading, spacing: DSSpacing.md) {
                 HStack(spacing: DSSpacing.sm) {
-                    Image(systemName: viewModel.task.type.systemImage)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: viewModel.task.displayStatusTintRaw.statusSystemImage)
+                        .foregroundStyle(viewModel.task.displayStatusTintRaw.tintColor)
+                        .symbolEffect(.pulse, options: .repeating, isActive: isLive)
                     Text(viewModel.task.title).font(.headline)
                 }
-                HStack {
+                HStack(alignment: .firstTextBaseline) {
                     statusInline
                     Spacer()
                     if !viewModel.task.isAtCompletion {
                         Text("\(Int(viewModel.task.progress * 100))%")
-                            .font(.caption.weight(.medium))
+                            .font(.title3.weight(.semibold))
                             .monospacedDigit()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary)
                             .contentTransition(.numericText())
                     }
                 }
@@ -145,8 +120,89 @@ struct TaskDetailView: View {
                         tint: viewModel.task.displayStatusTintRaw.tintColor
                     )
                 }
+                heroThroughput
             }
             .padding(.vertical, DSSpacing.xs)
+        }
+    }
+
+    /// True while the task is actively transferring in either
+    /// direction — drives the pulsing hero glyph and the live
+    /// throughput line.
+    private var isLive: Bool {
+        guard let t = viewModel.task.additional?.transfer else { return false }
+        return t.speedDownload.value > 0 || t.speedUpload.value > 0
+    }
+
+    /// `↓ 5.2 MB/s · ↑ 1.1 MB/s` line shown in the hero only while
+    /// something is flowing. Each side is conditional so a
+    /// download-only or seed-only task shows just the one arrow.
+    @ViewBuilder
+    private var heroThroughput: some View {
+        if let t = viewModel.task.additional?.transfer {
+            let down = t.speedDownload.value
+            let up = t.speedUpload.value
+            if down > 0 || up > 0 {
+                HStack(spacing: DSSpacing.sm) {
+                    if down > 0 {
+                        Label(Self.bytesPerSecond(down), systemImage: "arrow.down")
+                            .foregroundStyle(.primary)
+                    }
+                    if down > 0 && up > 0 {
+                        Text("·").foregroundStyle(.tertiary)
+                    }
+                    if up > 0 {
+                        Label(Self.bytesPerSecond(up), systemImage: "arrow.up")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.subheadline.weight(.medium))
+                .monospacedDigit()
+                .labelStyle(.titleAndIcon)
+            }
+        }
+    }
+
+    /// On-screen primary actions (Pause / Resume / Stop) — the
+    /// common operations were previously buried in the toolbar "…"
+    /// menu, which is poor discoverability for the verbs a user
+    /// reaches for most. Rendered as capsule buttons right under the
+    /// hero: Resume is prominent (accent), Pause/Stop are bordered.
+    @ViewBuilder
+    private var actionsSection: some View {
+        if viewModel.task.canResume || viewModel.task.canPause || viewModel.task.canStop {
+            Section {
+                HStack(spacing: DSSpacing.sm) {
+                    if viewModel.task.canResume {
+                        Button {
+                            Task { await viewModel.resume() }
+                        } label: {
+                            Label("Resume", systemImage: "play.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if viewModel.task.canPause {
+                        Button {
+                            Task { await viewModel.pause() }
+                        } label: {
+                            Label("Pause", systemImage: "pause.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    if viewModel.task.canStop {
+                        Button {
+                            Task { await viewModel.stop() }
+                        } label: {
+                            Label("Stop", systemImage: "stop.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.md, bottom: DSSpacing.xs, trailing: DSSpacing.md))
+                .listRowBackground(Color.clear)
+            }
         }
     }
 
@@ -165,6 +221,11 @@ struct TaskDetailView: View {
         }
     }
 
+    /// Transfer volumes — the "how much" of the task. Live speeds
+    /// moved up to the hero; the swarm counters moved to their own
+    /// section, so this list stays a tight cluster of size /
+    /// downloaded / uploaded / ratio / ETA instead of a flat
+    /// nine-row data dump mixing volumes, speeds, and peer counts.
     private var transferSection: some View {
         Section("Transfer") {
             row("Size", value: Self.bytes(viewModel.task.size.value))
@@ -174,8 +235,6 @@ struct TaskDetailView: View {
                 let sd = t.speedDownload.value
                 row("Downloaded", value: Self.bytes(down))
                 row("Uploaded", value: Self.bytes(up))
-                row("↓ Speed", value: Self.bytesPerSecond(sd))
-                row("↑ Speed", value: Self.bytesPerSecond(t.speedUpload.value))
                 if down > 0 {
                     let ratio = Double(up) / Double(down)
                     row("Ratio", value: String(format: "%.2f", ratio))
@@ -186,7 +245,18 @@ struct TaskDetailView: View {
                     row("ETA", value: Self.duration(secs))
                 }
             }
-            if let d = viewModel.task.additional?.detail {
+        }
+    }
+
+    /// Swarm counters (peers / seeders / leechers) — the "who" of a
+    /// BT task. Its own grouped section so the network picture reads
+    /// as a unit and doesn't dilute the Transfer volumes. Absent for
+    /// non-BT tasks that carry no peer detail.
+    @ViewBuilder
+    private var swarmSection: some View {
+        if let d = viewModel.task.additional?.detail,
+           d.totalPeers != nil || d.connectedSeeders != nil || d.connectedLeechers != nil {
+            Section("Swarm") {
                 if let peers = d.totalPeers { row("Peers", value: "\(peers.value) total") }
                 if let s = d.connectedSeeders { row("Seeders", value: "\(s.value) connected") }
                 if let l = d.connectedLeechers { row("Leechers", value: "\(l.value) connected") }
