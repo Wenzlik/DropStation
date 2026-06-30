@@ -17,7 +17,7 @@ settings:
     # on every archive intended for TestFlight upload — App Store
     # Connect rejects duplicate (MARKETING_VERSION, CURRENT_PROJECT_VERSION)
     # pairs.
-    MARKETING_VERSION: "0.5.4"
+    MARKETING_VERSION: "0.5.5"
     CURRENT_PROJECT_VERSION: "16"
 
 targets:

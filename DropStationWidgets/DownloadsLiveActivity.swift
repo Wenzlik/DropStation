@@ -54,7 +54,10 @@ struct DownloadsLiveActivity: Widget {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label {
-                    Text(state.activeCount == 1 ? "1 download" : "\(state.activeCount) downloads")
+                    // Single plural-aware key — the widget's own String
+                    // Catalog supplies en (download/downloads) and cs
+                    // ("stahování", invariant across counts).
+                    Text("\(state.activeCount) downloads")
                         .font(.subheadline.weight(.semibold))
                 } icon: {
                     Image(systemName: "arrow.down.circle.fill").foregroundStyle(.blue)
