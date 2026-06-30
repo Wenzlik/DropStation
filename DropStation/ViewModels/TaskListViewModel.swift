@@ -71,7 +71,21 @@ final class TaskListViewModel: ObservableObject {
         if !query.isEmpty {
             result = result.filter { $0.title.localizedStandardContains(query) }
         }
-        return result.sorted(by: sort, direction: sortDirection)
+        let sorted = result.sorted(by: sort, direction: sortDirection)
+        // In the mixed "All" view, float in-flight tasks to the top
+        // (errors → downloading → seeding → paused → done) while
+        // preserving the chosen sort within each group — a manual
+        // stable group-by-rank, since Array.sorted isn't guaranteed
+        // stable. Specific filters are single-rank, so this is a no-op
+        // there and they keep pure sort order.
+        guard filter == .all else { return sorted }
+        return sorted.enumerated()
+            .sorted { a, b in
+                a.element.sortRank == b.element.sortRank
+                    ? a.offset < b.offset
+                    : a.element.sortRank < b.element.sortRank
+            }
+            .map(\.element)
     }
 
     func count(for filter: TaskFilter) -> Int {

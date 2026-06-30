@@ -396,6 +396,17 @@
         }
       }
     },
+    "Copy link": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopírovat odkaz"
+          }
+        }
+      }
+    },
     "Couldn't reach Download Station: %@": {
       "localizations": {
         "cs": {

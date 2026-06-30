@@ -224,6 +224,23 @@ struct DownloadTask: Codable, Identifiable, Hashable {
     }
 }
 
+extension DownloadTask {
+    /// Ordering priority for the mixed "All" list so the screen reads
+    /// top-to-bottom by what matters: errors first (need attention),
+    /// then anything in flight, then seeding, then paused, then done.
+    /// Used as a stable primary key on top of the user's chosen sort.
+    var sortRank: Int {
+        switch status {
+        case .error: return 0
+        case .downloading, .waiting, .hash_checking, .filehosting_waiting, .extracting: return 1
+        case .seeding, .finishing: return 2
+        case .paused: return isAtCompletion ? 4 : 3
+        case .finished: return 4
+        case .unknown: return 5
+        }
+    }
+}
+
 extension DownloadTask.Status {
     /// Status colour used by the status dot, leading glyph, and
     /// progress sliver. The single source of truth for the status

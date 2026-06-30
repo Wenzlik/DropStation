@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TaskListView: View {
     @EnvironmentObject private var session: SessionStore
@@ -9,6 +10,9 @@ struct TaskListView: View {
     /// Task the user just swiped to delete; non-nil presents the
     /// keep-partial-files confirmation dialog.
     @State private var taskPendingDelete: DownloadTask?
+    /// Bumped on every task action (swipe or context menu) to drive a
+    /// confirming haptic via `.sensoryFeedback`.
+    @State private var actionTick = 0
 
     init(session: SessionStore, store: DownloadTaskStore) {
         // 105 forwarding now lives on DownloadTaskStore — wired
@@ -53,6 +57,7 @@ struct TaskListView: View {
                             .swipeActions(edge: .leading) {
                                 if task.canPause {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.pause(task) }
                                     } label: {
                                         Label("Pause", systemImage: "pause.fill")
@@ -61,6 +66,7 @@ struct TaskListView: View {
                                 }
                                 if task.canStop {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.stop(task) }
                                     } label: {
                                         Label("Stop", systemImage: "stop.fill")
@@ -69,6 +75,7 @@ struct TaskListView: View {
                                 }
                                 if task.canResume {
                                     Button {
+                                        actionTick += 1
                                         Task { await viewModel.resume(task) }
                                     } label: {
                                         Label("Resume", systemImage: "play.fill")
@@ -76,13 +83,16 @@ struct TaskListView: View {
                                     .tint(.green)
                                 }
                             }
+                            .contextMenu { rowMenu(for: task) }
                         }
                     }
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .safeAreaInset(edge: .top, spacing: 0) { filterChipBar }
                 .refreshable { await viewModel.refresh() }
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
+                .sensoryFeedback(.impact(weight: .light), trigger: actionTick)
             }
             .overlay {
                 if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
@@ -105,9 +115,6 @@ struct TaskListView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     sortMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    filterMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -190,19 +197,86 @@ struct TaskListView: View {
         )
     }
 
-    private var filterMenu: some View {
-        Menu {
-            Picker("Filter", selection: $viewModel.filter) {
-                ForEach(TaskFilter.allCases) { f in
-                    Label("\(f.label) (\(viewModel.count(for: f)))", systemImage: f.systemImage)
-                        .tag(f)
+    // MARK: - Filter chips
+
+    /// Quick-filter pills shown above the list. Always offers "All";
+    /// the rest appear only when they have something in them, so the
+    /// bar stays short and never shows an empty bucket.
+    private var chipFilters: [TaskFilter] {
+        var result: [TaskFilter] = [.all]
+        for f in [TaskFilter.downloading, .seeding, .paused, .finished, .error]
+        where viewModel.count(for: f) > 0 {
+            result.append(f)
+        }
+        return result
+    }
+
+    private var filterChipBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DSSpacing.sm) {
+                ForEach(chipFilters) { f in
+                    let selected = viewModel.filter == f
+                    Button {
+                        actionTick += 1
+                        viewModel.filter = f
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(f.label)
+                            Text("\(viewModel.count(for: f))")
+                                .foregroundStyle(selected ? .white.opacity(0.85) : .secondary)
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial))
+                        )
+                        .foregroundStyle(selected ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-        } label: {
-            Image(systemName: viewModel.filter == .all
-                  ? "line.3.horizontal.decrease.circle"
-                  : "line.3.horizontal.decrease.circle.fill")
+            .padding(.horizontal, DSSpacing.lg)
+            .padding(.vertical, DSSpacing.sm)
         }
+    }
+
+    // MARK: - Row context menu
+
+    /// Long-press actions on a card: the same verbs as the swipe
+    /// actions plus Copy link, so the common operations are reachable
+    /// without remembering which swipe direction does what.
+    @ViewBuilder
+    private func rowMenu(for task: DownloadTask) -> some View {
+        if task.canResume {
+            Button {
+                actionTick += 1
+                Task { await viewModel.resume(task) }
+            } label: { Label("Resume", systemImage: "play.fill") }
+        }
+        if task.canPause {
+            Button {
+                actionTick += 1
+                Task { await viewModel.pause(task) }
+            } label: { Label("Pause", systemImage: "pause.fill") }
+        }
+        if task.canStop {
+            Button {
+                actionTick += 1
+                Task { await viewModel.stop(task) }
+            } label: { Label("Stop", systemImage: "stop.fill") }
+        }
+        if let link = task.additional?.detail?.uri, !link.isEmpty {
+            Button {
+                UIPasteboard.general.string = link
+                actionTick += 1
+            } label: { Label("Copy link", systemImage: "doc.on.doc") }
+        }
+        Divider()
+        Button(role: .destructive) {
+            taskPendingDelete = task
+        } label: { Label("Delete", systemImage: "trash") }
     }
 
     private var sortMenu: some View {
