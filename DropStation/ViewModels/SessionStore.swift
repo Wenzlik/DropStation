@@ -377,6 +377,13 @@ final class SessionStore: ObservableObject {
             password: password,
             otpCode: otpCode
         )
+        // auth.cgi sets cookies (notably `id`) whose SID may differ from
+        // the DownloadStation-scoped one in the JSON body. Subsequent API
+        // calls send both the `_sid` parameter and the cookie; some DSM
+        // builds prioritize the cookie, returning 105 because the cookie
+        // SID isn't scoped to DownloadStation. Clear the jar so API calls
+        // rely solely on `_sid`.
+        await client.clearAuthCookies()
         persistSessionIfAllowed(auth: result, cookies: [])
         state = .loggedIn
     }
@@ -551,11 +558,9 @@ final class SessionStore: ObservableObject {
     /// in-memory client state is torn down on a detached task because
     /// the caller is a synchronous hook.
     func handleUnauthorized(reason: String) {
+        guard state == .loggedIn || state == .restoring else { return }
         DSLog.session("handleUnauthorized: \(reason)")
         clearStoredKeychainSession()
-        // Show the neutral restoring state while we try a silent re-auth;
-        // if there's no stored password the Task falls straight through to
-        // the recovery card, same as before.
         let canReauth = storedPassword != nil
         if canReauth { state = .restoring }
         Task {
