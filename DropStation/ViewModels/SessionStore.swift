@@ -323,11 +323,17 @@ final class SessionStore: ObservableObject {
             state = .error(String(localized: "Invalid server URL."))
             return
         }
+        // Drop every trace of a previous session before a form-driven
+        // sign-in: the in-memory SID and any web cookies the client is
+        // still holding (`clearSession`), plus DSM's cookies in the
+        // shared jar (`clearAuthCookies`). Without the first, a stale
+        // web `id` cookie would be hand-attached to the new native
+        // session's requests; without the second, DSM may silently
+        // honour a stale `did` cookie and skip the 2FA challenge
+        // entirely. Every form-driven sign-in should be a fresh,
+        // fully-challenged login on a clean transport.
+        await client.clearSession()
         await client.configure(baseURL: url)
-        // Wipe any DSM trusted-device cookies left over from previous
-        // logins. Without this, DSM may silently honour a stale `did`
-        // cookie and skip the 2FA challenge entirely. Every form-driven
-        // sign-in should be a fresh, fully-challenged login.
         await client.clearAuthCookies()
         state = .authenticating
         pendingCredentials = PendingCredentials(config: config, password: password)
@@ -836,6 +842,13 @@ final class SessionStore: ObservableObject {
     /// that already lapsed. No-op when nothing is stored.
     @discardableResult
     private func restoreCookiesFromKeychain() -> [HTTPCookie] {
+        // Cookies belong to the experimental web sign-in only, which
+        // always stores under an anonymous (`account == ""`) slot.
+        // A native session must never rehydrate cookies — that would
+        // hand-attach an `id` cookie to a `_sid`-authenticated session
+        // and reintroduce the 105 conflict on every cold launch, for
+        // the whole life of the keychain record.
+        guard config.account.isEmpty else { return [] }
         guard let stored = KeychainStorage.cookies(for: accountAtHost),
               !stored.isEmpty else { return [] }
         guard let apiURL = config.baseURL?.appendingPathComponent("webapi/entry.cgi") else { return [] }

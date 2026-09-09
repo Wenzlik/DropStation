@@ -453,6 +453,97 @@ final class AuthSessionRequestTests: XCTestCase {
         UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey)
     }
 
+    /// A native credential login must not inherit cookies the client
+    /// is still holding from an earlier web sign-in.
+    ///
+    /// `clearAuthCookies()` only scrubs `HTTPCookieStorage.shared` — it
+    /// never touches the client's own `webCookies` array, which
+    /// `attachWebCookies` hand-writes into the `Cookie` header. So a
+    /// leftover web `id` cookie would ride along with the new native
+    /// `_sid`, rebuilding the exact conflict #25 removed, on a
+    /// transport where neither `httpCookieStorage = nil` nor the
+    /// shared-jar cleanup can catch it.
+    func testNativeLoginDropsLeftoverWebCookies() async throws {
+        let client = await client()
+        await client.restoreSession(AuthSession(sid: "web", synoToken: "csrf"), cookies: [webCookie(value: "stale-web-sid")])
+        let heldBefore = await client.hasWebCookies
+        XCTAssertTrue(heldBefore)
+
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"native-sid"}}"# }
+        try await client.login(account: "user", password: "pass", otpCode: "123456")
+        let heldAfter = await client.hasWebCookies
+        XCTAssertFalse(heldAfter, "Native login must not inherit web cookies")
+
+        AuthMockProtocol.handler = { request in
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"),
+                         "Stale web cookie must not ride along with the new native _sid")
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        _ = try await client.listTasks()
+    }
+
+    /// The same isolation at the SessionStore level: signing in from
+    /// the form while the client still holds a web session must clear
+    /// it before the login request goes out.
+    func testFormLoginClearsHeldWebSessionFirst() async {
+        let client = await client()
+        let store = SessionStore(client: client)
+        await client.restoreSession(AuthSession(sid: "web", synoToken: "csrf"), cookies: [webCookie(value: "leftover")])
+
+        AuthMockProtocol.handler = { request in
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"),
+                         "Form sign-in must go out on a clean transport")
+            return #"{"success":true,"data":{"sid":"native"}}"#
+        }
+        await store.login(config: config, password: "pass")
+        XCTAssertEqual(store.state, .loggedIn)
+        let held = await client.hasWebCookies
+        XCTAssertFalse(held)
+    }
+
+    /// Pointing the client at a different NAS must drop the previous
+    /// server's cookies along with its SID.
+    func testConfigureToNewHostDropsCookies() async {
+        let client = await client()
+        await client.restoreSession(AuthSession(sid: "web"), cookies: [webCookie()])
+        await client.configure(baseURL: URL(string: "https://other-nas.invalid:5001")!)
+        let held = await client.hasWebCookies
+        let loggedIn = await client.isLoggedIn
+        XCTAssertFalse(held)
+        XCTAssertFalse(loggedIn)
+    }
+
+    /// Cold restore of a *native* session must not rehydrate cookies
+    /// from the keychain, even if a record exists there (an older build
+    /// under the same account slot, a hand-edited keychain). A native
+    /// session is `_sid`-only by contract.
+    func testNativeColdRestoreIgnoresStoredCookies() async throws {
+        UserDefaults.standard.set(true, forKey: RememberSessionSettings.storageKey)
+        defer { UserDefaults.standard.set(false, forKey: RememberSessionSettings.storageKey) }
+        let key = "native-user@\(config.host)"
+        try KeychainStorage.setAuthSession(AuthSession(sid: "stored"), for: key)
+        try KeychainStorage.setCookies([StoredCookie(cookie: webCookie(value: "legacy-native-cookie"))], for: key)
+        ServerConfigStore.save(config)
+        defer {
+            KeychainStorage.deleteSID(for: key)
+            KeychainStorage.deleteCookies(for: key)
+            KeychainStorage.deleteSessionMetadata(for: key)
+            ServerConfigStore.clear()
+        }
+
+        let client = await client()
+        let store = SessionStore(client: client)
+        AuthMockProtocol.handler = { request in
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"),
+                         "Native cold restore must not send stored cookies")
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        await store.restoreOnLaunch()
+        XCTAssertEqual(store.state, .loggedIn)
+        let held = await client.hasWebCookies
+        XCTAssertFalse(held)
+    }
+
     // MARK: - OTP re-prompt loop (the r2 regression)
 
     /// The reported loop, end to end: credentials → 403 → OTP → login

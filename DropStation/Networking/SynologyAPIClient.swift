@@ -67,7 +67,13 @@ actor SynologyAPIClient {
     }
 
     func configure(baseURL: URL) {
-        if self.baseURL != baseURL { authSession = nil }
+        // A different NAS means a different identity: drop the SID and
+        // the cookies that belonged to the old one together, so nothing
+        // half-survives a server switch.
+        if self.baseURL != baseURL {
+            authSession = nil
+            webCookies = []
+        }
         self.baseURL = baseURL
     }
 
@@ -181,6 +187,14 @@ actor SynologyAPIClient {
         }
         let auth = AuthSession(sid: data.sid, synoToken: data.synotoken)
         self.authSession = auth
+        // A credential login mints a fresh native identity authenticated
+        // purely by `_sid`. Any cookies left from an earlier web sign-in
+        // belong to a different session and would be attached manually
+        // by `attachWebCookies` — bypassing both `httpCookieStorage =
+        // nil` and `clearAuthCookies()`, which only scrubs the shared
+        // jar and never this array. That is the #25 cookie/SID conflict
+        // rebuilt by hand, so drop them here.
+        self.webCookies = []
         return auth
     }
 
