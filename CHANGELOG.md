@@ -6,6 +6,12 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Improved
+- Experimental web sign-in is available in login Settings, with clearer progress, retry, and verification-code fallback.
+- Web sessions now retain the information needed for protected NAS requests and session restore.
+- Incorrect verification codes can be retried without leaving the code screen.
+- Fixed saved-session storage conflicts and improved Czech sign-in labels.
+
 ### Changed
 - **A fresh DropStation identity** with a distinctive app icon in light, dark, and tinted appearances.
 - **A more spacious interface** across Dashboard, Downloads, task detail, sign-in, and Add download, with clearer live status and native glass controls.

@@ -114,6 +114,12 @@ under Unreleased. See [the visual brief](../ux/redesign-ios27.md) and
 
 ## High priority
 
+- **Web login real-NAS validation:** client/session hardening and login
+  polish are in [CHANGELOG Unreleased](../../CHANGELOG.md). Web sign-in
+  remains explicitly experimental, off by default, and testable through
+  login Settings. Complete the [NAS compatibility matrix](../next-steps/web-login-2fa.md)
+  before promoting it to a supported beta.
+
 - Run the TestFlight smoke checklist on the 0.5.3 build and
   record any failure as a docs-first follow-up.
 - Watch App Store Connect TestFlight crash / hang reports during
