@@ -288,7 +288,7 @@ actor SynologyAPIClient {
             ("file", "[\"torrent\"]")
         ]
 
-        if let token = authSession?.synoToken { fields.append(("SynoToken", token)) }
+        if let token = csrfToken { fields.append(("SynoToken", token)) }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
@@ -613,7 +613,7 @@ actor SynologyAPIClient {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var authenticatedParams = params
         // Login starts a new identity; never attach a previous session token.
-        if params["method"] != "login", let token = authSession?.synoToken {
+        if params["method"] != "login", let token = csrfToken {
             authenticatedParams["SynoToken"] = token
         }
         attachWebCookies(to: &request)
@@ -652,6 +652,26 @@ actor SynologyAPIClient {
 
     /// Test seam: whether the client currently holds web cookies.
     var hasWebCookies: Bool { !webCookies.isEmpty }
+
+    /// The CSRF token to send with this request, or `nil`.
+    ///
+    /// `SynoToken` is DSM's CSRF companion to **cookie**-based auth:
+    /// DSM validates it against the session identified by the request's
+    /// cookie. A native session authenticates solely through the `_sid`
+    /// parameter and — since the cookie isolation in #25 — carries no
+    /// cookie at all, so the token has nothing to be validated against.
+    /// DSM builds that enforce the pairing answer error 105, which is
+    /// indistinguishable from a real permission denial and drives the
+    /// OTP login loop on a session that is otherwise perfectly good.
+    ///
+    /// So: send the token only when the session it belongs to is
+    /// actually travelling (web sign-in). `enable_syno_token=yes` stays
+    /// on the login call — DSM minting a token we don't use is
+    /// harmless, and the web handoff needs the field to exist.
+    private var csrfToken: String? {
+        guard !webCookies.isEmpty else { return nil }
+        return authSession?.synoToken
+    }
 
     private func encodeForm(_ params: [String: String]) -> String {
         params.map { key, value in

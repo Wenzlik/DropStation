@@ -63,9 +63,16 @@ final class AuthSessionRequestTests: XCTestCase {
         return client
     }
 
+    /// A web session (cookies present) must carry its CSRF token to
+    /// every endpoint shape: DS1 form posts, DS2 entry.cgi, FileStation
+    /// and the multipart upload.
     func testTokenReachesDS1DS2FileStationAndMultipart() async throws {
         let client = await client()
-        await client.restoreSession(AuthSession(sid: "sid", synoToken: "csrf&+="))
+        let cookie = HTTPCookie(properties: [
+            .name: "id", .value: "web-sid",
+            .domain: "auth-tests.invalid", .path: "/",
+        ])!
+        await client.restoreSession(AuthSession(sid: "sid", synoToken: "csrf&+="), cookies: [cookie])
         AuthMockProtocol.handler = { request in
             let body = AuthMockProtocol.body(request)
             if request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart") == true {
@@ -99,6 +106,44 @@ final class AuthSessionRequestTests: XCTestCase {
             return #"{"success":true,"data":{"tasks":[]}}"#
         }
         _ = try await client.listTasks()
+    }
+
+    /// A native `_sid`-only session must never send `SynoToken`.
+    ///
+    /// DSM validates the token against the session its *cookie*
+    /// identifies. Since the native session sends no cookie, a token
+    /// riding along has nothing to pair with, and DSM builds that
+    /// enforce the pairing reply 105 — the error that drives the OTP
+    /// login loop even though the SID itself is fine.
+    func testNativeSessionDoesNotSendCsrfTokenWithoutCookies() async throws {
+        let client = await client()
+        AuthMockProtocol.handler = { _ in
+            #"{"success":true,"data":{"sid":"native-sid","synotoken":"minted"}}"#
+        }
+        let auth = try await client.login(account: "user", password: "pass", otpCode: "123456")
+        XCTAssertEqual(auth.synoToken, "minted", "DSM still mints a token; we just must not use it")
+
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            XCTAssertFalse(body.contains("SynoToken="),
+                           "Cookieless native session must not send SynoToken — DSM answers 105")
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
+            // DS1 form posts carry `_sid` in the body, DS2 entry.cgi in
+            // the URL query — either way it must be the only auth channel.
+            let query = request.url?.query ?? ""
+            XCTAssertTrue(body.contains("_sid=native-sid") || query.contains("_sid=native-sid"))
+            return #"{"success":true,"data":{"tasks":[],"shares":[]}}"#
+        }
+        _ = try await client.listTasks()
+        try await client.stopTasks(ids: ["task"])
+        _ = try await client.listShares()
+
+        AuthMockProtocol.handler = { request in
+            XCTAssertFalse(AuthMockProtocol.body(request).contains("name=\"SynoToken\""),
+                           "Multipart upload must not carry SynoToken on a native session")
+            return #"{"success":true}"#
+        }
+        try await client.createTask(fileData: Data("torrent".utf8), filename: "test.torrent")
     }
 
     private func webCookie(value: String = "web-sid") -> HTTPCookie {
