@@ -495,7 +495,7 @@ struct LoginView: View {
                 if isWorking {
                     ProgressView().tint(.white)
                 }
-                Text(LocalizedStringKey(label)).font(.body.weight(.semibold))
+                Text(label).font(.body.weight(.semibold))
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, DSSpacing.xs)
@@ -583,7 +583,7 @@ private struct IconField: View {
             Image(systemName: systemImage)
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
-            TextField(LocalizedStringKey(placeholder), text: $text)
+            TextField(placeholder, text: $text)
         }
         .loginFieldSurface()
     }
@@ -601,11 +601,11 @@ private struct IconSecureField: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
             if revealed {
-                TextField(LocalizedStringKey(placeholder), text: $text)
+                TextField(placeholder, text: $text)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             } else {
-                SecureField(LocalizedStringKey(placeholder), text: $text)
+                SecureField(placeholder, text: $text)
             }
             Button {
                 revealed.toggle()
