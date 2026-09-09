@@ -15,6 +15,12 @@ actor SynologyAPIClient {
     private var baseURL: URL?
     private var authSession: AuthSession?
     private var sid: String? { authSession?.sid }
+    /// Cookies to attach manually to API requests for web sessions.
+    /// Native OTP sessions leave this empty — the URLSession has no
+    /// cookie jar, so nothing leaks. Web sessions populate this via
+    /// `restoreSession(_:cookies:)` so the `id` cookie (and any
+    /// CSRF-related cookies) reach DSM endpoints that expect them.
+    private var webCookies: [HTTPCookie] = []
 
     init() {
         let coordinator = ServerTrustCoordinator()
@@ -66,10 +72,20 @@ actor SynologyAPIClient {
 
     func restoreSession(_ authSession: AuthSession) {
         self.authSession = authSession
+        self.webCookies = []
+    }
+
+    /// Restore a web session with its associated cookies. The cookies
+    /// are attached manually to every subsequent API request so the
+    /// cookieless URLSession still delivers them to DSM.
+    func restoreSession(_ authSession: AuthSession, cookies: [HTTPCookie]) {
+        self.authSession = authSession
+        self.webCookies = cookies
     }
 
     func clearSession() {
         self.authSession = nil
+        self.webCookies = []
     }
 
     /// Drop every cookie DSM has set for our base URL from the shared
@@ -271,6 +287,7 @@ actor SynologyAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        attachWebCookies(to: &request)
         request.httpBody = multipartBody(
             boundary: boundary,
             fields: fields,
@@ -592,6 +609,7 @@ actor SynologyAPIClient {
         if params["method"] != "login", let token = authSession?.synoToken {
             authenticatedParams["SynoToken"] = token
         }
+        attachWebCookies(to: &request)
         request.httpBody = encodeForm(authenticatedParams).data(using: .utf8)
 
         do {
@@ -610,6 +628,23 @@ actor SynologyAPIClient {
             throw mapTransportError(error, requestURL: request.url)
         }
     }
+
+    /// Manually set the `Cookie` header from `webCookies` when operating
+    /// in web-session mode. Filters by the request URL using the same
+    /// origin/path/expiry logic WKWebView uses, so only applicable
+    /// cookies travel. No-op when `webCookies` is empty (native OTP).
+    private func attachWebCookies(to request: inout URLRequest) {
+        guard !webCookies.isEmpty, let url = request.url else { return }
+        let applicable = WebSessionBridge.applicableCookies(webCookies, to: url)
+        guard !applicable.isEmpty else { return }
+        let headers = HTTPCookie.requestHeaderFields(with: applicable)
+        for (field, value) in headers {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
+    }
+
+    /// Test seam: whether the client currently holds web cookies.
+    var hasWebCookies: Bool { !webCookies.isEmpty }
 
     private func encodeForm(_ params: [String: String]) -> String {
         params.map { key, value in

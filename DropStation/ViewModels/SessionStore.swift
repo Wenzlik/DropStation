@@ -187,10 +187,15 @@ final class SessionStore: ObservableObject {
         // session won't send them, but other subsystems (WKWebView)
         // share the jar and shouldn't inherit leftovers.
         await client.clearAuthCookies()
-        // Web sessions: rehydrate persisted Secure SignIn cookies so
-        // WKWebView-based flows find them if needed later.
-        restoreCookiesFromKeychain()
-        await client.restoreSession(savedSession)
+        // Web sessions: rehydrate persisted Secure SignIn cookies into
+        // both the shared jar (for WKWebView) and the client (for API
+        // requests on the cookieless URLSession).
+        let restoredCookies = restoreCookiesFromKeychain()
+        if restoredCookies.isEmpty {
+            await client.restoreSession(savedSession)
+        } else {
+            await client.restoreSession(savedSession, cookies: restoredCookies)
+        }
         do {
             _ = try await client.listTasks()
             touchSessionMetadata()
@@ -514,7 +519,7 @@ final class SessionStore: ObservableObject {
         state = .validatingApiAccess
         await client.clearAuthCookies()
         for cookie in candidate.cookies { HTTPCookieStorage.shared.setCookie(cookie) }
-        await client.restoreSession(candidate.auth)
+        await client.restoreSession(candidate.auth, cookies: candidate.cookies)
         do {
             try await validateDownloadStationAccess()
             ServerConfigStore.save(config)
@@ -763,14 +768,17 @@ final class SessionStore: ObservableObject {
     /// expiry — DSM session cookies routinely have multi-week
     /// lifetimes, but the user might also be coming back to a launch
     /// that already lapsed. No-op when nothing is stored.
-    private func restoreCookiesFromKeychain() {
+    @discardableResult
+    private func restoreCookiesFromKeychain() -> [HTTPCookie] {
         guard let stored = KeychainStorage.cookies(for: accountAtHost),
-              !stored.isEmpty else { return }
-        guard let apiURL = config.baseURL?.appendingPathComponent("webapi/entry.cgi") else { return }
+              !stored.isEmpty else { return [] }
+        guard let apiURL = config.baseURL?.appendingPathComponent("webapi/entry.cgi") else { return [] }
         let cookies = stored.compactMap { $0.makeHTTPCookie() }
-        for cookie in WebSessionBridge.applicableCookies(cookies, to: apiURL) {
+        let applicable = WebSessionBridge.applicableCookies(cookies, to: apiURL)
+        for cookie in applicable {
             HTTPCookieStorage.shared.setCookie(cookie)
         }
+        return applicable
     }
 
     /// Handle content opened from outside the app: a `magnet:` link
