@@ -108,6 +108,11 @@ final class SessionStore: ObservableObject {
     /// pass.
     private var didRestoreOnLaunch = false
 
+    /// In-flight guard for `handleUnauthorized`. Prevents re-entry
+    /// while a recovery (reauth with stored password → OTP) is already
+    /// in progress, which would otherwise cause a login loop.
+    private var isHandlingUnauthorized = false
+
     // MARK: - Restore
 
     /// Entry point for app-launch session restore. Wired from `DropStationApp`'s
@@ -177,12 +182,20 @@ final class SessionStore: ObservableObject {
             state = .loggedOut
             return
         }
-        // If we also have Secure SignIn web cookies on file, rehydrate
-        // them into HTTPCookieStorage.shared *before* probing the API.
-        // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
-        // in addition to the `_sid` URL parameter.
-        restoreCookiesFromKeychain()
-        await client.restoreSession(savedSession)
+        // Scrub any stale DSM cookies from a previous process before
+        // probing. With httpCookieStorage=nil the native
+        // session won't send them, but other subsystems (WKWebView)
+        // share the jar and shouldn't inherit leftovers.
+        await client.clearAuthCookies()
+        // Web sessions: rehydrate persisted Secure SignIn cookies into
+        // both the shared jar (for WKWebView) and the client (for API
+        // requests on the cookieless URLSession).
+        let restoredCookies = restoreCookiesFromKeychain()
+        if restoredCookies.isEmpty {
+            await client.restoreSession(savedSession)
+        } else {
+            await client.restoreSession(savedSession, cookies: restoredCookies)
+        }
         do {
             _ = try await client.listTasks()
             touchSessionMetadata()
@@ -377,15 +390,17 @@ final class SessionStore: ObservableObject {
             password: password,
             otpCode: otpCode
         )
+        // auth.cgi sets cookies (notably `id`) whose SID may differ from
+        // the DownloadStation-scoped one in the JSON body. Subsequent API
+        // calls send both the `_sid` parameter and the cookie; some DSM
+        // builds prioritize the cookie, returning 105 because the cookie
+        // SID isn't scoped to DownloadStation. Clear the jar so API calls
+        // rely solely on `_sid`.
+        await client.clearAuthCookies()
         persistSessionIfAllowed(auth: result, cookies: [])
         state = .loggedIn
     }
 
-    /// Persist the freshly-acquired SID + session metadata (and any
-    /// Secure SignIn web cookies) when the user has opted in to
-    /// "Remember session". A best-effort write — keychain failures
-    /// don't break the active session, they just mean the next launch
-    /// will require a fresh sign-in.
     /// Persist the account password to the Keychain when the user has
     /// opted in to "Remember password". Best-effort — a keychain write
     /// failure just means the next session expiry falls back to the full
@@ -395,6 +410,8 @@ final class SessionStore: ObservableObject {
         try? KeychainStorage.setPassword(password, for: config.account)
     }
 
+    /// Persist the SID + session metadata (and any Secure SignIn web
+    /// cookies) when the user has opted in to "Remember session".
     private func persistSessionIfAllowed(auth: AuthSession, cookies: [HTTPCookie]) {
         guard RememberSessionSettings.enabled else { return }
         try? KeychainStorage.setAuthSession(auth, for: accountAtHost)
@@ -502,7 +519,7 @@ final class SessionStore: ObservableObject {
         state = .validatingApiAccess
         await client.clearAuthCookies()
         for cookie in candidate.cookies { HTTPCookieStorage.shared.setCookie(cookie) }
-        await client.restoreSession(candidate.auth)
+        await client.restoreSession(candidate.auth, cookies: candidate.cookies)
         do {
             try await validateDownloadStationAccess()
             ServerConfigStore.save(config)
@@ -542,23 +559,23 @@ final class SessionStore: ObservableObject {
         await logout()
     }
 
-    /// Called by `TaskListViewModel` when an API call comes back with
-    /// "session does not have permission" or related auth-loss codes
+    /// Called by `DownloadTaskStore` when a poll returns error 105
     /// after we believed we were logged in. Drops the persisted SID +
-    /// metadata + cookies (so the next launch doesn't immediately try
-    /// the same dead session) and surfaces the recovery card with three
-    /// options: re-authenticate, switch to OTP, or full sign out. The
-    /// in-memory client state is torn down on a detached task because
-    /// the caller is a synchronous hook.
+    /// metadata + cookies and either re-authenticates silently (stored
+    /// password → OTP prompt only) or surfaces the recovery card.
+    ///
+    /// Re-entry guard: only fires from `.loggedIn`, and the
+    /// `isHandlingUnauthorized` flag prevents a second 105 (from an
+    /// in-flight request that lands while recovery is running) from
+    /// starting a parallel login attempt.
     func handleUnauthorized(reason: String) {
+        guard state == .loggedIn, !isHandlingUnauthorized else { return }
+        isHandlingUnauthorized = true
         DSLog.session("handleUnauthorized: \(reason)")
         clearStoredKeychainSession()
-        // Show the neutral restoring state while we try a silent re-auth;
-        // if there's no stored password the Task falls straight through to
-        // the recovery card, same as before.
-        let canReauth = storedPassword != nil
-        if canReauth { state = .restoring }
+        state = .restoring
         Task {
+            defer { isHandlingUnauthorized = false }
             await client.clearSession()
             await client.clearAuthCookies()
             if await reauthWithStoredPassword() { return }
@@ -751,14 +768,17 @@ final class SessionStore: ObservableObject {
     /// expiry — DSM session cookies routinely have multi-week
     /// lifetimes, but the user might also be coming back to a launch
     /// that already lapsed. No-op when nothing is stored.
-    private func restoreCookiesFromKeychain() {
+    @discardableResult
+    private func restoreCookiesFromKeychain() -> [HTTPCookie] {
         guard let stored = KeychainStorage.cookies(for: accountAtHost),
-              !stored.isEmpty else { return }
-        guard let apiURL = config.baseURL?.appendingPathComponent("webapi/entry.cgi") else { return }
+              !stored.isEmpty else { return [] }
+        guard let apiURL = config.baseURL?.appendingPathComponent("webapi/entry.cgi") else { return [] }
         let cookies = stored.compactMap { $0.makeHTTPCookie() }
-        for cookie in WebSessionBridge.applicableCookies(cookies, to: apiURL) {
+        let applicable = WebSessionBridge.applicableCookies(cookies, to: apiURL)
+        for cookie in applicable {
             HTTPCookieStorage.shared.setCookie(cookie)
         }
+        return applicable
     }
 
     /// Handle content opened from outside the app: a `magnet:` link

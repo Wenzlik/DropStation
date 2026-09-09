@@ -15,15 +15,24 @@ actor SynologyAPIClient {
     private var baseURL: URL?
     private var authSession: AuthSession?
     private var sid: String? { authSession?.sid }
+    /// Cookies to attach manually to API requests for web sessions.
+    /// Native OTP sessions leave this empty — the URLSession has no
+    /// cookie jar, so nothing leaks. Web sessions populate this via
+    /// `restoreSession(_:cookies:)` so the `id` cookie (and any
+    /// CSRF-related cookies) reach DSM endpoints that expect them.
+    private var webCookies: [HTTPCookie] = []
 
     init() {
         let coordinator = ServerTrustCoordinator()
         let configuration = URLSessionConfiguration.default
-        // Share the global cookie jar so the Secure SignIn cookie
-        // flow (clearAuthCookies / cookie restore) keeps working —
-        // it operates on HTTPCookieStorage.shared.
-        configuration.httpCookieStorage = .shared
-        configuration.httpCookieAcceptPolicy = .always
+        // Disconnect from all cookie storage. All API auth goes
+        // through the explicit `_sid` query/body parameter; letting
+        // URLSession attach Cookie headers causes the `id` cookie
+        // DSM sets on auth.cgi (and sometimes on listTasks) to ride
+        // alongside `_sid`, which triggers error 105 on DSM builds
+        // that prefer the cookie's session scope over the parameter.
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
         self.trustCoordinator = coordinator
         self.session = URLSession(configuration: configuration, delegate: coordinator, delegateQueue: nil)
     }
@@ -50,6 +59,13 @@ actor SynologyAPIClient {
 
     var isLoggedIn: Bool { sid != nil }
 
+    /// Whether the underlying URL session has its cookie jar
+    /// disconnected. The production `init()` sets this; tests
+    /// verify it so a revert would break the assertion.
+    var cookieStorageDisabled: Bool {
+        session.configuration.httpCookieStorage == nil
+    }
+
     func configure(baseURL: URL) {
         if self.baseURL != baseURL { authSession = nil }
         self.baseURL = baseURL
@@ -63,33 +79,42 @@ actor SynologyAPIClient {
 
     func restoreSession(_ authSession: AuthSession) {
         self.authSession = authSession
+        self.webCookies = []
+    }
+
+    /// Restore a web session with its associated cookies. The cookies
+    /// are attached manually to every subsequent API request so the
+    /// cookieless URLSession still delivers them to DSM.
+    func restoreSession(_ authSession: AuthSession, cookies: [HTTPCookie]) {
+        self.authSession = authSession
+        self.webCookies = cookies
     }
 
     func clearSession() {
         self.authSession = nil
+        self.webCookies = []
     }
 
-    /// Drop every cookie DSM has set for our base URL. The relevant one is
-    /// `did` (device id) — DSM hands it out after a successful 2FA and
-    /// honours it on subsequent `auth.cgi` calls by skipping the 2FA
-    /// challenge entirely. Wiping the jar guarantees the next login is
-    /// treated as a brand-new device.
+    /// Drop every cookie DSM has set for our base URL from the shared
+    /// jar. The main culprit is the `id` cookie — `auth.cgi` sets it
+    /// on login with a SID scoped to the DSM web session, not to the
+    /// DownloadStation session we request via `format=sid`. If both
+    /// the `_sid` parameter and the `id` cookie reach DSM on the same
+    /// request, builds that prefer the cookie return error 105.
     ///
-    /// Safe to call mid-session — we identify our session via the `_sid`
-    /// URL query parameter, never via cookies, so the active SID is
-    /// untouched. Callers: form-driven login, `forgetDevice`, and the
-    /// "Re-authenticate now" affordance.
+    /// With `httpCookieStorage = nil` on the native session,
+    /// URLSession never auto-sends cookies. This cleanup is
+    /// belt-and-suspenders — it scrubs the shared jar so no other
+    /// subsystem (WKWebView restore, external browser, etc.) is
+    /// affected by stale DSM cookies.
     func clearAuthCookies() {
         guard let baseURL else { return }
-        guard let host = baseURL.host else { return }
+        guard let host = baseURL.host?.lowercased() else { return }
         let storage = HTTPCookieStorage.shared
-        // Match cookies by domain rather than `cookies(for:)` — that helper
-        // also filters by path, and we'd miss cookies set with a more
-        // specific path (e.g. `/webapi`). We want every cookie this host
-        // has set us, regardless of which endpoint it came from.
         let toRemove = storage.cookies?.filter { cookie in
-            let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
-            return host == domain || host.hasSuffix("." + domain)
+            let domain = cookie.domain.lowercased()
+            let bareDomain = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
+            return host == bareDomain || host.hasSuffix("." + bareDomain)
         } ?? []
         for cookie in toRemove {
             storage.deleteCookie(cookie)
@@ -269,6 +294,7 @@ actor SynologyAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        attachWebCookies(to: &request)
         request.httpBody = multipartBody(
             boundary: boundary,
             fields: fields,
@@ -590,6 +616,7 @@ actor SynologyAPIClient {
         if params["method"] != "login", let token = authSession?.synoToken {
             authenticatedParams["SynoToken"] = token
         }
+        attachWebCookies(to: &request)
         request.httpBody = encodeForm(authenticatedParams).data(using: .utf8)
 
         do {
@@ -608,6 +635,23 @@ actor SynologyAPIClient {
             throw mapTransportError(error, requestURL: request.url)
         }
     }
+
+    /// Manually set the `Cookie` header from `webCookies` when operating
+    /// in web-session mode. Filters by the request URL using the same
+    /// origin/path/expiry logic WKWebView uses, so only applicable
+    /// cookies travel. No-op when `webCookies` is empty (native OTP).
+    private func attachWebCookies(to request: inout URLRequest) {
+        guard !webCookies.isEmpty, let url = request.url else { return }
+        let applicable = WebSessionBridge.applicableCookies(webCookies, to: url)
+        guard !applicable.isEmpty else { return }
+        let headers = HTTPCookie.requestHeaderFields(with: applicable)
+        for (field, value) in headers {
+            request.setValue(value, forHTTPHeaderField: field)
+        }
+    }
+
+    /// Test seam: whether the client currently holds web cookies.
+    var hasWebCookies: Bool { !webCookies.isEmpty }
 
     private func encodeForm(_ params: [String: String]) -> String {
         params.map { key, value in
