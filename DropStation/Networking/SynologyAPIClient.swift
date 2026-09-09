@@ -59,6 +59,13 @@ actor SynologyAPIClient {
 
     var isLoggedIn: Bool { sid != nil }
 
+    /// Whether the underlying URL session has its cookie jar
+    /// disconnected. The production `init()` sets this; tests
+    /// verify it so a revert would break the assertion.
+    var cookieStorageDisabled: Bool {
+        session.configuration.httpCookieStorage == nil
+    }
+
     func configure(baseURL: URL) {
         if self.baseURL != baseURL { authSession = nil }
         self.baseURL = baseURL

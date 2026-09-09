@@ -3,12 +3,13 @@ import XCTest
 
 private final class AuthMockProtocol: URLProtocol {
     static var handler: ((URLRequest) throws -> String)?
+    static var responseHeaders: [String: String]?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         do {
             let body = try Self.handler!(request)
-            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: Self.responseHeaders)!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8))
             client?.urlProtocolDidFinishLoading(self)
         } catch { client?.urlProtocol(self, didFailWithError: error) }
@@ -50,6 +51,7 @@ final class AuthSessionRequestTests: XCTestCase {
             else { UserDefaults.standard.removeObject(forKey: key) }
         }
         AuthMockProtocol.handler = nil
+        AuthMockProtocol.responseHeaders = nil
     }
 
     private func client() async -> SynologyAPIClient {
@@ -158,6 +160,9 @@ final class AuthSessionRequestTests: XCTestCase {
         let restored = SessionStore(client: await self.client())
         AuthMockProtocol.handler = { request in
             XCTAssertTrue(AuthMockProtocol.body(request).contains("SynoToken=csrf"))
+            let cookieHeader = request.value(forHTTPHeaderField: "Cookie")
+            XCTAssertTrue(cookieHeader?.contains("persist-sid") == true,
+                          "Cold-restored web session must forward cookies on first probe")
             return #"{"success":true,"data":{"tasks":[]}}"#
         }
         await restored.restoreOnLaunch()
@@ -194,26 +199,32 @@ final class AuthSessionRequestTests: XCTestCase {
 
     // MARK: - Cookie isolation tests
 
-    /// Production SynologyAPIClient (not test-seam) must never attach a
-    /// Cookie header on native OTP API calls, even when an `id` cookie
-    /// sits in the shared jar. This is the root cause of the OTP loop.
+    /// Production SynologyAPIClient init must disconnect the cookie jar.
+    /// If someone reverts `httpCookieStorage = nil` in init(), this fails.
+    func testProductionClientCookieJarIsDisabled() async {
+        let client = SynologyAPIClient()
+        let disabled = await client.cookieStorageDisabled
+        XCTAssertTrue(disabled,
+                      "Production init must set httpCookieStorage = nil to prevent the OTP login loop")
+    }
+
+    /// Native OTP login must never attach a Cookie header on subsequent
+    /// API calls, even when the server sends Set-Cookie on auth.cgi.
+    /// The mock returns a real Set-Cookie header (not headerFields:nil)
+    /// so cookie storage — if present — would capture it.
     func testNativeLoginDoesNotSendCookieOnSubsequentCalls() async throws {
         let client = await client()
         await client.configure(baseURL: config.baseURL!)
 
-        AuthMockProtocol.handler = { request in
-            let headers = HTTPCookie.requestHeaderFields(with: [
-                HTTPCookie(properties: [
-                    .name: "id", .value: "stale-web-sid",
-                    .domain: "auth-tests.invalid", .path: "/",
-                ])!
-            ])
-            var response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: headers)!
-            _ = response
+        AuthMockProtocol.responseHeaders = [
+            "Set-Cookie": "id=stale-web-sid; path=/; domain=auth-tests.invalid"
+        ]
+        AuthMockProtocol.handler = { _ in
             return #"{"success":true,"data":{"sid":"otp-sid"}}"#
         }
         try await client.login(account: "user", password: "pass", otpCode: "123456")
         await client.clearAuthCookies()
+        AuthMockProtocol.responseHeaders = nil
 
         AuthMockProtocol.handler = { request in
             let cookieHeader = request.value(forHTTPHeaderField: "Cookie")
