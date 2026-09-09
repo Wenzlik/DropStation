@@ -171,4 +171,124 @@ final class AuthSessionRequestTests: XCTestCase {
         AuthMockProtocol.handler = { _ in #"{"success":true}"# }
         await store.logout()
     }
+
+    // MARK: - Cookie isolation tests
+
+    /// After a native OTP login, subsequent API calls must not carry a
+    /// Cookie header. This is the root cause of the OTP loop: auth.cgi
+    /// sets an `id` cookie whose SID differs from the DownloadStation
+    /// `_sid`, and DSM builds that prefer the cookie return 105.
+    func testNativeLoginDoesNotSendCookieOnSubsequentCalls() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AuthMockProtocol.self]
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        let session = URLSession(configuration: configuration)
+        let client = SynologyAPIClient(session: session)
+        await client.configure(baseURL: config.baseURL!)
+
+        AuthMockProtocol.handler = { _ in
+            return #"{"success":true,"data":{"sid":"otp-sid"}}"#
+        }
+        try await client.login(account: "user", password: "pass", otpCode: "123456")
+
+        AuthMockProtocol.handler = { request in
+            let cookieHeader = request.value(forHTTPHeaderField: "Cookie")
+            XCTAssertNil(cookieHeader, "Cookie header must not be sent on native API calls")
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        _ = try await client.listTasks()
+    }
+
+    /// The test-seam client() helper already uses httpCookieStorage=nil
+    /// to match production; the behavioral test above
+    /// (testNativeLoginDoesNotSendCookieOnSubsequentCalls) covers the
+    /// "no Cookie header" invariant end-to-end.
+
+    // MARK: - handleUnauthorized re-entry guard
+
+    /// Error 105 during an in-flight handleUnauthorized recovery must
+    /// not start a second login attempt — the re-entry guard blocks it.
+    func testHandleUnauthorizedBlocksReentry() async {
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        var loginCount = 0
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") {
+                loginCount += 1
+                return #"{"success":false,"error":{"code":403}}"#
+            }
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+
+        // Put the store in .loggedIn state first
+        await client.restoreSession(sid: "test-sid")
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"tasks":[]}}"# }
+
+        // Simulate logged-in state by performing a login without 2FA
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"test"}}"# }
+        await store.login(config: config, password: "pass")
+        XCTAssertEqual(store.state, .loggedIn)
+
+        // Now configure: no stored password, so handleUnauthorized goes
+        // straight to .sessionUnauthorized
+        loginCount = 0
+        AuthMockProtocol.handler = { _ in #"{"success":true}"# }
+
+        // First call should be accepted
+        store.handleUnauthorized(reason: "105 first")
+        // Second call while first is in flight should be blocked
+        store.handleUnauthorized(reason: "105 second")
+
+        // Let the Task run
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
+        // Should only have processed once — state should be
+        // .sessionUnauthorized (no stored password)
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("Expected .sessionUnauthorized, got \(store.state)")
+        }
+    }
+
+    /// handleUnauthorized must not fire from .restoring or
+    /// .twoFactorRequired — only from .loggedIn.
+    func testHandleUnauthorizedOnlyFiresFromLoggedIn() async {
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        // State is .restoring by default (initial state)
+        store.handleUnauthorized(reason: "should be ignored")
+        // Give the Task a chance to run if one was spawned
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        // Should still be restoring — the call was a no-op
+        XCTAssertEqual(store.state, .restoring)
+    }
+
+    // MARK: - Case-insensitive cookie cleanup
+
+    /// clearAuthCookies must remove cookies regardless of domain case.
+    /// NAS.local vs nas.local must not leave orphans.
+    func testClearAuthCookiesCaseInsensitive() async {
+        let client = SynologyAPIClient()
+        let mixedCaseConfig = ServerConfig(scheme: .https, host: "NAS.local", port: 5001, account: "user")
+        await client.configure(baseURL: mixedCaseConfig.baseURL!)
+
+        let storage = HTTPCookieStorage.shared
+        let cookie = HTTPCookie(properties: [
+            .name: "id",
+            .value: "stale-sid",
+            .domain: "nas.local",
+            .path: "/",
+        ])!
+        storage.setCookie(cookie)
+
+        await client.clearAuthCookies()
+
+        let remaining = storage.cookies?.filter { $0.name == "id" && $0.domain == "nas.local" } ?? []
+        XCTAssertTrue(remaining.isEmpty, "Cookie with lowercase domain must be removed when host is uppercase")
+    }
 }

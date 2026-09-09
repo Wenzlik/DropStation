@@ -108,6 +108,11 @@ final class SessionStore: ObservableObject {
     /// pass.
     private var didRestoreOnLaunch = false
 
+    /// In-flight guard for `handleUnauthorized`. Prevents re-entry
+    /// while a recovery (reauth with stored password → OTP) is already
+    /// in progress, which would otherwise cause a login loop.
+    private var isHandlingUnauthorized = false
+
     // MARK: - Restore
 
     /// Entry point for app-launch session restore. Wired from `DropStationApp`'s
@@ -177,10 +182,13 @@ final class SessionStore: ObservableObject {
             state = .loggedOut
             return
         }
-        // If we also have Secure SignIn web cookies on file, rehydrate
-        // them into HTTPCookieStorage.shared *before* probing the API.
-        // Some DSM endpoints (the DS2 entry.cgi flow) honour the cookie
-        // in addition to the `_sid` URL parameter.
+        // Scrub any stale DSM cookies from a previous process before
+        // probing. With httpCookieStorage=nil the native
+        // session won't send them, but other subsystems (WKWebView)
+        // share the jar and shouldn't inherit leftovers.
+        await client.clearAuthCookies()
+        // Web sessions: rehydrate persisted Secure SignIn cookies so
+        // WKWebView-based flows find them if needed later.
         restoreCookiesFromKeychain()
         await client.restoreSession(savedSession)
         do {
@@ -388,11 +396,6 @@ final class SessionStore: ObservableObject {
         state = .loggedIn
     }
 
-    /// Persist the freshly-acquired SID + session metadata (and any
-    /// Secure SignIn web cookies) when the user has opted in to
-    /// "Remember session". A best-effort write — keychain failures
-    /// don't break the active session, they just mean the next launch
-    /// will require a fresh sign-in.
     /// Persist the account password to the Keychain when the user has
     /// opted in to "Remember password". Best-effort — a keychain write
     /// failure just means the next session expiry falls back to the full
@@ -402,6 +405,8 @@ final class SessionStore: ObservableObject {
         try? KeychainStorage.setPassword(password, for: config.account)
     }
 
+    /// Persist the SID + session metadata (and any Secure SignIn web
+    /// cookies) when the user has opted in to "Remember session".
     private func persistSessionIfAllowed(auth: AuthSession, cookies: [HTTPCookie]) {
         guard RememberSessionSettings.enabled else { return }
         try? KeychainStorage.setAuthSession(auth, for: accountAtHost)
@@ -549,21 +554,23 @@ final class SessionStore: ObservableObject {
         await logout()
     }
 
-    /// Called by `TaskListViewModel` when an API call comes back with
-    /// "session does not have permission" or related auth-loss codes
+    /// Called by `DownloadTaskStore` when a poll returns error 105
     /// after we believed we were logged in. Drops the persisted SID +
-    /// metadata + cookies (so the next launch doesn't immediately try
-    /// the same dead session) and surfaces the recovery card with three
-    /// options: re-authenticate, switch to OTP, or full sign out. The
-    /// in-memory client state is torn down on a detached task because
-    /// the caller is a synchronous hook.
+    /// metadata + cookies and either re-authenticates silently (stored
+    /// password → OTP prompt only) or surfaces the recovery card.
+    ///
+    /// Re-entry guard: only fires from `.loggedIn`, and the
+    /// `isHandlingUnauthorized` flag prevents a second 105 (from an
+    /// in-flight request that lands while recovery is running) from
+    /// starting a parallel login attempt.
     func handleUnauthorized(reason: String) {
-        guard state == .loggedIn || state == .restoring else { return }
+        guard state == .loggedIn, !isHandlingUnauthorized else { return }
+        isHandlingUnauthorized = true
         DSLog.session("handleUnauthorized: \(reason)")
         clearStoredKeychainSession()
-        let canReauth = storedPassword != nil
-        if canReauth { state = .restoring }
+        state = .restoring
         Task {
+            defer { isHandlingUnauthorized = false }
             await client.clearSession()
             await client.clearAuthCookies()
             if await reauthWithStoredPassword() { return }

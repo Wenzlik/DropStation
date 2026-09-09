@@ -19,11 +19,14 @@ actor SynologyAPIClient {
     init() {
         let coordinator = ServerTrustCoordinator()
         let configuration = URLSessionConfiguration.default
-        // Share the global cookie jar so the Secure SignIn cookie
-        // flow (clearAuthCookies / cookie restore) keeps working —
-        // it operates on HTTPCookieStorage.shared.
-        configuration.httpCookieStorage = .shared
-        configuration.httpCookieAcceptPolicy = .always
+        // Disconnect from all cookie storage. All API auth goes
+        // through the explicit `_sid` query/body parameter; letting
+        // URLSession attach Cookie headers causes the `id` cookie
+        // DSM sets on auth.cgi (and sometimes on listTasks) to ride
+        // alongside `_sid`, which triggers error 105 on DSM builds
+        // that prefer the cookie's session scope over the parameter.
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
         self.trustCoordinator = coordinator
         self.session = URLSession(configuration: configuration, delegate: coordinator, delegateQueue: nil)
     }
@@ -69,27 +72,26 @@ actor SynologyAPIClient {
         self.authSession = nil
     }
 
-    /// Drop every cookie DSM has set for our base URL. The relevant one is
-    /// `did` (device id) — DSM hands it out after a successful 2FA and
-    /// honours it on subsequent `auth.cgi` calls by skipping the 2FA
-    /// challenge entirely. Wiping the jar guarantees the next login is
-    /// treated as a brand-new device.
+    /// Drop every cookie DSM has set for our base URL from the shared
+    /// jar. The main culprit is the `id` cookie — `auth.cgi` sets it
+    /// on login with a SID scoped to the DSM web session, not to the
+    /// DownloadStation session we request via `format=sid`. If both
+    /// the `_sid` parameter and the `id` cookie reach DSM on the same
+    /// request, builds that prefer the cookie return error 105.
     ///
-    /// Safe to call mid-session — we identify our session via the `_sid`
-    /// URL query parameter, never via cookies, so the active SID is
-    /// untouched. Callers: form-driven login, `forgetDevice`, and the
-    /// "Re-authenticate now" affordance.
+    /// With `httpCookieStorage = nil` on the native session,
+    /// URLSession never auto-sends cookies. This cleanup is
+    /// belt-and-suspenders — it scrubs the shared jar so no other
+    /// subsystem (WKWebView restore, external browser, etc.) is
+    /// affected by stale DSM cookies.
     func clearAuthCookies() {
         guard let baseURL else { return }
-        guard let host = baseURL.host else { return }
+        guard let host = baseURL.host?.lowercased() else { return }
         let storage = HTTPCookieStorage.shared
-        // Match cookies by domain rather than `cookies(for:)` — that helper
-        // also filters by path, and we'd miss cookies set with a more
-        // specific path (e.g. `/webapi`). We want every cookie this host
-        // has set us, regardless of which endpoint it came from.
         let toRemove = storage.cookies?.filter { cookie in
-            let domain = cookie.domain.hasPrefix(".") ? String(cookie.domain.dropFirst()) : cookie.domain
-            return host == domain || host.hasSuffix("." + domain)
+            let domain = cookie.domain.lowercased()
+            let bareDomain = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
+            return host == bareDomain || host.hasSuffix("." + bareDomain)
         } ?? []
         for cookie in toRemove {
             storage.deleteCookie(cookie)

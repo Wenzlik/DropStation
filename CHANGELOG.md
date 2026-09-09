@@ -6,6 +6,9 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **OTP login loop.** After signing in with a verification code, a stale `id` cookie could conflict with the `_sid` parameter on subsequent API calls, causing error 105 → re-auth → OTP prompt → loop. Native API sessions now never send or store cookies; the `_sid` parameter is the sole auth channel. The `handleUnauthorized` recovery path is also guarded against re-entry.
+
 ### Improved
 - Experimental web sign-in is available in login Settings, with clearer progress, retry, and verification-code fallback.
 - Web sessions now retain the information needed for protected NAS requests and session restore.
