@@ -159,11 +159,40 @@ actor SynologyAPIClient {
         return response.data?.entries ?? [:]
     }
 
+    /// Native credential login. Mints a **plain `_sid` session**: no
+    /// cookie, no CSRF token, `_sid` as the only credential on every
+    /// subsequent request.
+    ///
+    /// `requestCsrfToken` (i.e. `enable_syno_token=yes`) is off by
+    /// default and no caller turns it on. That is deliberate and it is
+    /// the fix for the 105 loop, so it needs the full story:
+    ///
+    /// Asking DSM for a `SynoToken` is not a free extra field — it
+    /// arms CSRF enforcement on the session DSM is about to mint. A
+    /// session minted that way expects the token back on every webapi
+    /// call, validated against the session the request's **cookie**
+    /// identifies. Since #25 the native session sends no cookie, and
+    /// since #26 it sends no token either, so every `task.cgi` call
+    /// arrives with neither half of the pair DSM is now enforcing and
+    /// comes back `105 — the logged in session does not have
+    /// permission`, on a SID that is otherwise perfectly good.
+    ///
+    /// The one consumer of a token, the experimental web sign-in,
+    /// never comes through here: `SecureSignInWebView` fetches its own
+    /// via the documented `SYNO.API.Auth.token` method inside the
+    /// WKWebView's cookie context and hands it to
+    /// `WebSessionBridge.session(cookies:apiURL:token:)`. So nothing
+    /// was ever reading the token this call requested — it only
+    /// changed DSM's mind about what the session requires.
+    ///
+    /// Not asking restores the request shape the app shipped and used
+    /// successfully before `18c991a` added the flag.
     @discardableResult
     func login(
         account: String,
         password: String,
-        otpCode: String? = nil
+        otpCode: String? = nil,
+        requestCsrfToken: Bool = false
     ) async throws -> LoginResult {
         guard let baseURL else { throw APIError.invalidURL }
 
@@ -174,9 +203,9 @@ actor SynologyAPIClient {
             "account": account,
             "passwd": password,
             "session": "DownloadStation",
-            "format": "sid",
-            "enable_syno_token": "yes"
+            "format": "sid"
         ]
+        if requestCsrfToken { params["enable_syno_token"] = "yes" }
         if let otpCode { params["otp_code"] = otpCode }
 
         let url = baseURL.appendingPathComponent("/webapi/auth.cgi")
@@ -679,9 +708,10 @@ actor SynologyAPIClient {
     /// OTP login loop on a session that is otherwise perfectly good.
     ///
     /// So: send the token only when the session it belongs to is
-    /// actually travelling (web sign-in). `enable_syno_token=yes` stays
-    /// on the login call — DSM minting a token we don't use is
-    /// harmless, and the web handoff needs the field to exist.
+    /// actually travelling (web sign-in). The other half of that rule
+    /// lives on `login` — a native session doesn't ask DSM for a token
+    /// in the first place, because asking is what makes DSM require
+    /// one back.
     private var csrfToken: String? {
         guard !webCookies.isEmpty else { return nil }
         return authSession?.synoToken

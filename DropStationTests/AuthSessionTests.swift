@@ -97,12 +97,49 @@ final class AuthSessionRequestTests: XCTestCase {
             XCTAssertFalse(body.contains("SynoToken="))
             return #"{"success":true,"data":{"sid":"new","synotoken":"newToken"}}"#
         }
-        let result = try await client.login(account: "user", password: "password")
+        let result = try await client.login(account: "user", password: "password", requestCsrfToken: true)
         XCTAssertEqual(result, AuthSession(sid: "new", synoToken: "newToken"))
         await client.clearSession()
         await client.restoreSession(sid: "legacy")
         AuthMockProtocol.handler = { request in
             XCTAssertFalse(AuthMockProtocol.body(request).contains("SynoToken="))
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        _ = try await client.listTasks()
+    }
+
+    /// The native login must not ask DSM for a `SynoToken`.
+    ///
+    /// `enable_syno_token=yes` arms CSRF enforcement on the session
+    /// DSM mints. The native session then carries neither a cookie
+    /// (#25) nor the token itself (#26), so DSM answers every
+    /// `task.cgi` call with 105 on a SID that is otherwise fine —
+    /// which is the 105 the whole login loop is built on. Nothing
+    /// consumes the token either: the web sign-in fetches its own via
+    /// `SYNO.API.Auth.token` inside the WKWebView.
+    func testNativeLoginDoesNotArmCsrfProtection() async throws {
+        let client = await client()
+        var loginBodies: [String] = []
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") { loginBodies.append(body) }
+            return #"{"success":true,"data":{"sid":"plain-sid","synotoken":"unwanted"}}"#
+        }
+        let auth = try await client.login(account: "user", password: "password", otpCode: "123456")
+
+        XCTAssertEqual(loginBodies.count, 1)
+        XCTAssertFalse(loginBodies[0].contains("enable_syno_token"),
+                       "Native login must not arm DSM's CSRF enforcement — that is what makes task.cgi 105")
+        XCTAssertTrue(loginBodies[0].contains("session=DownloadStation"))
+        XCTAssertTrue(loginBodies[0].contains("format=sid"))
+        XCTAssertTrue(loginBodies[0].contains("otp_code=123456"))
+        XCTAssertEqual(auth.sid, "plain-sid")
+
+        // And a token DSM volunteers anyway still never travels on a
+        // cookieless session.
+        AuthMockProtocol.handler = { request in
+            XCTAssertFalse(AuthMockProtocol.body(request).contains("SynoToken"))
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
             return #"{"success":true,"data":{"tasks":[]}}"#
         }
         _ = try await client.listTasks()
