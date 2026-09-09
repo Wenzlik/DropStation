@@ -67,7 +67,13 @@ actor SynologyAPIClient {
     }
 
     func configure(baseURL: URL) {
-        if self.baseURL != baseURL { authSession = nil }
+        // A different NAS means a different identity: drop the SID and
+        // the cookies that belonged to the old one together, so nothing
+        // half-survives a server switch.
+        if self.baseURL != baseURL {
+            authSession = nil
+            webCookies = []
+        }
         self.baseURL = baseURL
     }
 
@@ -181,6 +187,14 @@ actor SynologyAPIClient {
         }
         let auth = AuthSession(sid: data.sid, synoToken: data.synotoken)
         self.authSession = auth
+        // A credential login mints a fresh native identity authenticated
+        // purely by `_sid`. Any cookies left from an earlier web sign-in
+        // belong to a different session and would be attached manually
+        // by `attachWebCookies` — bypassing both `httpCookieStorage =
+        // nil` and `clearAuthCookies()`, which only scrubs the shared
+        // jar and never this array. That is the #25 cookie/SID conflict
+        // rebuilt by hand, so drop them here.
+        self.webCookies = []
         return auth
     }
 
@@ -288,7 +302,7 @@ actor SynologyAPIClient {
             ("file", "[\"torrent\"]")
         ]
 
-        if let token = authSession?.synoToken { fields.append(("SynoToken", token)) }
+        if let token = csrfToken { fields.append(("SynoToken", token)) }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
@@ -613,7 +627,7 @@ actor SynologyAPIClient {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var authenticatedParams = params
         // Login starts a new identity; never attach a previous session token.
-        if params["method"] != "login", let token = authSession?.synoToken {
+        if params["method"] != "login", let token = csrfToken {
             authenticatedParams["SynoToken"] = token
         }
         attachWebCookies(to: &request)
@@ -652,6 +666,26 @@ actor SynologyAPIClient {
 
     /// Test seam: whether the client currently holds web cookies.
     var hasWebCookies: Bool { !webCookies.isEmpty }
+
+    /// The CSRF token to send with this request, or `nil`.
+    ///
+    /// `SynoToken` is DSM's CSRF companion to **cookie**-based auth:
+    /// DSM validates it against the session identified by the request's
+    /// cookie. A native session authenticates solely through the `_sid`
+    /// parameter and — since the cookie isolation in #25 — carries no
+    /// cookie at all, so the token has nothing to be validated against.
+    /// DSM builds that enforce the pairing answer error 105, which is
+    /// indistinguishable from a real permission denial and drives the
+    /// OTP login loop on a session that is otherwise perfectly good.
+    ///
+    /// So: send the token only when the session it belongs to is
+    /// actually travelling (web sign-in). `enable_syno_token=yes` stays
+    /// on the login call — DSM minting a token we don't use is
+    /// harmless, and the web handoff needs the field to exist.
+    private var csrfToken: String? {
+        guard !webCookies.isEmpty else { return nil }
+        return authSession?.synoToken
+    }
 
     private func encodeForm(_ params: [String: String]) -> String {
         params.map { key, value in

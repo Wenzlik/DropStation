@@ -24,6 +24,11 @@ struct DropStationApp: App {
                 Task { @MainActor in
                     session?.handleUnauthorized(reason: reason)
                 }
+            },
+            onAuthorized: { [weak session] in
+                Task { @MainActor in
+                    session?.noteDownloadStationSuccess()
+                }
             }
         )
         _session = StateObject(wrappedValue: session)

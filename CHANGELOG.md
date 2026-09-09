@@ -8,6 +8,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 - **OTP login loop.** After signing in with a verification code, a stale `id` cookie could conflict with the `_sid` parameter on subsequent API calls, causing error 105 → re-auth → OTP prompt → loop. Native API sessions now never send or store cookies; the `_sid` parameter is the sole auth channel. Web sign-in sessions still forward their cookies to DSM so endpoints that require cookie context receive them. The `handleUnauthorized` recovery path is also guarded against re-entry.
+- **OTP login loop, second pass.** The code screen could still come back right after a verification code was accepted. If Download Station refused the brand-new session, the app treated it as an expired one and asked for another code — forever. It now says what is actually wrong (the account needs Download Station access in DSM → Control Panel → Application Privileges) instead of asking again. Two remaining ways a stale web cookie could reach a verification-code session were closed, and the CSRF token is no longer sent on sessions that carry no cookie — some NAS builds answer that combination with the very error 105 that started the loop.
 
 ### Improved
 - Experimental web sign-in is available in login Settings, with clearer progress, retry, and verification-code fallback.
