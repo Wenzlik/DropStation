@@ -12,6 +12,12 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Incorrect verification codes can be retried without leaving the code screen.
 - Fixed saved-session storage conflicts and improved Czech sign-in labels.
 
+### Changed
+- **A fresh DropStation identity** with a distinctive app icon in light, dark, and tinted appearances.
+- **A more spacious interface** across Dashboard, Downloads, task detail, sign-in, and Add download, with clearer live status and native glass controls.
+- **Refined Settings** with a prominent account card and clearer appearance, privacy, and about sections.
+- Improved Czech labels and readability of transfer details.
+
 ## [0.5.5] — 2026-07-01 — iOS 26 redesign
 
 ### New
