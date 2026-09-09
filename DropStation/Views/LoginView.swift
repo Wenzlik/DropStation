@@ -375,7 +375,13 @@ struct LoginView: View {
     /// SID), retry the web sign-in, or sign out entirely.
     @ViewBuilder
     private func sessionUnauthorizedContent(reason: String) -> some View {
-        let isExpiry = !session.isWebRecovery
+        // Three shapes of the same card: a genuine expiry, the
+        // experimental web-login handoff failing, and a fresh native
+        // sign-in that Download Station itself refused (permissions).
+        // The last one must not say "Session expired" — nothing
+        // expired, and telling the user it did is what makes another
+        // sign-in attempt look like the fix.
+        let isExpiry = !session.isWebRecovery && !session.isPermissionRecovery
         let title = isExpiry ? "Session expired" : "Check Download Station access"
         let symbol = isExpiry ? "clock.badge.exclamationmark" : "exclamationmark.shield"
         let eyebrow: LocalizedStringKey = isExpiry ? "Session" : "Recovery"

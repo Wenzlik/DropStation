@@ -113,6 +113,28 @@ final class SessionStore: ObservableObject {
     /// in progress, which would otherwise cause a login loop.
     private var isHandlingUnauthorized = false
 
+    /// Cycle breaker for the OTP re-prompt loop.
+    ///
+    /// True from the moment an interactive login (credentials, or
+    /// credentials + OTP) mints a SID until a real Download Station
+    /// request succeeds on it. While it's true we know the account's
+    /// credentials are *not* the problem — DSM just accepted them —
+    /// so a 105 from Download Station cannot be fixed by logging in
+    /// again. Re-authenticating anyway is exactly the loop the user
+    /// sees: code → dashboard flash → code screen → code → …
+    ///
+    /// The launch-time path deliberately leaves this false: there the
+    /// SID is an *old* one from a previous run, so a silent re-login
+    /// with the stored password (landing on an OTP-only prompt) is
+    /// the right recovery and does terminate.
+    private var loginPendingConfirmation = false
+
+    /// True while the recovery card is showing a Download Station
+    /// *permission* problem rather than an expired session, so
+    /// `LoginView` can title it honestly. Distinct from
+    /// `isWebRecovery`, which flags the experimental web-login path.
+    @Published private(set) var isPermissionRecovery = false
+
     // MARK: - Restore
 
     /// Entry point for app-launch session restore. Wired from `DropStationApp`'s
@@ -198,7 +220,7 @@ final class SessionStore: ObservableObject {
         }
         do {
             _ = try await client.listTasks()
-            touchSessionMetadata()
+            noteDownloadStationConfirmed()
             state = .loggedIn
         } catch let error as APIError where error.isSessionExpired {
             // DSM actively rejected the SID (105/106/107/119). This is
@@ -398,6 +420,13 @@ final class SessionStore: ObservableObject {
         // rely solely on `_sid`.
         await client.clearAuthCookies()
         persistSessionIfAllowed(auth: result, cookies: [])
+        // DSM accepted the credentials (and the OTP). Whether the SID
+        // it handed back is actually good for Download Station is a
+        // separate question, answered by the first `listTasks`. Until
+        // that comes back we must not treat a 105 as "credentials went
+        // stale" — see `loginPendingConfirmation`.
+        loginPendingConfirmation = true
+        isPermissionRecovery = false
         state = .loggedIn
     }
 
@@ -464,6 +493,8 @@ final class SessionStore: ObservableObject {
         pendingCredentials = nil
         otpError = nil
         isWebRecovery = false
+        isPermissionRecovery = false
+        loginPendingConfirmation = false
         try? await client.logout()
         await clearStoredSession()
         KeychainStorage.deletePassword(for: config.account)
@@ -526,6 +557,7 @@ final class SessionStore: ObservableObject {
             persistSessionIfAllowed(auth: candidate.auth, cookies: candidate.cookies)
             pendingWebSession = nil
             isWebRecovery = false
+            noteDownloadStationConfirmed()
             state = .loggedIn
         } catch let error as APIError where error.isSessionExpired {
             await clearStoredSession()
@@ -572,15 +604,49 @@ final class SessionStore: ObservableObject {
         guard state == .loggedIn, !isHandlingUnauthorized else { return }
         isHandlingUnauthorized = true
         DSLog.session("handleUnauthorized: \(reason)")
+        // A 105 on a session we minted moments ago, that Download
+        // Station has never once accepted, is not an expiry — DSM
+        // just verified the password and the OTP. Re-authenticating
+        // would mint another SID with the same permissions and 105
+        // again, which is the login loop: code → dashboard flash →
+        // code screen. Break out and tell the user what's actually
+        // wrong instead.
+        let credentialsJustVerified = loginPendingConfirmation
         clearStoredKeychainSession()
         state = .restoring
         Task {
             defer { isHandlingUnauthorized = false }
             await client.clearSession()
             await client.clearAuthCookies()
+            if credentialsJustVerified {
+                DSLog.session("handleUnauthorized: fresh session rejected by Download Station — not re-prompting")
+                loginPendingConfirmation = false
+                isPermissionRecovery = true
+                state = .sessionUnauthorized(reason: String(localized: "Sign-in succeeded, but Download Station refused this session. Check that this account is allowed to use Download Station in DSM → Control Panel → Application Privileges, then sign in again."))
+                return
+            }
             if await reauthWithStoredPassword() { return }
             state = .sessionUnauthorized(reason: reason)
         }
+    }
+
+    /// Called by `DownloadTaskStore` after a poll succeeds. Confirms
+    /// the live session really is good for Download Station, which
+    /// re-arms the normal "expired session → silent re-login → OTP
+    /// prompt" recovery for the next genuine expiry.
+    func noteDownloadStationSuccess() {
+        guard state == .loggedIn else { return }
+        noteDownloadStationConfirmed()
+    }
+
+    /// Shared bookkeeping for "Download Station just answered a real
+    /// request on this session": clears the pending-confirmation flag
+    /// (so the cycle breaker doesn't fire on a later, genuine expiry)
+    /// and bumps the metadata freshness stamp.
+    private func noteDownloadStationConfirmed() {
+        loginPendingConfirmation = false
+        isPermissionRecovery = false
+        touchSessionMetadata()
     }
 
     // MARK: - Self-signed certificate trust
@@ -693,7 +759,7 @@ final class SessionStore: ObservableObject {
         DSLog.session("probeIfStale: elapsed=\(Int(elapsed))s, probing")
         do {
             _ = try await client.listTasks()
-            touchSessionMetadata()
+            noteDownloadStationConfirmed()
         } catch let error as APIError where error.isSessionExpired {
             DSLog.session("probeIfStale: session expired — \(error.localizedDescription)")
             await clearStoredSession()

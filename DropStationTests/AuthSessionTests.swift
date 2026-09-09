@@ -310,6 +310,11 @@ final class AuthSessionRequestTests: XCTestCase {
     /// not start a second login attempt — the re-entry guard blocks it.
     /// With a stored password, recovery attempts a silent re-login; the
     /// guard must prevent a second concurrent attempt.
+    ///
+    /// The session is marked Download-Station-confirmed first, so this
+    /// models a genuine later expiry rather than the fresh-login case
+    /// the OTP-loop cycle breaker owns (see
+    /// `testFresh105AfterOTPDoesNotRePromptForCode`).
     func testHandleUnauthorizedBlocksReentry() async {
         UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
         let client = await client()
@@ -320,6 +325,7 @@ final class AuthSessionRequestTests: XCTestCase {
         AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"initial"}}"# }
         await store.login(config: config, password: "pass")
         XCTAssertEqual(store.state, .loggedIn)
+        store.noteDownloadStationSuccess()
 
         // Track how many login calls recovery makes.
         var loginCount = 0
@@ -362,9 +368,9 @@ final class AuthSessionRequestTests: XCTestCase {
 
     // MARK: - 105 recovery with stored password doesn't double-login
 
-    /// A single 105 with a stored password must produce exactly one
-    /// login call, land on .twoFactorRequired, then complete with a
-    /// valid OTP — no double login, no loop.
+    /// A single 105 on a session Download Station had already served
+    /// must produce exactly one login call, land on .twoFactorRequired,
+    /// then complete with a valid OTP — no double login, no loop.
     func testStoredPasswordRecoveryLoginsThenOTP() async throws {
         UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
         let client = await client()
@@ -373,6 +379,7 @@ final class AuthSessionRequestTests: XCTestCase {
         AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"initial"}}"# }
         await store.login(config: config, password: "secret")
         XCTAssertEqual(store.state, .loggedIn)
+        store.noteDownloadStationSuccess()
 
         var loginCount = 0
         AuthMockProtocol.handler = { request in
@@ -399,6 +406,168 @@ final class AuthSessionRequestTests: XCTestCase {
         AuthMockProtocol.handler = { _ in #"{"success":true}"# }
         await store.logout()
         UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey)
+    }
+
+    // MARK: - OTP re-prompt loop (the r2 regression)
+
+    /// The reported loop, end to end: credentials → 403 → OTP → login
+    /// succeeds → Download Station answers the very first poll with
+    /// 105. The old behaviour silently re-logged-in with the stored
+    /// password and landed back on `.twoFactorRequired`, so the user
+    /// saw the dashboard flash and got the code screen again, forever.
+    ///
+    /// The fresh session's credentials were just verified by DSM, so a
+    /// re-login cannot help. We must land on the recovery card and
+    /// issue no further login request.
+    func testFresh105AfterOTPDoesNotRePromptForCode() async {
+        UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
+        defer { UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey) }
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        var loginCount = 0
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") {
+                loginCount += 1
+                return loginCount == 1
+                    ? #"{"success":false,"error":{"code":403}}"#
+                    : #"{"success":true,"data":{"sid":"fresh-otp-sid"}}"#
+            }
+            return #"{"success":true}"#
+        }
+        await store.login(config: config, password: "secret")
+        XCTAssertEqual(store.state, .twoFactorRequired)
+        await store.submitOTP("123456")
+        XCTAssertEqual(store.state, .loggedIn)
+        XCTAssertEqual(loginCount, 2)
+
+        // First Download Station poll on the brand-new session: 105.
+        store.handleUnauthorized(reason: "Synology error 105")
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        XCTAssertEqual(loginCount, 2,
+                       "A fresh, just-verified session must not trigger another login")
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("Expected the recovery card, got \(store.state) — the OTP loop is back")
+        }
+        XCTAssertTrue(store.isPermissionRecovery,
+                      "Card must read as a Download Station permission problem, not an expiry")
+    }
+
+    /// The loop's other entry point: cold launch with a stored SID that
+    /// DSM rejects. There, a silent re-login *is* the right recovery
+    /// (the SID is genuinely old), so we still prompt for one code —
+    /// but once that code succeeds and Download Station still says 105,
+    /// the chain must stop rather than ask for a second code.
+    func testColdRestore105PromptsForCodeExactlyOnce() async throws {
+        UserDefaults.standard.set(true, forKey: RememberSessionSettings.storageKey)
+        UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
+        defer {
+            UserDefaults.standard.set(false, forKey: RememberSessionSettings.storageKey)
+            UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey)
+        }
+        try KeychainStorage.setAuthSession(AuthSession(sid: "stale"), for: "native-user@\(config.host)")
+        try KeychainStorage.setPassword("secret", for: config.account)
+        ServerConfigStore.save(config)
+        defer {
+            KeychainStorage.deleteSID(for: "native-user@\(config.host)")
+            KeychainStorage.deletePassword(for: config.account)
+            KeychainStorage.deleteSessionMetadata(for: "native-user@\(config.host)")
+            ServerConfigStore.clear()
+        }
+
+        let client = await client()
+        let store = SessionStore(client: client)
+        var loginCount = 0
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") {
+                loginCount += 1
+                return #"{"success":false,"error":{"code":403}}"#
+            }
+            // Download Station rejects everything for this account.
+            return #"{"success":false,"error":{"code":105}}"#
+        }
+        await store.restoreOnLaunch()
+
+        // Stale SID rejected → one silent re-login → one code prompt.
+        XCTAssertEqual(loginCount, 1)
+        XCTAssertEqual(store.state, .twoFactorRequired)
+
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") {
+                loginCount += 1
+                return #"{"success":true,"data":{"sid":"recovered"}}"#
+            }
+            return #"{"success":false,"error":{"code":105}}"#
+        }
+        await store.submitOTP("123456")
+        XCTAssertEqual(store.state, .loggedIn)
+
+        store.handleUnauthorized(reason: "Synology error 105")
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        XCTAssertEqual(loginCount, 2, "Exactly one code prompt, then stop")
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("Expected the recovery card, got \(store.state)")
+        }
+    }
+
+    /// The cycle breaker must not cost us the useful recovery: a
+    /// session that Download Station has actually served (a successful
+    /// poll) and which later expires still gets the silent re-login →
+    /// OTP-only prompt.
+    func testConfirmedSessionStillGetsSilentReauthOnLaterExpiry() async {
+        UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
+        defer { UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey) }
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"good"}}"# }
+        await store.login(config: config, password: "secret")
+        XCTAssertEqual(store.state, .loggedIn)
+
+        // A poll succeeded — Download Station accepts this session.
+        store.noteDownloadStationSuccess()
+
+        var loginCount = 0
+        AuthMockProtocol.handler = { request in
+            if AuthMockProtocol.body(request).contains("method=login") {
+                loginCount += 1
+                return #"{"success":false,"error":{"code":403}}"#
+            }
+            return #"{"success":true}"#
+        }
+        store.handleUnauthorized(reason: "Synology error 106")
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        XCTAssertEqual(loginCount, 1, "A previously-good session still re-auths silently")
+        XCTAssertEqual(store.state, .twoFactorRequired)
+        XCTAssertFalse(store.isPermissionRecovery)
+        store.cancelTwoFactor()
+    }
+
+    /// A successful poll reported through `DownloadTaskStore`'s
+    /// `onAuthorized` callback must be what clears the breaker — the
+    /// wiring, not just the SessionStore method.
+    func testTaskStoreReportsSuccessfulPollAsAuthorized() async {
+        let client = await client()
+        var authorizedCount = 0
+        let store = DownloadTaskStore(client: client, onAuthorized: { authorizedCount += 1 })
+        await client.restoreSession(AuthSession(sid: "sid"))
+
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"tasks":[]}}"# }
+        await store.refresh()
+        XCTAssertEqual(authorizedCount, 1)
+
+        AuthMockProtocol.handler = { _ in #"{"success":false,"error":{"code":105}}"# }
+        await store.refresh()
+        XCTAssertEqual(authorizedCount, 1, "A 105 poll must not report success")
     }
 
     // MARK: - Case-insensitive cookie cleanup

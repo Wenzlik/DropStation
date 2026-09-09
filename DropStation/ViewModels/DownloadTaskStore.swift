@@ -80,6 +80,13 @@ final class DownloadTaskStore: ObservableObject {
     /// (Store → SessionStore via callback, not Store ← SessionStore
     /// import).
     private let onUnauthorized: (String) -> Void
+    /// Reports "Download Station answered a real request on this
+    /// session" back to `SessionStore`. Closes the loop the other way
+    /// from `onUnauthorized`: a confirmed-good session re-arms the
+    /// silent re-login recovery, and an unconfirmed one keeps the
+    /// OTP-loop cycle breaker armed. Same weak-session callback shape
+    /// so the dependency direction stays one-way.
+    private let onAuthorized: () -> Void
     private var refreshTimer: Timer?
     /// Drives the Live Activity (Dynamic Island / lock screen) for
     /// active downloads. Fed the latest task list after every poll;
@@ -89,10 +96,12 @@ final class DownloadTaskStore: ObservableObject {
     init(
         client: SynologyAPIClient,
         serverName: String = "DropStation",
-        onUnauthorized: @escaping (String) -> Void = { _ in }
+        onUnauthorized: @escaping (String) -> Void = { _ in },
+        onAuthorized: @escaping () -> Void = { }
     ) {
         self.client = client
         self.onUnauthorized = onUnauthorized
+        self.onAuthorized = onAuthorized
         self.activityController = DownloadActivityController(serverName: serverName)
     }
 
@@ -108,6 +117,7 @@ final class DownloadTaskStore: ObservableObject {
             tasks = try await client.listTasks()
             errorMessage = nil
             isOnline = true
+            onAuthorized()
             activityController.sync(with: tasks)
             // Session just confirmed valid by the task fetch — a
             // good moment to opportunistically refresh free disk,
