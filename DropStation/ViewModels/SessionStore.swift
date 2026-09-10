@@ -135,6 +135,17 @@ final class SessionStore: ObservableObject {
     /// `isWebRecovery`, which flags the experimental web-login path.
     @Published private(set) var isPermissionRecovery = false
 
+    /// True while we're parked on the recovery card still holding a
+    /// live session — DSM minted the SID, never invalidated it, and
+    /// only Download Station refused to serve it. Drives the card's
+    /// "Try again" action, which re-runs the Download Station call on
+    /// that same session with no new login and no new code.
+    ///
+    /// Without this the card is a dead end: #26 tore the session down
+    /// before showing it, so the only way off the card was another
+    /// sign-in, straight back into the 105 that put the user there.
+    @Published private(set) var canRetryDownloadStationAccess = false
+
     // MARK: - Restore
 
     /// Entry point for app-launch session restore. Wired from `DropStationApp`'s
@@ -297,6 +308,7 @@ final class SessionStore: ObservableObject {
     /// probe, an unauthorized list refresh, a logout. Idempotent.
     private func clearStoredSession() async {
         pendingWebSession = nil
+        canRetryDownloadStationAccess = false
         clearStoredKeychainSession()
         await client.clearSession()
         await client.clearAuthCookies()
@@ -433,6 +445,7 @@ final class SessionStore: ObservableObject {
         // stale" — see `loginPendingConfirmation`.
         loginPendingConfirmation = true
         isPermissionRecovery = false
+        canRetryDownloadStationAccess = false
         state = .loggedIn
     }
 
@@ -501,6 +514,7 @@ final class SessionStore: ObservableObject {
         isWebRecovery = false
         isPermissionRecovery = false
         loginPendingConfirmation = false
+        canRetryDownloadStationAccess = false
         try? await client.logout()
         await clearStoredSession()
         KeychainStorage.deletePassword(for: config.account)
@@ -617,22 +631,73 @@ final class SessionStore: ObservableObject {
         // again, which is the login loop: code → dashboard flash →
         // code screen. Break out and tell the user what's actually
         // wrong instead.
-        let credentialsJustVerified = loginPendingConfirmation
+        if loginPendingConfirmation {
+            // DSM minted this SID moments ago and has not said a word
+            // against it — only Download Station refused to serve it.
+            // Keep it. Tearing it down (as #26 did) is what turned the
+            // recovery card into a dead end: with no session left, the
+            // only way off the card is another sign-in, which lands on
+            // the same 105. Holding the SID means the card can offer a
+            // retry that costs nothing and asks for no code, and the
+            // session survives a relaunch.
+            DSLog.session("handleUnauthorized: fresh session refused by Download Station — holding SID, offering retry")
+            isHandlingUnauthorized = false
+            enterDownloadStationRecovery()
+            return
+        }
         clearStoredKeychainSession()
         state = .restoring
         Task {
             defer { isHandlingUnauthorized = false }
             await client.clearSession()
             await client.clearAuthCookies()
-            if credentialsJustVerified {
-                DSLog.session("handleUnauthorized: fresh session rejected by Download Station — not re-prompting")
-                loginPendingConfirmation = false
-                isPermissionRecovery = true
-                state = .sessionUnauthorized(reason: String(localized: "Sign-in succeeded, but Download Station refused this session. Check that this account is allowed to use Download Station in DSM → Control Panel → Application Privileges, then sign in again."))
-                return
-            }
             if await reauthWithStoredPassword() { return }
             state = .sessionUnauthorized(reason: reason)
+        }
+    }
+
+    /// Park on the recovery card with the session still in hand.
+    ///
+    /// The copy names the one thing the user can act on (Application
+    /// Privileges) but leads with the retry, because a 105 on a
+    /// just-minted session has been a client-side bug at least twice
+    /// now and "your account lacks permission" is a bad default
+    /// explanation for an account that was working.
+    private func enterDownloadStationRecovery() {
+        loginPendingConfirmation = false
+        isPermissionRecovery = true
+        canRetryDownloadStationAccess = true
+        state = .sessionUnauthorized(reason: Self.downloadStationRefusedReason)
+    }
+
+    private static let downloadStationRefusedReason = String(localized: "Sign-in succeeded, but Download Station refused this session. Try again — if it keeps failing, check that this account is allowed to use Download Station in DSM → Control Panel → Application Privileges.")
+
+    /// Retry the Download Station call on the session we're still
+    /// holding. No login, no verification code — if Download Station
+    /// answers, we were never locked out and the user goes straight to
+    /// the task list.
+    func retryDownloadStationAccess() async {
+        guard canRetryDownloadStationAccess, !isHandlingUnauthorized else { return }
+        guard case .sessionUnauthorized = state else { return }
+        DSLog.session("retryDownloadStationAccess: re-probing the held session")
+        state = .restoring
+        do {
+            _ = try await client.listTasks()
+            DSLog.session("retryDownloadStationAccess: Download Station accepted the held session")
+            canRetryDownloadStationAccess = false
+            noteDownloadStationConfirmed()
+            state = .loggedIn
+        } catch let error as APIError where error.isSessionExpired {
+            DSLog.session("retryDownloadStationAccess: still refused (\(error.localizedDescription))")
+            state = .sessionUnauthorized(reason: Self.downloadStationRefusedReason)
+        } catch let error as APIError where error.serverTrustInfo != nil {
+            routeToCertificateTrust(error)
+        } catch {
+            // Couldn't get an answer either way. The session is still
+            // a candidate, so stay on the card with the retry armed
+            // rather than blaming the account.
+            DSLog.session("retryDownloadStationAccess: inconclusive (\(error.localizedDescription))")
+            state = .sessionUnauthorized(reason: String(localized: "Couldn't reach Download Station. Check the connection to your NAS and try again."))
         }
     }
 
@@ -652,6 +717,7 @@ final class SessionStore: ObservableObject {
     private func noteDownloadStationConfirmed() {
         loginPendingConfirmation = false
         isPermissionRecovery = false
+        canRetryDownloadStationAccess = false
         touchSessionMetadata()
     }
 

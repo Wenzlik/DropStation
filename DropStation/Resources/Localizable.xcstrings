@@ -509,6 +509,16 @@
         }
       }
     },
+    "Couldn't reach Download Station. Check the connection to your NAS and try again.": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download Station se nepodařilo kontaktovat. Zkontrolujte spojení s NASem a zkuste to znovu."
+          }
+        }
+      }
+    },
     "Couldn't reach Download Station: %@": {
       "localizations": {
         "cs": {
@@ -1984,6 +1994,16 @@
         }
       }
     },
+    "Sign in again with a verification code": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlásit se znovu ověřovacím kódem"
+          }
+        }
+      }
+    },
     "Sign in to %@": {
       "localizations": {
         "cs": {
@@ -2044,12 +2064,12 @@
         }
       }
     },
-    "Sign-in succeeded, but Download Station refused this session. Check that this account is allowed to use Download Station in DSM → Control Panel → Application Privileges, then sign in again.": {
+    "Sign-in succeeded, but Download Station refused this session. Try again — if it keeps failing, check that this account is allowed to use Download Station in DSM → Control Panel → Application Privileges.": {
       "localizations": {
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Přihlášení proběhlo, ale Download Station tuto relaci odmítla. Zkontrolujte, že tento účet má v DSM → Ovládací panel → Oprávnění aplikací povolenou Download Station, a přihlaste se znovu."
+            "value": "Přihlášení proběhlo, ale Download Station tuto relaci odmítla. Zkuste to znovu — pokud to selhává dál, zkontrolujte, že tento účet má v DSM → Ovládací panel → Oprávnění aplikací povolenou Download Station."
           }
         }
       }
@@ -2427,6 +2447,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zkusit Secure SignIn"
+          }
+        }
+      }
+    },
+    "Try again": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zkusit znovu"
           }
         }
       }

@@ -370,9 +370,11 @@ struct LoginView: View {
     ///     but DSM didn't extend auth to Download Station).
     ///
     /// The heading and icon adapt to the case so the user gets honest
-    /// copy in both, but the recovery actions are identical: switch to
-    /// OTP (the only flow that reliably mints a DownloadStation-scoped
-    /// SID), retry the web sign-in, or sign out entirely.
+    /// copy in both. The primary action depends on what we still hold:
+    /// a live session Download Station refused gets a free retry on
+    /// that same session, a web candidate gets its access check
+    /// re-run, and otherwise the only way forward is a fresh
+    /// verification-code sign-in.
     @ViewBuilder
     private func sessionUnauthorizedContent(reason: String) -> some View {
         // Three shapes of the same card: a genuine expiry, the
@@ -400,7 +402,18 @@ struct LoginView: View {
             )
         )
 
-        if session.canRetryWebValidation {
+        if session.canRetryDownloadStationAccess {
+            // The session is still in hand — retrying costs nothing
+            // and needs no code, so it leads. Signing in again is the
+            // fallback, not the first thing we offer: it is what
+            // looped the user back onto this card.
+            signInButton(label: "Try again", isWorking: false) {
+                Task { await session.retryDownloadStationAccess() }
+            }
+            Button("Sign in again with a verification code") {
+                Task { await session.switchToOTPAndSignOut() }
+            }
+        } else if session.canRetryWebValidation {
             signInButton(label: "Retry access check", isWorking: false) {
                 Task { await session.retryWebValidation() }
             }

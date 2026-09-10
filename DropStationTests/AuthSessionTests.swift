@@ -97,12 +97,49 @@ final class AuthSessionRequestTests: XCTestCase {
             XCTAssertFalse(body.contains("SynoToken="))
             return #"{"success":true,"data":{"sid":"new","synotoken":"newToken"}}"#
         }
-        let result = try await client.login(account: "user", password: "password")
+        let result = try await client.login(account: "user", password: "password", requestCsrfToken: true)
         XCTAssertEqual(result, AuthSession(sid: "new", synoToken: "newToken"))
         await client.clearSession()
         await client.restoreSession(sid: "legacy")
         AuthMockProtocol.handler = { request in
             XCTAssertFalse(AuthMockProtocol.body(request).contains("SynoToken="))
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        _ = try await client.listTasks()
+    }
+
+    /// The native login must not ask DSM for a `SynoToken`.
+    ///
+    /// `enable_syno_token=yes` arms CSRF enforcement on the session
+    /// DSM mints. The native session then carries neither a cookie
+    /// (#25) nor the token itself (#26), so DSM answers every
+    /// `task.cgi` call with 105 on a SID that is otherwise fine —
+    /// which is the 105 the whole login loop is built on. Nothing
+    /// consumes the token either: the web sign-in fetches its own via
+    /// `SYNO.API.Auth.token` inside the WKWebView.
+    func testNativeLoginDoesNotArmCsrfProtection() async throws {
+        let client = await client()
+        var loginBodies: [String] = []
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") { loginBodies.append(body) }
+            return #"{"success":true,"data":{"sid":"plain-sid","synotoken":"unwanted"}}"#
+        }
+        let auth = try await client.login(account: "user", password: "password", otpCode: "123456")
+
+        XCTAssertEqual(loginBodies.count, 1)
+        XCTAssertFalse(loginBodies[0].contains("enable_syno_token"),
+                       "Native login must not arm DSM's CSRF enforcement — that is what makes task.cgi 105")
+        XCTAssertTrue(loginBodies[0].contains("session=DownloadStation"))
+        XCTAssertTrue(loginBodies[0].contains("format=sid"))
+        XCTAssertTrue(loginBodies[0].contains("otp_code=123456"))
+        XCTAssertEqual(auth.sid, "plain-sid")
+
+        // And a token DSM volunteers anyway still never travels on a
+        // cookieless session.
+        AuthMockProtocol.handler = { request in
+            XCTAssertFalse(AuthMockProtocol.body(request).contains("SynoToken"))
+            XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
             return #"{"success":true,"data":{"tasks":[]}}"#
         }
         _ = try await client.listTasks()
@@ -590,6 +627,113 @@ final class AuthSessionRequestTests: XCTestCase {
         }
         XCTAssertTrue(store.isPermissionRecovery,
                       "Card must read as a Download Station permission problem, not an expiry")
+        XCTAssertTrue(store.canRetryDownloadStationAccess,
+                      "The card must offer a way forward that isn't another sign-in")
+    }
+
+    /// The other half of the loop fix: the card it lands on must not
+    /// be a dead end.
+    ///
+    /// #26 tore the session down before showing the card, so the only
+    /// action left was another sign-in — straight back into the 105.
+    /// The SID DSM minted is still perfectly good as far as DSM is
+    /// concerned, so we hold it and retry on it: no login, no code. If
+    /// Download Station answers, the user goes to the task list.
+    func testRefusedFreshSessionRetriesOnTheHeldSessionWithoutAnotherLogin() async {
+        UserDefaults.standard.set(true, forKey: PasswordPersistenceSettings.storageKey)
+        defer { UserDefaults.standard.set(false, forKey: PasswordPersistenceSettings.storageKey) }
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        var loginCount = 0
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            if body.contains("method=login") {
+                loginCount += 1
+                return loginCount == 1
+                    ? #"{"success":false,"error":{"code":403}}"#
+                    : #"{"success":true,"data":{"sid":"held-sid"}}"#
+            }
+            return #"{"success":true}"#
+        }
+        await store.login(config: config, password: "secret")
+        await store.submitOTP("123456")
+        XCTAssertEqual(store.state, .loggedIn)
+
+        store.handleUnauthorized(reason: "Synology error 105")
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("Expected the recovery card, got \(store.state)")
+        }
+        XCTAssertTrue(store.canRetryDownloadStationAccess)
+
+        // The SID must still be in hand — that is what makes the retry
+        // possible at all.
+        let stillLoggedIn = await client.isLoggedIn
+        XCTAssertTrue(stillLoggedIn, "The refused session must be kept so the card can retry it")
+
+        // First retry: Download Station refuses again. Stay on the
+        // card, still no login, still retryable.
+        AuthMockProtocol.handler = { request in
+            if AuthMockProtocol.body(request).contains("method=login") {
+                loginCount += 1
+                return #"{"success":true,"data":{"sid":"unexpected"}}"#
+            }
+            return #"{"success":false,"error":{"code":105}}"#
+        }
+        await store.retryDownloadStationAccess()
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("A still-refused retry must stay on the card, got \(store.state)")
+        }
+        XCTAssertEqual(loginCount, 2, "Retrying must never issue a login")
+        XCTAssertTrue(store.canRetryDownloadStationAccess)
+
+        // Second retry: Download Station answers. Straight to the task
+        // list on the same session, no code asked for.
+        AuthMockProtocol.handler = { request in
+            let body = AuthMockProtocol.body(request)
+            XCTAssertFalse(body.contains("method=login"), "Recovering must not need another login")
+            XCTAssertTrue(body.contains("_sid=held-sid"), "Retry must reuse the held SID")
+            return #"{"success":true,"data":{"tasks":[]}}"#
+        }
+        await store.retryDownloadStationAccess()
+        XCTAssertEqual(store.state, .loggedIn)
+        XCTAssertEqual(loginCount, 2)
+        XCTAssertFalse(store.canRetryDownloadStationAccess)
+        XCTAssertFalse(store.isPermissionRecovery)
+
+        AuthMockProtocol.handler = { _ in #"{"success":true}"# }
+        await store.logout()
+    }
+
+    /// A retry that can't reach the NAS must not be reported as a
+    /// permission problem, and must leave the retry armed.
+    func testInconclusiveRetryKeepsTheSessionAndTheRetry() async {
+        let client = await client()
+        let store = SessionStore(client: client)
+
+        AuthMockProtocol.handler = { _ in #"{"success":true,"data":{"sid":"held-sid"}}"# }
+        await store.login(config: config, password: "secret")
+        XCTAssertEqual(store.state, .loggedIn)
+
+        store.handleUnauthorized(reason: "Synology error 105")
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(store.canRetryDownloadStationAccess)
+
+        AuthMockProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
+        await store.retryDownloadStationAccess()
+        guard case .sessionUnauthorized = store.state else {
+            return XCTFail("Expected to stay on the card, got \(store.state)")
+        }
+        XCTAssertTrue(store.canRetryDownloadStationAccess,
+                      "An unreachable NAS must not disarm the retry")
+        let stillLoggedIn = await client.isLoggedIn
+        XCTAssertTrue(stillLoggedIn)
+
+        AuthMockProtocol.handler = { _ in #"{"success":true}"# }
+        await store.logout()
     }
 
     /// The loop's other entry point: cold launch with a stored SID that
