@@ -8,6 +8,15 @@
     <key>NSSupportsLiveActivities</key>
     <true/>
     <!--
+        Required because we declare CFBundleDocumentTypes (.torrent
+        open-in). DropStation isn't a document browser; it reads the
+        opened file's bytes immediately and submits them to the NAS, so
+        we accept files opened in place (the handler already manages the
+        security-scoped URL). Silences ITMS-90737.
+    -->
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    <!--
         Explicitly declares the localizations DropStation ships. The
         actual translations live in the `Localizable.xcstrings` String
         Catalog (English source + Czech). Listing them here ensures iOS
