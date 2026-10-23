@@ -18,7 +18,7 @@ change. iPad is wide too — intended.
 | --- | --- | --- |
 | Downloads | `SplitPanes`: list (leading) + `TaskDetailView` (trailing). iOS 27.1: `ArrangementView` `.split` around the fold; older OS / Xcode 26: `HStack` (list 320–440 pt). Needs ≥ 1 task; an empty / first-load list stays one centred column. | `NavigationStack(path:)` push, as before |
 | Dashboard | One column capped at 600 pt, centred | unchanged |
-| Add download, Settings, folder picker, bug report, What's new | Form capped at 600 pt, background full width | unchanged |
+| Add download, Settings, folder picker, bug report, What's new, web sign-in | Form capped at 600 pt, background full width | unchanged |
 | Sign-in, Certificate trust | already capped at 520 pt | unchanged |
 | Connection lost | capped at 600 pt | unchanged |
 
@@ -42,15 +42,19 @@ Any part the safe area already covers is not padded twice. The rule is the pure
   the default first-task selection → the list. Nothing was opened, so nothing
   is pushed.
 - **Unfold** with a detail pushed → that task is selected in the two panes.
-- In either layout, a pick that is deleted, cleared or filtered out is dropped
-  from `path`: two panes fall back to the first task, and deleting the last
-  task (which ends two-pane) or folding never pushes a task that's gone.
+- A pick that is deleted or cleared is dropped from `path` in either layout,
+  so deleting the last task (which ends two-pane) or folding never pushes a
+  task that's gone. Only two panes also drop a pick the filter hides (they
+  fall back to the first task); compact keeps a pushed detail open after its
+  task leaves the filter, as before.
 - The tab selection lives in `NavigationStore`, so a fold doesn't change it.
   Sheets and alerts hang off a view that stays put through the layout switch,
   so an open Add sheet survives a fold.
-- The list's scroll position resets on a fold, because each layout has its own
-  `List`. Known limitation, accepted: keeping it means one list identity above
-  the layout switch, which isn't worth the restructuring yet.
+- Each layout has its own `List`, so the rows on screen are remembered per
+  layout (`onScrollVisibilityChange`) and the new list scrolls to the topmost
+  of them when it appears after a fold/unfold. A pop back or a plain iPhone
+  never scrolls. The detail's scroll position still resets (it is rebuilt per
+  layout); unverified on hardware.
 
 ## Compile guards
 

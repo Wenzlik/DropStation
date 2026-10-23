@@ -31,10 +31,12 @@ struct SecureSignInWebView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(browser.loading || browser.checking)
                 }
+                .readableWidth()
                 .padding()
                 .background(.regularMaterial)
                 WebViewContainer(browser: browser, loginURL: loginURL)
             }
+            .avoidsReservedRegions()
             .navigationTitle("Web sign-in · Experimental")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

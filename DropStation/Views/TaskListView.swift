@@ -18,6 +18,9 @@ struct TaskListView: View {
     /// never append). One source for both, so a fold lands on the
     /// same task pushed once and an unfold selects it.
     @State private var path: [DownloadTask] = []
+    /// Where each layout's list is scrolled, so a fold or unfold puts
+    /// the new list back on the same rows.
+    @State private var visibleRows = VisibleRows()
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
@@ -83,10 +86,10 @@ struct TaskListView: View {
                 navigation.downloadsFilterRequest = nil
             }
         }
-        // Drop a pick that was deleted, cleared or filtered out, in
-        // both layouts: two panes fall back to the first task, and a
-        // fold (or deleting the last task, which ends two-pane) never
-        // pushes a task that's gone.
+        // Drop a pick that's gone (see `prunePath`), so a fold — or
+        // deleting the last task, which ends two-pane — never pushes
+        // a task that no longer exists.
+        .onChange(of: viewModel.tasks.map(\.id)) { _, _ in prunePath() }
         .onChange(of: viewModel.filteredTasks.map(\.id)) { _, _ in prunePath() }
         .onChange(of: isTwoPane) { _, _ in prunePath() }
         .alert("Error", isPresented: .init(
@@ -125,8 +128,13 @@ struct TaskListView: View {
         DSLayout.isWide(horizontalSizeClass, verticalSizeClass) && !viewModel.tasks.isEmpty
     }
 
+    /// Compact keeps the pushed detail while its task exists at all,
+    /// even after it leaves the current filter (finished while viewed
+    /// from Downloading) — as before two panes existed. Two panes pick
+    /// within the filtered list, so there a filtered-out pick is
+    /// dropped and the trailing pane falls back to the first task.
     private func prunePath() {
-        let ids = Set(viewModel.filteredTasks.map(\.id))
+        let ids = Set((isTwoPane ? viewModel.filteredTasks : viewModel.tasks).map(\.id))
         path.removeAll { !ids.contains($0.id) }
     }
 
@@ -153,64 +161,78 @@ struct TaskListView: View {
     }
 
     private var listColumn: some View {
-        let selectedID = isTwoPane ? selectedTask?.id : nil
+        let twoPane = isTwoPane
+        let selectedID = twoPane ? selectedTask?.id : nil
         return ZStack {
             backgroundGradient.ignoresSafeArea()
-            List {
-                // Native List preserves swipe actions and refresh while shared
-                // rounded row surfaces establish the content rhythm.
-                Section {
-                    ForEach(viewModel.filteredTasks) { task in
-                        row(for: task, selected: task.id == selectedID)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.lg, bottom: DSSpacing.xs, trailing: DSSpacing.lg))
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive) {
-                                taskPendingDelete = task
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+            ScrollViewReader { proxy in
+                List {
+                    // Native List preserves swipe actions and refresh while shared
+                    // rounded row surfaces establish the content rhythm.
+                    Section {
+                        ForEach(viewModel.filteredTasks) { task in
+                            row(for: task, selected: task.id == selectedID)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.lg, bottom: DSSpacing.xs, trailing: DSSpacing.lg))
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    taskPendingDelete = task
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading) {
+                                if task.canPause {
+                                    Button {
+                                        actionTick += 1
+                                        Task { await viewModel.pause(task) }
+                                    } label: {
+                                        Label("Pause", systemImage: "pause.fill")
+                                    }
+                                    .tint(.orange)
+                                }
+                                if task.canStop {
+                                    Button {
+                                        actionTick += 1
+                                        Task { await viewModel.stop(task) }
+                                    } label: {
+                                        Label("Stop", systemImage: "stop.fill")
+                                    }
+                                    .tint(.gray)
+                                }
+                                if task.canResume {
+                                    Button {
+                                        actionTick += 1
+                                        Task { await viewModel.resume(task) }
+                                    } label: {
+                                        Label("Resume", systemImage: "play.fill")
+                                    }
+                                    .tint(.green)
+                                }
+                            }
+                            .contextMenu { rowMenu(for: task) }
+                            .onScrollVisibilityChange { visible in
+                                visibleRows.update(task.id, visible: visible, twoPane: twoPane)
                             }
                         }
-                        .swipeActions(edge: .leading) {
-                            if task.canPause {
-                                Button {
-                                    actionTick += 1
-                                    Task { await viewModel.pause(task) }
-                                } label: {
-                                    Label("Pause", systemImage: "pause.fill")
-                                }
-                                .tint(.orange)
-                            }
-                            if task.canStop {
-                                Button {
-                                    actionTick += 1
-                                    Task { await viewModel.stop(task) }
-                                } label: {
-                                    Label("Stop", systemImage: "stop.fill")
-                                }
-                                .tint(.gray)
-                            }
-                            if task.canResume {
-                                Button {
-                                    actionTick += 1
-                                    Task { await viewModel.resume(task) }
-                                } label: {
-                                    Label("Resume", systemImage: "play.fill")
-                                }
-                                .tint(.green)
-                            }
-                        }
-                        .contextMenu { rowMenu(for: task) }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .safeAreaInset(edge: .top, spacing: 0) { filterChipBar }
+                .refreshable { await viewModel.refresh() }
+                .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
+                .sensoryFeedback(.impact(weight: .light), trigger: actionTick)
+                .onAppear {
+                    // Non-empty only right after a fold/unfold swapped the
+                    // layouts — never on a pop back, never on a plain iPhone.
+                    let rows = visibleRows.takeOther(than: twoPane)
+                    if let top = viewModel.filteredTasks.first(where: { rows.contains($0.id) }) {
+                        proxy.scrollTo(top.id, anchor: .top)
                     }
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .safeAreaInset(edge: .top, spacing: 0) { filterChipBar }
-            .refreshable { await viewModel.refresh() }
-            .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
-            .sensoryFeedback(.impact(weight: .light), trigger: actionTick)
         }
         .overlay {
             if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
@@ -586,5 +608,26 @@ private struct TagPill: View {
 
     private var palette: (fg: Color, bg: Color) {
         (Color.primary.opacity(0.7), Color.primary.opacity(0.06))
+    }
+}
+
+/// Rows each layout's list has on screen. A plain class: scrolling
+/// mustn't re-render the view. The two layouts are separate lists, so
+/// each keeps its own set and the new one reads (and clears) the old.
+private final class VisibleRows {
+    private var ids: [Bool: Set<String>] = [:]
+
+    func update(_ id: String, visible: Bool, twoPane: Bool) {
+        if visible {
+            ids[twoPane, default: []].insert(id)
+        } else if ids[twoPane, default: []].count > 1 {
+            // Keep the last one: tearing a list down on a fold may
+            // report its rows gone before the new list reads them.
+            ids[twoPane]?.remove(id)
+        }
+    }
+
+    func takeOther(than twoPane: Bool) -> Set<String> {
+        ids.removeValue(forKey: !twoPane) ?? []
     }
 }
