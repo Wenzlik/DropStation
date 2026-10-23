@@ -56,6 +56,10 @@ Any part the safe area already covers is not padded twice. The rule is the pure
   never scrolls. The detail's scroll position still resets (it is rebuilt per
   layout); unverified on hardware.
 
+## Known limitations
+
+- The fold/unfold scroll anchor can land on a lower visible row than the old top one: the outgoing list's teardown callbacks leave whichever row disappeared last. Fix is a snapshot taken at the layout switch.
+
 ## Compile guards
 
 Every iOS 27.1 symbol is behind `#if compiler(>=6.4)` (Xcode 26 / Xcode Cloud)

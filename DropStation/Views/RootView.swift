@@ -9,6 +9,7 @@ struct RootView: View {
             switch session.state {
             case .restoring:
                 DSLoadingView("Restoring session…")
+                    .avoidsReservedRegions()
             case .loggedIn:
                 LoggedInShell(session: session)
             case .connectionLost:
