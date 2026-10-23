@@ -110,6 +110,11 @@ The iOS 27-inspired visual pass is recorded in [CHANGELOG.md](../../CHANGELOG.md
 under Unreleased. See [the visual brief](../ux/redesign-ios27.md) and
 [validation notes](../reviews/ui-review-ios27.md). Device/NAS sign-off remains.
 
+iPhone Duo / wide-window layout (Downloads list + detail side by side,
+readable-width forms, keeping content off the fold) is in CHANGELOG
+Unreleased too. Decisions and the simulator checklist:
+[iphone-duo.md](../next-steps/iphone-duo.md).
+
 # Current beta hardening
 
 ## High priority

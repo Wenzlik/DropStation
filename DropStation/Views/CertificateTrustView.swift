@@ -43,6 +43,7 @@ struct CertificateTrustView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .avoidsReservedRegions()
     }
 
     // MARK: - Sections

@@ -49,6 +49,7 @@ struct FolderPickerView: View {
                     }
                 }
             }
+            .readableWidth()
             .navigationTitle("Choose destination")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -61,9 +62,11 @@ struct FolderPickerView: View {
                     onPick(picked)
                     dismiss()
                 }
+                .readableWidth()
             }
             .task { await load() }
         }
+        .avoidsReservedRegions()
     }
 
     private func load() async {

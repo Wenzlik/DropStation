@@ -13,6 +13,16 @@ struct TaskListView: View {
     /// Bumped on every task action (swipe or context menu) to drive a
     /// confirming haptic via `.sensoryFeedback`.
     @State private var actionTick = 0
+    /// The opened task. Compact: the pushed detail. Two panes: the
+    /// task the user picked for the trailing pane (taps replace it,
+    /// never append). One source for both, so a fold lands on the
+    /// same task pushed once and an unfold selects it.
+    @State private var path: [DownloadTask] = []
+    /// Where each layout's list is scrolled, so a fold or unfold puts
+    /// the new list back on the same rows.
+    @State private var visibleRows = VisibleRows()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     init(session: SessionStore, store: DownloadTaskStore) {
         // 105 forwarding now lives on DownloadTaskStore — wired
@@ -24,22 +34,144 @@ struct TaskListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Sheets, alerts and observers hang off this stable Group, not
+        // either layout, so a fold doesn't dismiss an open Add sheet.
+        Group {
+            if isTwoPane {
+                SplitPanes {
+                    NavigationStack { listColumn }
+                } secondary: {
+                    NavigationStack { detailPane }
+                }
+            } else {
+                NavigationStack(path: $path) {
+                    listColumn
+                        .navigationDestination(for: DownloadTask.self) { task in
+                            TaskDetailView(task: task, client: session.client)
+                        }
+                }
+                .avoidsReservedRegions()
+            }
+        }
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskView(
+                onAddURI: { uri, destination in
+                    await viewModel.createTask(uri: uri, destination: destination)
+                },
+                onAddFile: { data, name, destination in
+                    await viewModel.createTask(fileData: data, filename: name, destination: destination)
+                }
+            )
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
+        .onChange(of: session.pendingMagnetLink) { _, newValue in
+            if newValue != nil {
+                showingAddTask = true
+            }
+        }
+        .onChange(of: session.pendingTorrentFile) { _, newValue in
+            if newValue != nil {
+                showingAddTask = true
+            }
+        }
+        .onChange(of: navigation.downloadsFilterRequest) { _, request in
+            // One-shot hint from a sibling tab (e.g. the
+            // dashboard's "See all →" link landing on Finished).
+            // Apply, then clear so the next user-driven filter
+            // change isn't overwritten on a re-render.
+            if let request {
+                viewModel.filter = request
+                navigation.downloadsFilterRequest = nil
+            }
+        }
+        // Drop a pick that's gone (see `prunePath`), so a fold — or
+        // deleting the last task, which ends two-pane — never pushes
+        // a task that no longer exists.
+        .onChange(of: viewModel.tasks.map(\.id)) { _, _ in prunePath() }
+        .onChange(of: viewModel.filteredTasks.map(\.id)) { _, _ in prunePath() }
+        .onChange(of: isTwoPane) { _, _ in prunePath() }
+        .alert("Error", isPresented: .init(
+            get: { viewModel.errorMessage != nil },
+            set: { if !$0 { viewModel.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
+        }
+        .confirmationDialog(
+            "Delete this download?",
+            isPresented: .init(
+                get: { taskPendingDelete != nil },
+                set: { if !$0 { taskPendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: taskPendingDelete
+        ) { task in
+            Button("Delete task and files", role: .destructive) {
+                Task { await viewModel.delete(task, keepPartialFiles: false) }
+            }
+            Button("Delete task only (keep partial files)") {
+                Task { await viewModel.delete(task, keepPartialFiles: true) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { task in
+            Text(task.title)
+        }
+    }
+
+    /// List + detail side by side on a wide window (iPhone Duo inner
+    /// display, iPad). Needs at least one task: an empty or first-load
+    /// list keeps the single centred column.
+    private var isTwoPane: Bool {
+        DSLayout.isWide(horizontalSizeClass, verticalSizeClass) && !viewModel.tasks.isEmpty
+    }
+
+    /// Compact keeps the pushed detail while its task exists at all,
+    /// even after it leaves the current filter (finished while viewed
+    /// from Downloading) — as before two panes existed. Two panes pick
+    /// within the filtered list, so there a filtered-out pick is
+    /// dropped and the trailing pane falls back to the first task.
+    private func prunePath() {
+        let ids = Set((isTwoPane ? viewModel.filteredTasks : viewModel.tasks).map(\.id))
+        path.removeAll { !ids.contains($0.id) }
+    }
+
+    /// The trailing pane's task: the user's pick while it's still
+    /// listed, otherwise the first task. The fallback is never written
+    /// into `path`, so folding without a pick lands on the list.
+    private var selectedTask: DownloadTask? {
+        let tasks = viewModel.filteredTasks
+        return path.last.flatMap { picked in tasks.first { $0.id == picked.id } } ?? tasks.first
+    }
+
+    @ViewBuilder
+    private var detailPane: some View {
+        if let task = selectedTask {
+            TaskDetailView(task: task, client: session.client)
+                .id(task.id)
+        } else {
             ZStack {
                 backgroundGradient.ignoresSafeArea()
+                DSEmptyState(title: "No download selected", systemImage: "arrow.down.circle")
+                    .readableWidth()
+            }
+        }
+    }
+
+    private var listColumn: some View {
+        let twoPane = isTwoPane
+        let selectedID = twoPane ? selectedTask?.id : nil
+        return ZStack {
+            backgroundGradient.ignoresSafeArea()
+            ScrollViewReader { proxy in
                 List {
                     // Native List preserves swipe actions and refresh while shared
                     // rounded row surfaces establish the content rhythm.
                     Section {
                         ForEach(viewModel.filteredTasks) { task in
-                            TaskRow(task: task)
-                            // Tap target without the system disclosure
-                            // chevron — a zero-opacity link behind the
-                            // card keeps it a clean media-style tile.
-                            .background {
-                                NavigationLink(value: task) { EmptyView() }
-                                    .opacity(0)
-                            }
+                            row(for: task, selected: task.id == selectedID)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: DSSpacing.xs, leading: DSSpacing.lg, bottom: DSSpacing.xs, trailing: DSSpacing.lg))
@@ -80,6 +212,9 @@ struct TaskListView: View {
                                 }
                             }
                             .contextMenu { rowMenu(for: task) }
+                            .onScrollVisibilityChange { visible in
+                                visibleRows.update(task.id, visible: visible, twoPane: twoPane)
+                            }
                         }
                     }
                 }
@@ -89,100 +224,76 @@ struct TaskListView: View {
                 .refreshable { await viewModel.refresh() }
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search downloads")
                 .sensoryFeedback(.impact(weight: .light), trigger: actionTick)
-            }
-            .overlay {
-                if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
-                    DSEmptyState(
-                        title: LocalizedStringKey(emptyStateTitle),
-                        message: LocalizedStringKey(emptyStateMessage),
-                        systemImage: emptyStateIcon
-                    )
-                }
-            }
-            .navigationTitle(navigationTitle)
-            .navigationSubtitle(speedSubtitle)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    sortMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAddTask = true
-                    } label: {
-                        Image(systemName: "plus")
+                .onAppear {
+                    // Non-empty only right after a fold/unfold swapped the
+                    // layouts — never on a pop back, never on a plain iPhone.
+                    let rows = visibleRows.takeOther(than: twoPane)
+                    if let top = viewModel.filteredTasks.first(where: { rows.contains($0.id) }) {
+                        proxy.scrollTo(top.id, anchor: .top)
                     }
                 }
             }
-            .sheet(isPresented: $showingAddTask) {
-                AddTaskView(
-                    onAddURI: { uri, destination in
-                        await viewModel.createTask(uri: uri, destination: destination)
-                    },
-                    onAddFile: { data, name, destination in
-                        await viewModel.createTask(fileData: data, filename: name, destination: destination)
-                    }
+        }
+        .overlay {
+            if viewModel.filteredTasks.isEmpty, !viewModel.isLoading {
+                DSEmptyState(
+                    title: LocalizedStringKey(emptyStateTitle),
+                    message: LocalizedStringKey(emptyStateMessage),
+                    systemImage: emptyStateIcon
                 )
+                .readableWidth()
             }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
+        }
+        .navigationTitle(navigationTitle)
+        .navigationSubtitle(speedSubtitle)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
             }
-            .navigationDestination(for: DownloadTask.self) { task in
-                TaskDetailView(task: task, client: session.client)
+            ToolbarItem(placement: .topBarTrailing) {
+                sortMenu
             }
-            .onChange(of: session.pendingMagnetLink) { _, newValue in
-                if newValue != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     showingAddTask = true
+                } label: {
+                    Image(systemName: "plus")
                 }
             }
-            .onChange(of: session.pendingTorrentFile) { _, newValue in
-                if newValue != nil {
-                    showingAddTask = true
+        }
+    }
+
+    /// Compact: a zero-opacity link behind the card pushes the detail —
+    /// a tap target without the system disclosure chevron, so the card
+    /// stays a clean media-style tile. Two panes: a tap picks the task
+    /// for the trailing pane instead.
+    @ViewBuilder
+    private func row(for task: DownloadTask, selected: Bool) -> some View {
+        if isTwoPane {
+            Button {
+                path = [task]
+            } label: {
+                TaskRow(task: task)
+            }
+            .buttonStyle(.plain)
+            .overlay {
+                if selected {
+                    RoundedRectangle(cornerRadius: DSRadius.card, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
                 }
             }
-            .onChange(of: navigation.downloadsFilterRequest) { _, request in
-                // One-shot hint from a sibling tab (e.g. the
-                // dashboard's "See all →" link landing on Finished).
-                // Apply, then clear so the next user-driven filter
-                // change isn't overwritten on a re-render.
-                if let request {
-                    viewModel.filter = request
-                    navigation.downloadsFilterRequest = nil
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityRemoveTraits(selected ? [] : .isSelected)
+        } else {
+            TaskRow(task: task)
+                .background {
+                    NavigationLink(value: task) { EmptyView() }
+                        .opacity(0)
                 }
-            }
-            .alert("Error", isPresented: .init(
-                get: { viewModel.errorMessage != nil },
-                set: { if !$0 { viewModel.errorMessage = nil } }
-            )) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(viewModel.errorMessage ?? "")
-            }
-            .confirmationDialog(
-                "Delete this download?",
-                isPresented: .init(
-                    get: { taskPendingDelete != nil },
-                    set: { if !$0 { taskPendingDelete = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: taskPendingDelete
-            ) { task in
-                Button("Delete task and files", role: .destructive) {
-                    Task { await viewModel.delete(task, keepPartialFiles: false) }
-                }
-                Button("Delete task only (keep partial files)") {
-                    Task { await viewModel.delete(task, keepPartialFiles: true) }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: { task in
-                Text(task.title)
-            }
         }
     }
 
@@ -497,5 +608,26 @@ private struct TagPill: View {
 
     private var palette: (fg: Color, bg: Color) {
         (Color.primary.opacity(0.7), Color.primary.opacity(0.06))
+    }
+}
+
+/// Rows each layout's list has on screen. A plain class: scrolling
+/// mustn't re-render the view. The two layouts are separate lists, so
+/// each keeps its own set and the new one reads (and clears) the old.
+private final class VisibleRows {
+    private var ids: [Bool: Set<String>] = [:]
+
+    func update(_ id: String, visible: Bool, twoPane: Bool) {
+        if visible {
+            ids[twoPane, default: []].insert(id)
+        } else if ids[twoPane, default: []].count > 1 {
+            // Keep the last one: tearing a list down on a fold may
+            // report its rows gone before the new list reads them.
+            ids[twoPane]?.remove(id)
+        }
+    }
+
+    func takeOther(than twoPane: Bool) -> Set<String> {
+        ids.removeValue(forKey: !twoPane) ?? []
     }
 }

@@ -33,6 +33,8 @@ struct ChangelogView: View {
                 }
             }
         }
+        .readableWidth()
+        .avoidsReservedRegions()
         .navigationTitle("What's new")
         .navigationBarTitleDisplayMode(.inline)
         .task { load() }

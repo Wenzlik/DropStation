@@ -97,6 +97,15 @@
             </array>
         </dict>
     </array>
+    <!--
+        DropStation only reads an opened .torrent once (in
+        SessionStore.handleIncomingURL) and uploads its bytes to the
+        NAS; it never edits the original file. So it doesn't open
+        documents in place: the system hands us a copy. Required with
+        CFBundleDocumentTypes (App Store Connect warning ITMS-90737).
+    -->
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <false/>
     <key>UTImportedTypeDeclarations</key>
     <array>
         <dict>

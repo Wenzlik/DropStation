@@ -175,6 +175,7 @@ struct AddTaskView: View {
                     .listRowBackground(Color.clear)
                 }
             }
+            .readableWidth()
             .dsFormCanvas()
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(DSRadius.hero)
@@ -220,6 +221,7 @@ struct AddTaskView: View {
                 }
             }
         }
+        .avoidsReservedRegions()
     }
 
     private var canSubmit: Bool {

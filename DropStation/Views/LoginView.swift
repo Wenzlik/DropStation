@@ -79,6 +79,7 @@ struct LoginView: View {
                 }
             )
         }
+        .avoidsReservedRegions()
     }
 
     private var settingsButton: some View {

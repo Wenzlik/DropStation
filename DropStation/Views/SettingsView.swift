@@ -42,6 +42,7 @@ struct SettingsView: View {
                 feedbackSection
                 aboutSection
             }
+            .readableWidth()
             .dsFormCanvas()
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(DSRadius.hero)
@@ -64,6 +65,7 @@ struct SettingsView: View {
                 Text("Removes the saved session from the Keychain. Next sign-in will ask for your password and any 2FA code from scratch.")
             }
         }
+        .avoidsReservedRegions()
     }
 
     private var experimentalSignInSection: some View {

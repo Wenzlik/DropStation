@@ -70,7 +70,9 @@ struct BugReportView: View {
                 .padding(.horizontal, DSSpacing.lg)
                 .padding(.vertical, DSSpacing.lg)
             }
+            .readableWidth()
         }
+        .avoidsReservedRegions()
         .navigationTitle("Report a bug")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
