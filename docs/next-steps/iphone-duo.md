@@ -18,7 +18,7 @@ change. iPad is wide too — intended.
 | --- | --- | --- |
 | Downloads | `SplitPanes`: list (leading) + `TaskDetailView` (trailing). iOS 27.1: `ArrangementView` `.split` around the fold; older OS / Xcode 26: `HStack` (list 320–440 pt). Needs ≥ 1 task; an empty / first-load list stays one centred column. | `NavigationStack(path:)` push, as before |
 | Dashboard | One column capped at 600 pt, centred | unchanged |
-| Add download, Settings | Form capped at 600 pt, background full width | unchanged |
+| Add download, Settings, folder picker, bug report, What's new | Form capped at 600 pt, background full width | unchanged |
 | Sign-in, Certificate trust | already capped at 520 pt | unchanged |
 | Connection lost | capped at 600 pt | unchanged |
 
@@ -42,13 +42,15 @@ Any part the safe area already covers is not padded twice. The rule is the pure
   the default first-task selection → the list. Nothing was opened, so nothing
   is pushed.
 - **Unfold** with a detail pushed → that task is selected in the two panes.
-- In two panes, a pick that is deleted, cleared or filtered out is dropped from
-  `path`, so the pane falls back to the first task.
+- In either layout, a pick that is deleted, cleared or filtered out is dropped
+  from `path`: two panes fall back to the first task, and deleting the last
+  task (which ends two-pane) or folding never pushes a task that's gone.
 - The tab selection lives in `NavigationStore`, so a fold doesn't change it.
   Sheets and alerts hang off a view that stays put through the layout switch,
   so an open Add sheet survives a fold.
 - The list's scroll position resets on a fold, because each layout has its own
-  `List`.
+  `List`. Known limitation, accepted: keeping it means one list identity above
+  the layout switch, which isn't worth the restructuring yet.
 
 ## Compile guards
 

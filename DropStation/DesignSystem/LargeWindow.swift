@@ -22,8 +22,11 @@ extension View {
     /// safe area, so backgrounds still run to the edge.
     /// Changes nothing where the system reserves nothing, or before
     /// iOS 27.1 / on the Xcode 26 toolchain.
-    func avoidsReservedRegions() -> some View {
-        modifier(AvoidsReservedRegions())
+    /// `includingFold: false` avoids only occlusions (the status
+    /// column) — for chrome like the tab bar whose panes handle the
+    /// fold themselves.
+    func avoidsReservedRegions(includingFold: Bool = true) -> some View {
+        modifier(AvoidsReservedRegions(includingFold: includingFold))
     }
 }
 
@@ -87,6 +90,7 @@ private struct ReadableWidth: ViewModifier {
 }
 
 private struct AvoidsReservedRegions: ViewModifier {
+    let includingFold: Bool
     @State private var insets = ReservedEdgeInsets()
 
     func body(content: Content) -> some View {
@@ -99,7 +103,7 @@ private struct AvoidsReservedRegions: ViewModifier {
                 .safeAreaPadding(EdgeInsets(top: insets.top, leading: insets.leading, bottom: insets.bottom, trailing: insets.trailing))
                 .onGeometryChange(for: ReservedEdgeInsets.self) { proxy in
                     let regions = proxy.reservedRegions(kind: .occlusion)
-                        + proxy.reservedRegions(kind: .division)
+                        + (includingFold ? proxy.reservedRegions(kind: .division) : [])
                     let safe = proxy.safeAreaInsets
                     return ReservedEdgeInsets(avoiding: regions.map(\.frame), in: proxy.size)
                         .beyond(ReservedEdgeInsets(top: safe.top, leading: safe.leading, bottom: safe.bottom, trailing: safe.trailing))

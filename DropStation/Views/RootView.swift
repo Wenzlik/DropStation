@@ -69,5 +69,9 @@ private struct LoggedInShell: View {
                 .tag(NavigationStore.Tab.downloads)
         }
         .tabBarMinimizeBehavior(.never)
+        // The tab bar sits outside each tab's own avoidance; keep it
+        // out of the outer display's status column. Occlusion only —
+        // the tabs' panes already handle the fold.
+        .avoidsReservedRegions(includingFold: false)
     }
 }

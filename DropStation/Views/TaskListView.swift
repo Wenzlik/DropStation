@@ -83,10 +83,10 @@ struct TaskListView: View {
                 navigation.downloadsFilterRequest = nil
             }
         }
-        // Two panes: drop a pick that was deleted, cleared or filtered
-        // out, so the pane falls back to the first task and a later
-        // fold doesn't push a task that's gone. Compact keeps today's
-        // behaviour (a pushed detail stays put).
+        // Drop a pick that was deleted, cleared or filtered out, in
+        // both layouts: two panes fall back to the first task, and a
+        // fold (or deleting the last task, which ends two-pane) never
+        // pushes a task that's gone.
         .onChange(of: viewModel.filteredTasks.map(\.id)) { _, _ in prunePath() }
         .onChange(of: isTwoPane) { _, _ in prunePath() }
         .alert("Error", isPresented: .init(
@@ -126,7 +126,6 @@ struct TaskListView: View {
     }
 
     private func prunePath() {
-        guard isTwoPane else { return }
         let ids = Set(viewModel.filteredTasks.map(\.id))
         path.removeAll { !ids.contains($0.id) }
     }
@@ -266,6 +265,7 @@ struct TaskListView: View {
                 }
             }
             .accessibilityAddTraits(selected ? .isSelected : [])
+            .accessibilityRemoveTraits(selected ? [] : .isSelected)
         } else {
             TaskRow(task: task)
                 .background {
