@@ -79,6 +79,9 @@ struct DashboardView: View {
                             .animation(.easeInOut(duration: 0.2), value: viewModel.recentlyCompleted.map(\.id))
                     }
                     .padding(DSSpacing.lg)
+                    // Wide windows: one readable column rather than
+                    // cards stretched edge to edge.
+                    .readableWidth()
                     .animation(.easeInOut(duration: 0.2), value: viewModel.hasActiveTransfers)
                 }
                 .refreshable {
@@ -136,6 +139,7 @@ struct DashboardView: View {
                 }
             }
         }
+        .avoidsReservedRegions()
     }
 
     // MARK: - Hero

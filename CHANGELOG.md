@@ -12,6 +12,7 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Verification-code sign-in works again.** Signing in with a password and a verification code now reaches the download list and stays there. Two earlier attempts at the same bug each fixed one half of it and left the other: the app asked the NAS to protect the session against cross-site requests and then never sent the proof the NAS was now waiting for, so every request came back "this session has no permission". It no longer asks for that protection on a code sign-in, which is how the app worked before. And if Download Station does refuse a session, the recovery screen keeps the session and offers **Try again** on it — no new sign-in, no new code — instead of throwing it away and sending you back to the code screen.
 
 ### Improved
+- **iPhone Duo and iPad.** On the unfolded iPhone Duo and on iPad, Downloads shows the list and the selected download side by side, and the Dashboard, sign-in and forms keep a comfortable reading width. Nothing sits under the fold. Folding and unfolding keeps your tab and the open download.
 - Experimental web sign-in is available in login Settings, with clearer progress, retry, and verification-code fallback.
 - Web sessions now retain the information needed for protected NAS requests and session restore.
 - Incorrect verification codes can be retried without leaving the code screen.

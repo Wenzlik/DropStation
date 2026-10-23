@@ -1339,6 +1339,16 @@
         }
       }
     },
+    "No download selected": {
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Není vybráno žádné stahování"
+          }
+        }
+      }
+    },
     "No downloads": {
       "localizations": {
         "cs": {

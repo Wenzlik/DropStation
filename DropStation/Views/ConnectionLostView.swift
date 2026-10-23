@@ -64,6 +64,8 @@ struct ConnectionLostView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, DSSpacing.lg)
+            .readableWidth()
         }
+        .avoidsReservedRegions()
     }
 }
